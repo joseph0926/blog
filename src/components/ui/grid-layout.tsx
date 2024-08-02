@@ -31,23 +31,24 @@ function GridLayoutHeader({ className, children }: ComponentProps<'div'>) {
 }
 
 function GridLayoutTitle({
-  img,
+  image,
   gridTitle,
   gridDescription,
   className,
-  width,
-  height,
-  imageClassName,
   innerClassName,
 }: {
-  gridTitle: string | React.ReactNode;
-  gridDescription: string | React.ReactNode;
-  img?: string;
-  width?: number;
-  height?: number;
-  imageClassName?: string;
+  gridTitle: React.ReactNode;
+  gridDescription: React.ReactNode;
+  image?: {
+    src: string;
+    alt: string;
+    width: number;
+    height: number;
+    className?: string;
+  };
+  className?: string;
   innerClassName?: string;
-} & ComponentProps<'div'>) {
+}) {
   return (
     <div
       className={cn(
@@ -55,8 +56,14 @@ function GridLayoutTitle({
         className
       )}
     >
-      {img && (
-        <Image src={img} alt="thumbnail" width={width} height={height} className={imageClassName} />
+      {image && (
+        <Image
+          src={image.src}
+          alt={image.alt}
+          width={image.width}
+          height={image.height}
+          className={image.className}
+        />
       )}
       <div
         className={cn(
