@@ -1,8 +1,14 @@
-'use client';
-
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
+import Image, { ImageProps } from 'next/image';
 import { ComponentProps } from 'react';
+
+type GridLayoutTitleProps = {
+  gridTitle: React.ReactNode;
+  gridDescription: React.ReactNode;
+  image?: ImageProps;
+  innerClassName?: string;
+  className?: string;
+};
 
 function GridLayout({ className, children }: ComponentProps<'div'>) {
   return (
@@ -30,25 +36,7 @@ function GridLayoutHeader({ className, children }: ComponentProps<'div'>) {
   );
 }
 
-function GridLayoutTitle({
-  image,
-  gridTitle,
-  gridDescription,
-  className,
-  innerClassName,
-}: {
-  gridTitle: React.ReactNode;
-  gridDescription: React.ReactNode;
-  image?: {
-    src: string;
-    alt: string;
-    width: number;
-    height: number;
-    className?: string;
-  };
-  className?: string;
-  innerClassName?: string;
-}) {
+function GridLayoutTitle({ image, gridTitle, gridDescription, className }: GridLayoutTitleProps) {
   return (
     <div
       className={cn(
@@ -63,12 +51,12 @@ function GridLayoutTitle({
           width={image.width}
           height={image.height}
           className={image.className}
+          style={image.style}
         />
       )}
       <div
         className={cn(
-          'mb-2 mt-2 font-sans font-bold text-neutral-600 dark:text-neutral-200',
-          innerClassName
+          'mb-2 mt-2 flex flex-col justify-between gap-5 font-sans font-bold text-neutral-600 dark:text-neutral-200'
         )}
       >
         {gridTitle}
