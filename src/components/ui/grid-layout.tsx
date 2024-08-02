@@ -1,4 +1,7 @@
+'use client';
+
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 import { ComponentProps } from 'react';
 
 function GridLayout({ className, children }: ComponentProps<'div'>) {
@@ -14,13 +17,7 @@ function GridLayout({ className, children }: ComponentProps<'div'>) {
   );
 }
 
-function GridLayoutHeader({
-  className,
-  children,
-  gridHeader,
-}: {
-  gridHeader: React.ReactNode;
-} & ComponentProps<'div'>) {
+function GridLayoutHeader({ className, children }: ComponentProps<'div'>) {
   return (
     <div
       className={cn(
@@ -28,44 +25,50 @@ function GridLayoutHeader({
         className
       )}
     >
-      {gridHeader}
       {children}
     </div>
   );
 }
 
 function GridLayoutTitle({
-  icon,
+  img,
   gridTitle,
+  gridDescription,
   className,
+  width,
+  height,
+  imageClassName,
+  innerClassName,
 }: {
   gridTitle: string | React.ReactNode;
-  icon?: React.ReactNode;
+  gridDescription: string | React.ReactNode;
+  img?: string;
+  width?: number;
+  height?: number;
+  imageClassName?: string;
+  innerClassName?: string;
 } & ComponentProps<'div'>) {
   return (
-    <div className={cn('transition duration-200 group-hover/grid:translate-x-2', className)}>
-      {icon}
-      <div className="mb-2 mt-2 font-sans font-bold text-neutral-600 dark:text-neutral-200">
+    <div
+      className={cn(
+        'h-full w-full overflow-hidden transition duration-200 group-hover/grid:translate-x-2',
+        className
+      )}
+    >
+      {img && (
+        <Image src={img} alt="thumbnail" width={width} height={height} className={imageClassName} />
+      )}
+      <div
+        className={cn(
+          'mb-2 mt-2 font-sans font-bold text-neutral-600 dark:text-neutral-200',
+          innerClassName
+        )}
+      >
         {gridTitle}
+        {gridDescription}
       </div>
     </div>
   );
 }
 
-function GridLayoutDescription({
-  gridDescription,
-  className,
-}: { gridDescription: string | React.ReactNode } & ComponentProps<'div'>) {
-  return (
-    <div
-      className={cn(
-        'font-sans text-xs font-normal text-neutral-600 dark:text-neutral-300',
-        className
-      )}
-    >
-      {gridDescription}
-    </div>
-  );
-}
-
-export { GridLayout, GridLayoutDescription, GridLayoutHeader, GridLayoutTitle };
+export { GridLayout, GridLayoutHeader, GridLayoutTitle };
