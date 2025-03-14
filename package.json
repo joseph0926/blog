@@ -8,7 +8,9 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "format": "prettier --w \"**/*.{js,ts,jsx,tsx}\""
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
