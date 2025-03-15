@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { commonOpenGraph } from '@/meta/open-graph';
 import './globals.css';
 
 const geistSans = Geist({
@@ -14,14 +15,16 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: '김영훈 블로그',
-  description: '프론트엔드 개발자 김영훈의 블로그입니다.',
+  description: '프론트엔드 개발자 김영훈의 블로그입니다',
+  openGraph: commonOpenGraph,
+  icons: {
+    icon: '/logo/logo.svg',
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko">
       <body
