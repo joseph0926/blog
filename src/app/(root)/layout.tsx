@@ -10,7 +10,7 @@ export default function HomeLayout({
   return (
     <>
       <Header useTitle />
-      <Container as="main" size="lg">
+      <Container as="main" size="lg" className="mt-16">
         {children}
       </Container>
       <Footer />
