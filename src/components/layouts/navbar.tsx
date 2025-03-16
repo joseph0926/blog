@@ -1,6 +1,7 @@
 import { navbarItems } from '@/constants/navbar';
 import { LogoIcon } from '../ui/icons';
 import Link from 'next/link';
+import { ThemeToggle } from '../ui/theme-toggle';
 
 export const Navbar = () => {
   return (
@@ -14,6 +15,7 @@ export const Navbar = () => {
             <Link href={item.href}>{item.label}</Link>
           </li>
         ))}
+        <ThemeToggle />
       </ul>
     </nav>
   );
