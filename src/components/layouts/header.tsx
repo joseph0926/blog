@@ -12,7 +12,7 @@ export const Header = ({ useTitle, title }: HeaderProps) => {
       <Navbar />
       {useTitle && (
         <div className="border-t border-b py-12">
-          <h1 className="text-center text-9xl font-extrabold tracking-tighter uppercase">
+          <h1 className="text-center text-5xl font-extrabold tracking-tighter uppercase sm:text-6xl md:text-7xl lg:text-9xl">
             {title ?? 'joseph0926'}
           </h1>
         </div>

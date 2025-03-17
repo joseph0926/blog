@@ -28,7 +28,7 @@ export const BlogPost = ({ type = 'col' }: BlogPostProps) => {
         alt=""
         className={cn(
           'aspect-video rounded-lg object-cover',
-          type === 'row' ? 'w-1/2' : 'w-full',
+          type === 'row' ? 'w-1/3 sm:w-1/2' : 'w-full',
         )}
       />
       <div className="flex flex-col gap-3">
@@ -44,12 +44,12 @@ export const BlogPost = ({ type = 'col' }: BlogPostProps) => {
           How do you create compelling presentations that wow your colleagues
           and impress your managers?
         </p>
-        <ul className="flex items-center gap-2">
+        <ul className="flex flex-wrap items-center gap-2">
           {DUMMY_TAGS.map((tag) => (
             <Badge
               key={tag.id}
               variant="outline"
-              className="mt-3 inline-block rounded-full px-2.5 text-xs font-medium"
+              className="mt-0.5 inline-block rounded-full px-2.5 text-xs font-medium md:mt-3"
             >
               {tag.tag}
             </Badge>
