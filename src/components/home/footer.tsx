@@ -5,7 +5,7 @@ import { LogoIcon } from '../ui/icons';
 export const Footer = () => {
   return (
     <Container as="footer" size="md" className="mt-12 mb-6">
-      <LogoIcon />
+      <LogoIcon textColor="var(--foreground)" />
       <div className="flex items-center gap-2 text-sm font-medium">
         <span className='after:px-2 after:content-["·"]'>
           &copy;2025 joseph0926
