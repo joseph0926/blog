@@ -10,7 +10,8 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "format": "prettier --w \"**/*.{js,ts,jsx,tsx}\""
+    "format": "prettier --w \"**/*.{js,ts,jsx,tsx}\"",
+    "new-mdx": "node scripts/new-post.mjs"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.0",
