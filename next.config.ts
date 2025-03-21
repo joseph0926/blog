@@ -6,10 +6,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ hostname: 's3-alpha-sig.figma.com', protocol: 'https' }],
   },
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
+  transpilePackages:
+    process.env.NODE_ENV !== 'production' ? ['next-mdx-remote'] : undefined,
 };
 
-const withMDX = createMDX({
-  // Add markdown plugins here, as desired
-});
+const withMDX = createMDX({});
 
 export default withMDX(nextConfig);

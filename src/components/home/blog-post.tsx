@@ -29,7 +29,9 @@ export const BlogPost = ({ post, type = 'col' }: BlogPostProps) => {
       />
       <div className="flex flex-col gap-3">
         <span className="text-muted-foreground text-sm">
-          Olivia Rhye • 1 Jan 2023
+          {post.createdAt
+            .toISOString()
+            .slice(0, post.createdAt.toISOString().indexOf('T'))}
         </span>
         <Link href={`/post/${post.slug}`} className="hover:underline">
           <h2 className="line-clamp-1 text-2xl font-semibold">{post.title}</h2>

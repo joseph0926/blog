@@ -1,21 +1,33 @@
+import { getPostBySlug } from '@/actions/post.action';
 import Image from 'next/image';
 
-export const PostHeader = () => {
+export const PostHeader = async ({ slug }: { slug: string }) => {
+  const { data: post } = await getPostBySlug(slug);
+
   return (
     <>
       <div className="relative h-[calc(100vh/3)] w-full overflow-y-hidden">
         <Image
-          src="https://s3-alpha-sig.figma.com/img/a7da/2200/f6c37edcb06722e854c1bd926a092148?Expires=1743379200&Key-Pair-Id=APKAQ4GOSFWCW27IBOMQ&Signature=IjHVya6B06YITdVivnBYWjzs-13yvVKMUe5JZiX7uWLLaObNzjO~agu1tNDAJ4AEaXxMmwKrEStC~C6pmaQ5JpNXlYSzWfMYHkwGwXM550D-OTMq3odI9rbPvnJjh2BjvoFi9VcRl~Ic4lIaPX~N33wJbhy41ccpcrFSF5Ig2U5CGa-bSh4Oz30ynRXXccgGWx1lktlfIRpqwznBFuVvT-03vBEblogKO2d0XEqsnb-jNPdRCrWfH6gwwQc6zlQyKvxCkwkaPxheKkW6EyS1Lw5PVN7dj5TRzj8~PiGXPb3QA6STQlXZ9VZ4HyRBQLdsZ4uIWqA91t-h2-Colh8OVA__"
+          src={post?.thumbnail ?? '/logo/logo.webp'}
           width={1200}
           height={675}
           className="aspect-video w-full object-cover"
-          alt=""
+          alt={post?.title ?? ''}
         />
         <div className="from-background pointer-events-none absolute inset-0 bg-gradient-to-t to-transparent" />
       </div>
-      <h1 className="text-center text-3xl font-extrabold">
-        The Rise of Artificial Intelligence in Healthcare
-      </h1>
+      {post ? (
+        <div className="flex flex-col gap-4 text-center">
+          <h1 className="text-center text-3xl font-extrabold">{post.title}</h1>
+          <p className="text-muted-foreground text-base font-medium">
+            {post.description}
+          </p>
+        </div>
+      ) : (
+        <p className="text-destructive text-center font-bold">
+          블로그 글을 찾을 수 없습니다.
+        </p>
+      )}
     </>
   );
 };
