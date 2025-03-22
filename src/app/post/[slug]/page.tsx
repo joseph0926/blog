@@ -2,7 +2,7 @@ import { PostHeaderLoading } from '@/components/loading/post-header.loading';
 import { PostHeader } from '@/components/post/post-header';
 import { Container } from '@/components/ui/container';
 import { getPostContent } from '@/services/post.service';
-import { MDXRemote } from 'next-mdx-remote/rsc';
+import { compileMDX } from 'next-mdx-remote/rsc';
 import { Suspense } from 'react';
 
 export default async function PostPage({
@@ -13,12 +13,19 @@ export default async function PostPage({
   const { slug } = await params;
   const { source } = await getPostContent(slug);
 
+  const { content } = await compileMDX({
+    source,
+    options: { parseFrontmatter: true },
+  });
+
   return (
     <Container as="main" size="lg" className="relative">
       <Suspense fallback={<PostHeaderLoading />}>
         <PostHeader slug={slug} />
       </Suspense>
-      <MDXRemote source={source} />
+      <article className="prose dark:prose-invert max-w-none py-8">
+        {content}
+      </article>
     </Container>
   );
 }
