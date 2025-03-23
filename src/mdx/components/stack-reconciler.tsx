@@ -18,7 +18,7 @@ export const StackReconciler = () => {
       <Input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="아래 버튼을 누른 후 입력을 시도해주세요."
+        placeholder="입력 중 아래 버튼을 누른 후 다시 입력을 시도해주세요."
       />
       <Button className="cursor-pointer" onClick={handleHeavyUpdate}>
         대규모 DOM 업데이트 시작
