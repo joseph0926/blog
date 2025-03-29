@@ -1,4 +1,4 @@
-import { Metadata, ResolvingMetadata } from 'next';
+import { Metadata } from 'next';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import { Suspense } from 'react';
 import { getPostBySlug } from '@/actions/post.action';
