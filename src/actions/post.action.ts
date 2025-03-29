@@ -1,6 +1,7 @@
 'use server';
 
 import { Post } from '@prisma/client';
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 import { ActionResponse } from '@/types/action.type';
 
@@ -33,34 +34,37 @@ export const getRecentPosts = async (
   }
 };
 
-export const getPostBySlug = async (
-  slug: string,
-): Promise<ActionResponse<Post>> => {
-  try {
-    const post = await prisma.post.findUnique({
-      where: {
-        slug,
-      },
-    });
-    if (!post) {
+export const getPostBySlug = cache(
+  async (slug: string): Promise<ActionResponse<Post>> => {
+    try {
+      const post = await prisma.post.findUnique({
+        where: {
+          slug,
+        },
+      });
+      if (!post) {
+        return {
+          data: null,
+          message: `${slug} post를 찾지 못하였습니다.`,
+          success: false,
+        };
+      }
+
+      return {
+        data: post,
+        message: `${slug} post를 불러왔습니다.`,
+        success: true,
+      };
+    } catch (error) {
+      console.error(
+        `${slug} post를 불러오는 중에 에러가 발생하였습니다.`,
+        error,
+      );
       return {
         data: null,
-        message: `${slug} post를 찾지 못하였습니다.`,
+        message: `${slug} post를 불러오는 중에 에러가 발생하였습니다.`,
         success: false,
       };
     }
-
-    return {
-      data: post,
-      message: `${slug} post를 불러왔습니다.`,
-      success: true,
-    };
-  } catch (error) {
-    console.error(`${slug} post를 불러오는 중에 에러가 발생하였습니다.`, error);
-    return {
-      data: null,
-      message: `${slug} post를 불러오는 중에 에러가 발생하였습니다.`,
-      success: false,
-    };
-  }
-};
+  },
+);
