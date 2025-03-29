@@ -1,8 +1,8 @@
 'use server';
 
+import { Post } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { ActionResponse } from '@/types/action.type';
-import { Post } from '@prisma/client';
 
 // debug
 // const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

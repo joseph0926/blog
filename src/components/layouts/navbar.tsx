@@ -1,6 +1,6 @@
+import Link from 'next/link';
 import { navbarItems } from '@/constants/navbar';
 import { LogoIcon } from '../ui/icons';
-import Link from 'next/link';
 import { ThemeToggle } from '../ui/theme-toggle';
 
 export const Navbar = () => {

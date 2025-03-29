@@ -1,6 +1,6 @@
+import { JSX } from 'react';
 import { getRecentPosts } from '@/actions/post.action';
 import { BlogPost } from './blog-post';
-import { JSX } from 'react';
 
 const LIMIT = 4;
 

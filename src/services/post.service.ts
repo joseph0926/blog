@@ -1,5 +1,5 @@
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
 
 export const getPostContent = async (slug: string) => {
   const postPath = path.join(process.cwd(), 'src/mdx', `${slug}.mdx`);

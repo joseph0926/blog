@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import FiberTree from './fiber-tree';
-import { fiberNodes } from '@/constants/fiber';
+import { useCallback, useEffect,useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { fiberNodes } from '@/constants/fiber';
 import { FiberNodeType } from '@/types/fiber.type';
+import FiberTree from './fiber-tree';
 
 const priorityMap = {
   Immediate: 1,

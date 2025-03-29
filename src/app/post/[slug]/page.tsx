@@ -1,10 +1,10 @@
+import { compileMDX } from 'next-mdx-remote/rsc';
+import { Suspense } from 'react';
 import { PostHeaderLoading } from '@/components/loading/post-header.loading';
 import { PostHeader } from '@/components/post/post-header';
 import { Container } from '@/components/ui/container';
+import { FiberWrapper,StackReconciler } from '@/mdx/components';
 import { getPostContent } from '@/services/post.service';
-import { compileMDX } from 'next-mdx-remote/rsc';
-import { Suspense } from 'react';
-import { StackReconciler, FiberWrapper } from '@/mdx/components';
 
 export default async function PostPage({
   params,
