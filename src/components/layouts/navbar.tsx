@@ -12,7 +12,7 @@ export const Navbar = () => {
       <ul className="flex items-center gap-6 text-sm font-medium">
         {navbarItems.map((item) => (
           <li key={item.href}>
-            <Link href={item.href}>{item.label}</Link>
+            <Link href={'#'}>{item.label}</Link>
           </li>
         ))}
         <ThemeToggle />

@@ -34,10 +34,11 @@ export const RecentBlogPosts = async () => {
     case 3:
       content = (
         <section className="grid grid-cols-1 gap-x-8 gap-y-12 lg:grid-cols-2">
-          <BlogPost post={posts[0]} />
+          {/* TODO: 블로그 순서 임시 변경 */}
+          <BlogPost post={posts[2]} />
           <div className="grid grid-cols-1 gap-y-12">
-            <BlogPost type="row" post={posts[1]} />
-            <BlogPost type="row" post={posts[2]} />
+            <BlogPost type="row" post={posts[1]} disabled />
+            <BlogPost type="row" post={posts[0]} disabled />
           </div>
         </section>
       );

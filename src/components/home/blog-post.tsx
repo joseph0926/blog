@@ -7,14 +7,20 @@ import { Post } from '@prisma/client';
 type BlogPostProps = {
   post: Post;
   type?: 'row' | 'col';
+  disabled?: boolean;
 };
 
-export const BlogPost = ({ post, type = 'col' }: BlogPostProps) => {
+export const BlogPost = ({
+  post,
+  type = 'col',
+  disabled = false,
+}: BlogPostProps) => {
   return (
     <article
       className={cn(
         'flex w-full gap-8',
         type === 'row' ? 'flex-row' : 'flex-col',
+        disabled ? 'cursor-not-allowed opacity-50' : 'opacity-100',
       )}
     >
       <Image
@@ -33,7 +39,10 @@ export const BlogPost = ({ post, type = 'col' }: BlogPostProps) => {
             .toISOString()
             .slice(0, post.createdAt.toISOString().indexOf('T'))}
         </span>
-        <Link href={`/post/${post.slug}`} className="hover:underline">
+        <Link
+          href={disabled ? '#' : `/post/${post.slug}`}
+          className={cn(disabled ? 'cursor-not-allowed' : 'hover:underline')}
+        >
           <h2 className="line-clamp-1 text-2xl font-semibold">{post.title}</h2>
         </Link>
         <p className="text-muted-foreground line-clamp-2 text-base">
