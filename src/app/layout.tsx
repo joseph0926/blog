@@ -17,12 +17,35 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: '김영훈 블로그',
-  description: '프론트엔드 개발자 김영훈의 블로그입니다',
+  metadataBase: new URL('https://joseph0926.com'),
+  title: {
+    default: '김영훈 블로그',
+    template: '%s | 김영훈 블로그',
+  },
+  description:
+    '프론트엔드 개발자 김영훈의 블로그입니다. React, 웹 성능 최적화, 최신 개발 기술 및 경험을 공유합니다.',
   openGraph: commonOpenGraph,
+  twitter: {
+    card: 'summary_large_image',
+    title: '김영훈 블로그',
+    description:
+      '프론트엔드 개발자 김영훈의 블로그입니다. React, 웹 성능 최적화, 최신 개발 기술 및 경험을 공유합니다.',
+    images: ['/logo/logo.webp'],
+  },
   icons: {
     icon: '/logo/logo.svg',
   },
+  keywords: [
+    '김영훈',
+    '프론트엔드',
+    'React',
+    '웹 개발',
+    '웹 성능 최적화',
+    '개발 블로그',
+    'TypeScript',
+    'Next.js',
+  ],
+  authors: [{ name: '김영훈', url: 'https://joseph0926.com' }],
 };
 
 export default function RootLayout({
