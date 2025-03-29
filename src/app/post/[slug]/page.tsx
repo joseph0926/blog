@@ -4,7 +4,7 @@ import { Container } from '@/components/ui/container';
 import { getPostContent } from '@/services/post.service';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import { Suspense } from 'react';
-import { StackReconciler } from '@/mdx/components/stack-reconciler';
+import { StackReconciler, FiberWrapper } from '@/mdx/components';
 
 export default async function PostPage({
   params,
@@ -16,7 +16,7 @@ export default async function PostPage({
 
   const { content } = await compileMDX({
     source,
-    components: { StackReconciler },
+    components: { StackReconciler, FiberWrapper },
     options: { parseFrontmatter: true },
   });
 
