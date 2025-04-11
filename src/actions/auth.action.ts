@@ -1,10 +1,10 @@
 'use server';
 
+import { User } from '@prisma/client';
+import { hash } from 'bcrypt';
 import { prisma } from '@/lib/prisma';
 import { authSchema, AuthSchemaType } from '@/schemas/auth.schema';
 import { ActionResponse } from '@/types/action.type';
-import { User } from '@prisma/client';
-import { hash } from 'bcrypt';
 
 export const signup = async (
   payload: AuthSchemaType,
