@@ -1,10 +1,10 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
-import { cache } from 'react';
-import { ActionResponse } from '@/types/action.type';
 import { Post } from '@prisma/client';
+import { cache } from 'react';
+import { z } from 'zod';
+import { prisma } from '@/lib/prisma';
+import { ActionResponse } from '@/types/action.type';
 
 const limitSchema = z.coerce.number().int().min(1).max(100);
 
@@ -50,6 +50,7 @@ export const getRecentPosts = async (
       status: 200,
     };
   } catch (e) {
+    console.error(e);
     // logger.error(e, { scope: 'getRecentPosts' });
     return {
       message: '글을 불러오는 중 오류가 발생했습니다.',
@@ -80,6 +81,7 @@ export const getPostBySlug = cache(
         status: 200,
       };
     } catch (e) {
+      console.error(e);
       // logger.error(e, { scope: 'getPostBySlug' });
       return {
         message: '글을 불러오는 중 오류가 발생했습니다.',

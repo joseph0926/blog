@@ -1,10 +1,10 @@
 'use server';
 
+import { Prisma } from '@prisma/client';
 import { generateHash } from '@/lib/auth/password';
 import { prisma } from '@/lib/prisma';
 import { authSchema, type AuthSchemaType } from '@/schemas/auth.schema';
 import { ActionResponse } from '@/types/action.type';
-import { Prisma } from '@prisma/client';
 
 export const signup = async (
   payload: AuthSchemaType,
