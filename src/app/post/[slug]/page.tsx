@@ -16,7 +16,9 @@ type Props = {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
 
-  const { data: post } = await getPostBySlug(slug);
+  const { data } = await getPostBySlug(slug);
+  const post = data?.post;
+
   if (!post) {
     return {
       title: '김영훈 블로그',

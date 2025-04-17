@@ -1,11 +1,11 @@
-import { Post } from '@prisma/client';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { PostResponse } from '@/types/post.type';
 import { Badge } from '../ui/badge';
 
 type BlogPostProps = {
-  post: Post;
+  post: PostResponse;
   type?: 'row' | 'col';
   disabled?: boolean;
 };

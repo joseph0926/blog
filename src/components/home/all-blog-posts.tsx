@@ -2,9 +2,11 @@ import { getRecentPosts } from '@/actions/post.action';
 import { BlogPost } from './blog-post';
 
 export const AllBlogPosts = async () => {
-  const { data: posts, message, success } = await getRecentPosts(3);
+  const { data, message, success } = await getRecentPosts(3);
 
-  if (!success || posts === null) {
+  const posts = data?.posts;
+
+  if (!success || !posts) {
     return <div>게시글을 불러오는 중 에러가 발생했습니다. ({message})</div>;
   }
   if (posts.length === 0) {

@@ -5,9 +5,10 @@ import { BlogPost } from './blog-post';
 const LIMIT = 4;
 
 export const RecentBlogPosts = async () => {
-  const { data: posts, message, success } = await getRecentPosts(LIMIT);
+  const { data, message, success } = await getRecentPosts(LIMIT);
+  const posts = data?.posts;
 
-  if (!success || posts === null) {
+  if (!success || !posts) {
     return <div>게시글을 불러오는 중 에러가 발생했습니다. ({message})</div>;
   }
   if (posts.length === 0) {

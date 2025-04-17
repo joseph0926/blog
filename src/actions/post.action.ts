@@ -5,16 +5,9 @@ import { cache } from 'react';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { ActionResponse } from '@/types/action.type';
+import { PostResponse } from '@/types/post.type';
 
 const limitSchema = z.coerce.number().int().min(1).max(100);
-
-type PostResponse = {
-  id: string;
-  slug: string;
-  title: string;
-  thumbnail: string | null;
-  createdAt: Date;
-};
 
 export const getRecentPosts = async (
   limitInput: number,
@@ -38,6 +31,8 @@ export const getRecentPosts = async (
         title: true,
         thumbnail: true,
         createdAt: true,
+        description: true,
+        tags: true,
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
