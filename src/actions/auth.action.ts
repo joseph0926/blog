@@ -1,51 +1,59 @@
 'use server';
 
-import { User } from '@prisma/client';
-import { hash } from 'bcrypt';
+import { generateHash } from '@/lib/auth/password';
 import { prisma } from '@/lib/prisma';
-import { authSchema, AuthSchemaType } from '@/schemas/auth.schema';
+import { authSchema, type AuthSchemaType } from '@/schemas/auth.schema';
 import { ActionResponse } from '@/types/action.type';
+import { Prisma } from '@prisma/client';
 
 export const signup = async (
   payload: AuthSchemaType,
-): Promise<ActionResponse<{ user: Omit<User, 'password'> }>> => {
-  const { data, success } = authSchema.safeParse(payload);
-  if (!success) {
+): Promise<ActionResponse<{ userId: string }>> => {
+  const parsed = authSchema.safeParse(payload);
+  if (!parsed.success) {
     return {
-      data: null,
-      message: '유효하지 않은 데이터입니다.',
       success: false,
+      message: parsed.error.errors[0]?.message ?? '유효하지 않은 입력입니다.',
+      data: null,
+      status: 400,
     };
   }
 
+  const { email, password } = parsed.data;
+
   try {
-    const { email, password } = data;
-    const hashedPassword = await hash(password, 10);
+    const hashed = await generateHash(password);
+
     const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-      },
+      data: { email, password: hashed },
+      select: { id: true },
     });
 
     return {
       success: true,
-      message: '회원가입에 성공하였습니다.',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        },
-      },
+      message: '회원가입에 성공했습니다.',
+      data: { userId: user.id },
+      status: 201,
     };
-  } catch (error: unknown) {
-    console.error(error);
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
+      return {
+        success: false,
+        message: '이미 사용 중인 이메일입니다.',
+        data: null,
+        status: 409,
+      };
+    }
+
+    // logger.error(err);
     return {
       success: false,
+      message: '서버 오류로 회원가입에 실패했습니다.',
       data: null,
-      message: '회원가입에 실패하였습니다.',
+      status: 500,
     };
   }
 };
