@@ -26,4 +26,7 @@ model Post {
   description String
   tags        String[]
   thumbnail   String?
+
+  @@index([createdAt, id])
+  @@index([tags], type: Gin)
 }
