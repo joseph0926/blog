@@ -1,14 +1,14 @@
 'use server';
 
 import { Prisma } from '@prisma/client';
+import { cookies } from 'next/headers';
 import { generateHash, verifyPassword } from '@/lib/auth/password';
+import { generateRefreshToken, signAccessToken } from '@/lib/auth/token';
 import { prisma } from '@/lib/prisma';
+import { delay } from '@/lib/utils';
 import { authSchema, type AuthSchemaType } from '@/schemas/auth.schema';
 import { ActionResponse } from '@/types/action.type';
 import { UserResponse } from '@/types/user.type';
-import { generateRefreshToken, signAccessToken } from '@/lib/auth/token';
-import { cookies } from 'next/headers';
-import { delay } from '@/lib/utils';
 
 export const signup = async (
   payload: AuthSchemaType,
