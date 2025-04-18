@@ -1,15 +1,44 @@
-import crypto from 'crypto';
-import jwt from 'jsonwebtoken';
+import { SignJWT, jwtVerify } from 'jose';
 
-const ACCESS_TOKEN_EXPIRES = '15m';
-const REFRESH_TOKEN_EXPIRES = 7 * 24 * 60 * 60 * 1000;
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
 
-export const signAccessToken = (userId: string) =>
-  jwt.sign({ sub: userId }, process.env.JWT_SECRET!, {
-    algorithm: 'HS256',
-    expiresIn: ACCESS_TOKEN_EXPIRES,
+const ACCESS_EXPIRES = '15m';
+const REFRESH_EXPIRES = 60 * 60 * 24 * 7;
+
+export async function signAccessToken(userId: string) {
+  return new SignJWT({ typ: 'access' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(userId)
+    .setExpirationTime(ACCESS_EXPIRES)
+    .setIssuedAt()
+    .sign(JWT_SECRET);
+}
+
+export async function generateRefreshToken(userId: string) {
+  const token = await new SignJWT({ typ: 'refresh' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject(userId)
+    .setExpirationTime(REFRESH_EXPIRES)
+    .setIssuedAt()
+    .sign(JWT_SECRET);
+
+  return { token, expires: REFRESH_EXPIRES };
+}
+
+type TokenResult = { userId: string; exp: number };
+
+export async function verifyAccessToken(token: string): Promise<TokenResult> {
+  const { payload } = await jwtVerify(token, JWT_SECRET, {
+    algorithms: ['HS256'],
   });
+  if (payload.typ !== 'access') throw new Error('INVALID_TOKEN_TYPE');
+  return { userId: payload.sub as string, exp: payload.exp! };
+}
 
-export const generateRefreshToken = () => {
-  return { expires: REFRESH_TOKEN_EXPIRES, token: crypto.randomUUID() };
-};
+export async function verifyRefreshToken(token: string): Promise<TokenResult> {
+  const { payload } = await jwtVerify(token, JWT_SECRET, {
+    algorithms: ['HS256'],
+  });
+  if (payload.typ !== 'refresh') throw new Error('INVALID_TOKEN_TYPE');
+  return { userId: payload.sub as string, exp: payload.exp! };
+}

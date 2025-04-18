@@ -1,11 +1,16 @@
 'use server';
 
-import { Post } from '@prisma/client';
+import { Post, Prisma } from '@prisma/client';
 import { cache } from 'react';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { ActionResponse } from '@/types/action.type';
-import { PostResponse } from '@/types/post.type';
+import {
+  PostResponse,
+  UpdatePostPayload,
+  UpdatePostResponse,
+} from '@/types/post.type';
+import { updatePostSchema } from '@/schemas/post.schema';
 
 const limitSchema = z.coerce.number().int().min(1).max(100);
 
@@ -16,7 +21,8 @@ export const getRecentPosts = async (
   if (!parse.success)
     return {
       data: null,
-      message: 'limit 파라미터가 유효하지 않습니다.',
+      message:
+        parse.error.errors[0]?.message ?? 'limit 파라미터가 유효하지 않습니다.',
       status: 400,
       success: false,
     };
@@ -87,3 +93,68 @@ export const getPostBySlug = cache(
     }
   },
 );
+
+export const updatePost = async (
+  slug: string,
+  payload: UpdatePostPayload,
+): Promise<ActionResponse<{ post: UpdatePostResponse }>> => {
+  const parse = updatePostSchema.safeParse(payload);
+  if (!parse.success)
+    return {
+      data: null,
+      message:
+        parse.error.errors[0]?.message ?? 'thumbnail이 유효하지 않습니다.',
+      status: 400,
+      success: false,
+    };
+
+  const { thumbnail } = parse.data;
+
+  try {
+    const post = await prisma.post.update({
+      where: {
+        slug,
+      },
+      data: {
+        thumbnail,
+      },
+      select: { slug: true, thumbnail: true, updatedAt: true },
+    });
+
+    return {
+      data: {
+        post,
+      },
+      success: true,
+      status: 200,
+      message: '글을 업데이트하였습니다.',
+    };
+  } catch (e) {
+    console.error(e);
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      switch (e.code) {
+        case 'P2025':
+          return {
+            status: 404,
+            success: false,
+            message: '해당 글이 없습니다.',
+            data: null,
+          };
+        case 'P2002':
+          return {
+            status: 409,
+            success: false,
+            message: 'slug 중복입니다.',
+            data: null,
+          };
+      }
+    }
+    // logger.error(e, { scope: 'getRecentPosts' });
+    return {
+      message: '글을 업데이하는 중 오류가 발생했습니다.',
+      data: null,
+      success: false,
+      status: 500,
+    };
+  }
+};

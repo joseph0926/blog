@@ -7,3 +7,12 @@ export type PostResponse = {
   createdAt: Date;
   tags: string[];
 };
+
+export type UpdatePostPayload = {
+  thumbnail: string;
+};
+export type UpdatePostResponse = {
+  slug: string;
+  thumbnail: string | null;
+  updatedAt: Date;
+};

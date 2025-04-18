@@ -3,7 +3,10 @@ import createMDX from '@next/mdx';
 
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: [{ hostname: 's3-alpha-sig.figma.com', protocol: 'https' }],
+    remotePatterns: [
+      { hostname: 's3-alpha-sig.figma.com', protocol: 'https' },
+      { hostname: 'res.cloudinary.com', protocol: 'https' },
+    ],
   },
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   transpilePackages:
