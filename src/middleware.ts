@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
+  signAccessToken,
   verifyAccessToken,
   verifyRefreshToken,
-  signAccessToken,
 } from '@/lib/auth/token';
 
 export const config = {

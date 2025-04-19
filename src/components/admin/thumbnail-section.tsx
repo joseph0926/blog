@@ -1,14 +1,14 @@
 'use client';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { updatePost } from '@/actions/post.action';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { updatePost } from '@/actions/post.action';
 import { uploadImage } from '@/lib/upload';
 import { FileUpload } from '../ui/file-upload';
 

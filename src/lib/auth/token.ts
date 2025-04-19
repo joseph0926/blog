@@ -1,4 +1,4 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { jwtVerify,SignJWT } from 'jose';
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
 
@@ -28,6 +28,10 @@ export async function generateRefreshToken(userId: string) {
 type TokenResult = { userId: string; exp: number };
 
 export async function verifyAccessToken(token: string): Promise<TokenResult> {
+  if (typeof token !== 'string' || token.split('.').length !== 3) {
+    throw new Error('MALFORMED_TOKEN');
+  }
+
   const { payload } = await jwtVerify(token, JWT_SECRET, {
     algorithms: ['HS256'],
   });

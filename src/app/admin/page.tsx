@@ -1,7 +1,7 @@
-import { getRecentPosts } from '@/actions/post.action';
-import PostsTable from '@/components/admin/posts-table';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
+import { getRecentPosts } from '@/actions/post.action';
+import PostsTable from '@/components/admin/posts-table';
 
 export const metadata = { title: 'Admin | 게시글 관리' };
 

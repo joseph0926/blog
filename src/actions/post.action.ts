@@ -4,13 +4,13 @@ import { Post, Prisma } from '@prisma/client';
 import { cache } from 'react';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { updatePostSchema } from '@/schemas/post.schema';
 import { ActionResponse } from '@/types/action.type';
 import {
   PostResponse,
   UpdatePostPayload,
   UpdatePostResponse,
 } from '@/types/post.type';
-import { updatePostSchema } from '@/schemas/post.schema';
 
 const limitSchema = z.coerce.number().int().min(1).max(100);
 

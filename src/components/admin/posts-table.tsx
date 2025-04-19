@@ -1,6 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -9,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
 import { PostResponse } from '@/types/post.type';
 import ThumbnailDialog from './thumbnail-section';
 
@@ -48,8 +49,11 @@ export default function PostsTable({
               </TableCell>
               <TableCell>
                 {p.thumbnail ? (
-                  <img
+                  <Image
                     src={p.thumbnail}
+                    width={64}
+                    height={40}
+                    alt="thumbnail"
                     className="h-10 w-16 rounded object-cover"
                   />
                 ) : (

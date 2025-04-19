@@ -117,8 +117,8 @@ export const signin = async (
     };
   }
 
-  const accessToken = signAccessToken(user.id);
-  const { token, expires } = generateRefreshToken();
+  const accessToken = await signAccessToken(user.id);
+  const { token, expires } = await generateRefreshToken(user.id);
 
   const ck = await cookies();
   ck.set({
