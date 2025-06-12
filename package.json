@@ -5,7 +5,7 @@
   "author": "joseph0926",
   "description": "프론트엔드 개발자 김영훈의 블로그입니다.",
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "turbo run dev -F @blog/web",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

@@ -10,7 +10,9 @@ const nextConfig: NextConfig = {
   },
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   transpilePackages:
-    process.env.NODE_ENV !== 'production' ? ['next-mdx-remote'] : undefined,
+    process.env.NODE_ENV !== 'production'
+      ? ['next-mdx-remote', '@blog/ui']
+      : ['@blog/ui'],
 };
 
 const withMDX = createMDX({});

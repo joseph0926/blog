@@ -11,6 +11,9 @@
     "format": "prettier --w \"**/*.{js,ts,jsx,tsx}\"",
     "new-mdx": "node scripts/new-post.mjs"
   },
+  "devDependencies": {
+    "@blog/ui": "workspace:*"
+  },
   "engines": {
     "node": ">=22"
   },
