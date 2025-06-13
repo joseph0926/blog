@@ -1,16 +1,16 @@
 'use client';
-import { useState } from 'react';
-import { toast } from 'sonner';
-import { updatePost } from '@/actions/post.action';
-import { Button } from '@/components/ui/button';
+import { Button } from '@blog/ui/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@blog/ui/components/ui/dialog';
+import { FileUpload } from '@blog/ui/components/ui/file-upload';
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { updatePost } from '@/actions/post.action';
 import { uploadImage } from '@/lib/upload';
-import { FileUpload } from '../ui/file-upload';
 
 export default function ThumbnailDialog({
   post,

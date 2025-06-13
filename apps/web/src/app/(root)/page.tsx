@@ -1,9 +1,9 @@
+import { Container } from '@blog/ui/components/ui/container';
 import { Suspense } from 'react';
 import { AllBlogPosts } from '@/components/home/all-blog-posts';
 import { RecentBlogPosts } from '@/components/home/recent-blog-posts';
 import { AllBlogPostsLoading } from '@/components/loading/all-blog-posts.loading';
 import { RecentBlogPostsLoading } from '@/components/loading/recent-blog-posts.loading';
-import { Container } from '@/components/ui/container';
 
 export default function HomePage() {
   return (

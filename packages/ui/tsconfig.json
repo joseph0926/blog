@@ -14,7 +14,7 @@
     "jsx": "preserve",
     "incremental": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@blog/ui/*": ["./src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

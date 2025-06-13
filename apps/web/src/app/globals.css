@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@source "../../node_modules/@blog/ui/src";
 
 @plugin "tailwindcss-animate";
 

@@ -1,5 +1,5 @@
+import { Separator } from '@blog/ui/components/ui/separator';
 import type { Metadata } from 'next';
-import { Separator } from '@/components/ui/separator';
 
 export const metadata: Metadata = {
   title: 'About – YoungHoon Kim',

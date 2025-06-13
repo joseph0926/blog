@@ -1,6 +1,6 @@
+import { Container } from '@blog/ui/components/ui/container';
+import { LogoIcon } from '@blog/ui/components/ui/icons';
 import { INFO } from '@/constants/info';
-import { Container } from '../ui/container';
-import { LogoIcon } from '../ui/icons';
 
 export const Footer = () => {
   return (

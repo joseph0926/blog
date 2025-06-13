@@ -1,10 +1,10 @@
+import { Container } from '@blog/ui/components/ui/container';
 import { Metadata } from 'next';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import { Suspense } from 'react';
 import { getPostBySlug } from '@/actions/post.action';
 import { PostHeaderLoading } from '@/components/loading/post-header.loading';
 import { PostHeader } from '@/components/post/post-header';
-import { Container } from '@/components/ui/container';
 import { FiberWrapper, StackReconciler } from '@/mdx/components';
 import { commonOpenGraph } from '@/meta/open-graph';
 import { getPostContent } from '@/services/post.service';
