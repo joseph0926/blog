@@ -1,21 +1,21 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { signin, signup } from '@/actions/auth.action';
+import { Button } from '@blog/ui/components/ui/button';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+} from '@blog/ui/components/ui/form';
+import { Input } from '@blog/ui/components/ui/input';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { signin, signup } from '@/actions/auth.action';
 import { authSchema, AuthSchemaType } from '@/schemas/auth.schema';
-import { Button } from '../ui/button';
 
 type AuthFormProps = {
   type: 'signin' | 'signup';

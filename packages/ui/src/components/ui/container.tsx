@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { ComponentProps, ElementType } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '@blog/ui/lib/utils';
 
 const containerVariant = cva('mx-auto px-4', {
   variants: {

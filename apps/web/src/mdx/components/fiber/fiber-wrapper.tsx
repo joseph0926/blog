@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect,useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@blog/ui/components/ui/button';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fiberNodes } from '@/constants/fiber';
 import { FiberNodeType } from '@/types/fiber.type';
 import FiberTree from './fiber-tree';

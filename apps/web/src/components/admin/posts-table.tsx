@@ -1,8 +1,6 @@
 'use client';
 
-import Image from 'next/image';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@blog/ui/components/ui/button';
 import {
   Table,
   TableBody,
@@ -10,7 +8,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@blog/ui/components/ui/table';
+import Image from 'next/image';
+import { useState } from 'react';
 import { PostResponse } from '@/types/post.type';
 import ThumbnailDialog from './thumbnail-section';
 

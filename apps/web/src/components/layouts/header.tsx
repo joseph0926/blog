@@ -1,5 +1,5 @@
+import { Container } from '@blog/ui/components/ui/container';
 import { Navbar } from '../layouts/navbar';
-import { Container } from '../ui/container';
 
 type HeaderProps = {
   useTitle?: boolean;

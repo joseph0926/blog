@@ -1,8 +1,8 @@
+import { Badge } from '@blog/ui/components/ui/badge';
 import Image from 'next/image';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn } from '@blog/ui/lib/utils';
 import { PostResponse } from '@/types/post.type';
-import { Badge } from '../ui/badge';
 
 type BlogPostProps = {
   post: PostResponse;

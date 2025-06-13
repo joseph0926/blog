@@ -1,9 +1,9 @@
 'use client';
 
+import { Button } from '@blog/ui/components/ui/button';
+import { Card, CardDescription } from '@blog/ui/components/ui/card';
+import { Input } from '@blog/ui/components/ui/input';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 
 export const StackReconciler = () => {
   const [text, setText] = useState('');

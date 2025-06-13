@@ -1,4 +1,4 @@
-import { Skeleton } from '../ui/skeleton';
+import { Skeleton } from '@blog/ui/components/ui/skeleton';
 
 export const RecentBlogPostsLoading = () => {
   return (
