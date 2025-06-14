@@ -1,6 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { prisma } from '../src/lib/prisma.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const dir = '.lhci';
 const files = await fs.readdir(dir);
