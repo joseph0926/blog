@@ -6,21 +6,30 @@ const prisma = new PrismaClient();
 
 const dir = '.lhci';
 const files = await fs.readdir(dir);
+const reportFiles = files.filter((f) => f.endsWith('.report.json'));
 
-for (const f of files.filter((n) => n.endsWith('.json'))) {
-  const json = JSON.parse(await fs.readFile(path.join(dir, f), 'utf8'));
+for (const file of reportFiles) {
+  const raw = await fs.readFile(path.join(dir, file), 'utf8');
+  const json = JSON.parse(raw);
+
+  const perf = json?.categories?.performance?.score;
+  if (typeof perf !== 'number') {
+    console.warn(`⚠️  skip ${file} — performance.score missing`);
+    continue;
+  }
 
   const run = {
     ts: new Date(json.fetchTime),
     url: json.finalUrl,
-    perfScore: json.categories.performance.score,
-    lcp: json.audits['largest-contentful-paint'].numericValue,
-    tti: json.audits.interactive.numericValue,
-    fcp: json.audits['first-contentful-paint'].numericValue,
+    perfScore: perf,
+    lcp: json.audits?.['largest-contentful-paint']?.numericValue ?? null,
+    tti: json.audits?.interactive?.numericValue ?? null,
+    fcp: json.audits?.['first-contentful-paint']?.numericValue ?? null,
     json,
   };
 
   await prisma.lighthouseRun.create({ data: run });
+  console.log(`✅ saved ${file}`);
 }
 
-console.log('✅ Lighthouse results saved to PostgreSQL');
+console.log('🎉  All Lighthouse reports saved to PostgreSQL');
