@@ -45,3 +45,16 @@ model RefreshToken {
 
   @@index([token])
 }
+
+model WebVital {
+  id      BigInt   @id @default(autoincrement())
+  ts      DateTime @default(now())
+  url     String
+  name    String
+  value   Float
+  backend String
+  route   String
+  dbDur   Float?
+
+  @@index([name, ts])
+}
