@@ -30,4 +30,8 @@ jobs:
       - run: |
           pnpm start &
           npx wait-on http://localhost:3000
-      - run: npx lhci autorun --upload.target=temporary-public-storage
+      - run: npx lhci autorun --upload.target=filesystem
+      - name: Save LHCI to Postgres
+        run: pnpm dlx ts-node scripts/save-lhci.mjs
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

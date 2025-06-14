@@ -58,3 +58,16 @@ model WebVital {
 
   @@index([name, ts])
 }
+
+model LighthouseRun {
+  id        BigInt   @id @default(autoincrement())
+  ts        DateTime @default(now())
+  url       String
+  perfScore Float
+  lcp       Float?
+  tti       Float?
+  fcp       Float?
+  json      Json?
+
+  @@index([url, ts])
+}

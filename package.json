@@ -12,6 +12,7 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --w \"**/*.{js,ts,jsx,tsx}\"",
     "new-mdx": "node scripts/new-post.mjs",
+    "save-lhci": "node scripts/save-lhci.mjs",
     "db:gen": "prisma generate"
   },
   "dependencies": {
