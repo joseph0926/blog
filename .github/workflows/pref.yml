@@ -21,6 +21,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:gen
       - run: pnpm build
+        env:
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
       - run: |
           pnpm start &
           npx wait-on http://localhost:3000

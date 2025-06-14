@@ -69,7 +69,8 @@
     "prettier-plugin-tailwindcss": "^0.6.11",
     "prisma": "^6.8.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^8.0.3"
   },
   "engines": {
     "node": ">=22"

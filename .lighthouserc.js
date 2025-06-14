@@ -10,7 +10,9 @@ module.exports = {
     },
     upload: { target: 'filesystem', outputDir: '.lhci' },
     assert: {
-      assertions: { performance: ['error', { minScore: 0.9 }] },
+      assertions: {
+        'categories:performance': ['error', { minScore: 0.9 }],
+      },
     },
   },
 };
