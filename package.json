@@ -11,7 +11,8 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix",
     "format": "prettier --w \"**/*.{js,ts,jsx,tsx}\"",
-    "new-mdx": "node scripts/new-post.mjs"
+    "new-mdx": "node scripts/new-post.mjs",
+    "db:gen": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
@@ -73,5 +74,5 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@10.6.4"
+  "packageManager": "pnpm@10.11.1"
 }
