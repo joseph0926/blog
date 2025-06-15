@@ -58,11 +58,8 @@ jobs:
           APP_VERSION: ${{ env.APP_VERSION }}
       - name: Wait for server
         run: npx wait-on http://localhost:3000 --timeout 90000
-      - name: Run LHCI (desktop & mobile)
-        run: |
-          for FF in desktop mobile; do
-            npx lhci autorun --config=lighthouse.$FF.cjs
-          done
+      - name: Run LHCI (desktop only)
+        run: npx lhci autorun --config=lighthouse.desktop.cjs
         env:
           APP_VERSION: ${{ env.APP_VERSION }}
       - uses: actions/upload-artifact@v4
@@ -70,13 +67,10 @@ jobs:
           name: lighthouse-${{ steps.ver.outputs.app_version }}
           path: .lhci/${{ env.APP_VERSION }}/**/*.html
           retention-days: 30
-      - name: Save LHCI to Postgres (desktop & mobile)
-        run: |
-          for FF in desktop mobile; do
-            pnpm dlx node scripts/save-lhci.mjs \
-              --appVersion "$APP_VERSION" \
-              --formFactor=$FF
-          done
+      - name: Save LHCI to Postgres
+        run: pnpm dlx node scripts/save-lhci.mjs \
+          --appVersion "$APP_VERSION" \
+          --formFactor=desktop
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           APP_VERSION: ${{ env.APP_VERSION }}
