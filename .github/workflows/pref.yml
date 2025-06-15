@@ -65,7 +65,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: lighthouse-${{ steps.ver.outputs.app_version }}
-          path: .lhci/${{ env.APP_VERSION }}/**/*.html
+          path: .lhci/${{ env.APP_VERSION }}/**/*.json
           retention-days: 30
       - name: Save LHCI to Postgres
         run: |

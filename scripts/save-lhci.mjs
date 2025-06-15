@@ -37,6 +37,7 @@ async function main() {
     console.warn(`Directory not found: ${reportDir}`);
     return;
   }
+  console.log('files', files);
 
   const reportFiles = files.filter(
     (f) =>
