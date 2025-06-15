@@ -69,7 +69,7 @@ jobs:
           retention-days: 30
       - name: Save LHCI to Postgres
         run: pnpm dlx node scripts/save-lhci.mjs \
-          --appVersion "$APP_VERSION" \
+          --appVersion="$APP_VERSION" \
           --formFactor=desktop
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
