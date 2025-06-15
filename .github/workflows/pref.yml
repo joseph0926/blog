@@ -58,7 +58,7 @@ jobs:
           APP_VERSION: ${{ env.APP_VERSION }}
       - name: Wait for server
         run: npx wait-on http://localhost:3000 --timeout 90000
-      - name: Run LHCI (desktop only)
+      - name: Run LHCI
         run: npx lhci autorun --config=lighthouse.desktop.cjs
         env:
           APP_VERSION: ${{ env.APP_VERSION }}

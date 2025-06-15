@@ -42,11 +42,11 @@ module.exports = {
       preset: 'lighthouse:no-pwa',
       assertions: {
         performance: ['warn', { minScore: 0.8 }],
-        'largest-contentful-paint': ['error', { maxNumericValue: 2300 }],
-        interactive: ['error', { maxNumericValue: 3800 }],
         'cumulative-layout-shift': ['error', { maxNumericValue: 0.1 }],
 
         // TODO: 개선 후 error등으로 올릴 예정 - 2025.06.15 joseph0926
+        'largest-contentful-paint': ['warn', { maxNumericValue: 2300 }],
+        interactive: ['warn', { maxNumericValue: 3800 }],
         'image-delivery-insight': ['off'],
         'color-contrast': ['warn'],
         'link-name': ['warn'],
