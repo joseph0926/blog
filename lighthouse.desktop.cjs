@@ -25,7 +25,7 @@ module.exports = {
         },
         formFactor: 'desktop',
         disableStorageReset: true,
-        output: ['html', 'json'],
+        output: ['json'],
       },
       puppeteerLaunchOptions: {
         headless: 'new',
@@ -36,7 +36,7 @@ module.exports = {
     upload: {
       target: 'filesystem',
       outputDir: `.lhci/${APP_VERSION}/desktop`,
-      reportFilenamePattern: 'report-%%PATHNAME%%-%%DATETIME%%.html',
+      reportFilenamePattern: 'report-%%PATHNAME%%-%%DATETIME%%.json',
     },
 
     assert: {
