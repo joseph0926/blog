@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum FormFactor {
+  desktop
+  mobile
+}
+
 model User {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -46,28 +51,36 @@ model RefreshToken {
   @@index([token])
 }
 
-model WebVital {
-  id      BigInt   @id @default(autoincrement())
-  ts      DateTime @default(now())
-  url     String
-  name    String
-  value   Float
-  backend String
-  route   String
-  dbDur   Float?
+model ServerMetric {
+  id BigInt @id @default(autoincrement())
 
-  @@index([name, ts])
+  ts         DateTime @default(now())
+  day        DateTime
+  route      String
+  backend    String
+  dbDur      Float
+  appVersion String
+
+  @@index([day, backend])
 }
 
 model LighthouseRun {
-  id        BigInt   @id @default(autoincrement())
-  ts        DateTime @default(now())
-  url       String
-  perfScore Float
-  lcp       Float?
-  tti       Float?
-  fcp       Float?
-  json      Json?
+  id BigInt @id @default(autoincrement())
 
-  @@index([url, ts])
+  ts         DateTime   @default(now())
+  day        DateTime
+  url        String
+  route      String
+  appVersion String
+  formFactor FormFactor @default(desktop)
+
+  perfScore Float
+
+  lcp  Float?
+  cls  Float?
+  inp  Float?
+  json Json?
+
+  @@index([appVersion, route, formFactor, ts], name: "idx_version_route_ts")
+  @@index([day, route, formFactor], name: "idx_day_route")
 }

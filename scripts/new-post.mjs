@@ -5,19 +5,11 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-/** `readline` 모듈을 통해 CLI 사용자 입력을 컨트롤 */
 const rl = readline.createInterface({
-  /** 키보드로 입력한 데이터를 읽을 수 있도록 설정 */
   input: process.stdin,
-  /** 터미널에 메시지를 출력하도록 설정 */
   output: process.stdout,
 });
 
-/**
- * prompt
- * @param {String} question cli에 나올 질문
- * @returns `Promise`
- */
 async function prompt(question) {
   return new Promise((resolve) => rl.question(question, resolve));
 }
@@ -83,12 +75,6 @@ async function prompt(question) {
   }
 })();
 
-/**
- * generateSlug
- * @description 사용자 입력값을 바탕으로 slug를 생성
- * @param {string} title
- * @returns slug
- */
 function generateSlug(title) {
   return title
     .trim()

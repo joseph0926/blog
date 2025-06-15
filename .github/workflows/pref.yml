@@ -3,35 +3,80 @@ name: perf-check
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: perf-check-main
+  cancel-in-progress: true
 
 jobs:
   lighthouse:
     runs-on: ubuntu-22.04
+    env:
+      PNPM_VERSION: 10.11.1
+      NODE_VERSION: 22
+      NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v4
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
         with:
-          version: 10.11.1
+          fetch-depth: 0
+      - id: ver
+        run: |
+          PKG_VER=$(jq -r '.version' package.json)
+          SHORT_SHA=${GITHUB_SHA::8}
+          echo "APP_VERSION=${PKG_VER}+${SHORT_SHA}" >> $GITHUB_ENV
+          echo "app_version=${PKG_VER}+${SHORT_SHA}" >> $GITHUB_OUTPUT
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
           run_install: false
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
+      - name: Restore pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:gen
-      - run: pnpm build
+      - name: Build Next.js
+        run: pnpm build
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
-      - run: |
-          pnpm start &
-          npx wait-on http://localhost:3000
-      - run: npx lhci autorun --upload.target=filesystem
-      - name: Save LHCI to Postgres
-        run: pnpm dlx ts-node scripts/save-lhci.mjs
+          APP_VERSION: ${{ env.APP_VERSION }}
+      - name: Start server
+        run: pnpm start --port 3000 &
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_VERSION: ${{ env.APP_VERSION }}
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 90000
+      - name: Run LHCI (desktop & mobile)
+        run: |
+          for FF in desktop mobile; do
+            npx lhci autorun --config=lighthouse.$FF.cjs
+          done
+        env:
+          APP_VERSION: ${{ env.APP_VERSION }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-${{ steps.ver.outputs.app_version }}
+          path: .lhci/${{ env.APP_VERSION }}/**/*.html
+          retention-days: 30
+      - name: Save LHCI to Postgres (desktop & mobile)
+        run: |
+          for FF in desktop mobile; do
+            pnpm dlx node scripts/save-lhci.mjs \
+              --appVersion "$APP_VERSION" \
+              --formFactor=$FF
+          done
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          APP_VERSION: ${{ env.APP_VERSION }}

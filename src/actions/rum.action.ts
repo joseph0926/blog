@@ -1,28 +1,27 @@
 import { prisma } from '@/lib/prisma';
+import { APP_VERSION } from '@/lib/version';
 import { MetricType } from '@/types/action.type';
+import { startOfDay } from 'date-fns';
 
 export async function reportRUMServer(extra: MetricType, route: string) {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+  const day = startOfDay(new Date());
 
-  const todayCount = await prisma.webVital.count({
+  const todayCount = await prisma.serverMetric.count({
     where: {
-      name: 'DBDur',
+      day,
       backend: extra.backend,
-      ts: { gte: startOfDay },
     },
   });
-
   if (todayCount >= 3) return;
 
-  await prisma.webVital.create({
+  await prisma.serverMetric.create({
     data: {
       ts: new Date(),
-      url: '_server_',
-      name: 'DBDur',
-      value: extra.dbDur,
-      backend: extra.backend,
+      day,
       route,
+      backend: extra.backend,
+      dbDur: extra.dbDur,
+      appVersion: APP_VERSION,
     },
   });
 }
