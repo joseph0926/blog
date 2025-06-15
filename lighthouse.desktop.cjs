@@ -25,6 +25,7 @@ module.exports = {
         },
         formFactor: 'desktop',
         disableStorageReset: true,
+        output: ['html', 'json'],
       },
       puppeteerLaunchOptions: {
         headless: 'new',
