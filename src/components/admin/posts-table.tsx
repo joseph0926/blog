@@ -53,6 +53,7 @@ export default function PostsTable({
                     src={p.thumbnail}
                     width={64}
                     height={40}
+                    priority
                     alt="thumbnail"
                     className="h-10 w-16 rounded object-cover"
                   />

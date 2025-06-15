@@ -27,6 +27,7 @@ export const BlogPost = ({
         src={post?.thumbnail ?? '/logo/logo.webp'}
         width={1200}
         height={675}
+        priority
         alt={post.title}
         className={cn(
           'aspect-video rounded-lg object-cover',

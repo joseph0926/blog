@@ -12,6 +12,7 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
           src={post?.thumbnail ?? '/logo/logo.webp'}
           width={1200}
           height={675}
+          priority
           className="aspect-video w-full object-cover"
           alt={post?.title ?? ''}
         />

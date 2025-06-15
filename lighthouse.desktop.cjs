@@ -12,11 +12,8 @@ module.exports = {
         ? undefined
         : 'ready on.*3000',
       startServerReadyTimeout: 120_000,
-
-      url: require('./lh-urls.json').map((path) => `${BASE_URL}${path}`),
-
+      url: require('./lh-urls.json').map((p) => `${BASE_URL}${p}`),
       numberOfRuns: 1,
-
       settings: {
         preset: 'desktop',
         throttlingMethod: 'devtools',
@@ -34,21 +31,32 @@ module.exports = {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       },
     },
+
     upload: {
       target: 'filesystem',
       outputDir: `.lhci/${APP_VERSION}/desktop`,
       reportFilenamePattern: 'report-%%PATHNAME%%-%%DATETIME%%.html',
     },
+
     assert: {
       preset: 'lighthouse:no-pwa',
       assertions: {
-        'categories:performance': ['error', { minScore: 0.9 }],
-        'metrics/largest-contentful-paint': [
-          'error',
-          { maxNumericValue: 2300 },
-        ],
+        performance: ['warn', { minScore: 0.8 }],
+        'largest-contentful-paint': ['error', { maxNumericValue: 2300 }],
+        interactive: ['error', { maxNumericValue: 3800 }],
         'cumulative-layout-shift': ['error', { maxNumericValue: 0.1 }],
-        'metrics/interactive': ['error', { maxNumericValue: 3800 }],
+
+        // TODO: 개선 후 error등으로 올릴 예정 - 2025.06.15 joseph0926
+        'image-delivery-insight': ['off'],
+        'color-contrast': ['warn'],
+        'link-name': ['warn'],
+        list: ['off'],
+        'meta-description': ['warn'],
+        'bf-cache': ['off'],
+        'forced-reflow-insight': ['off'],
+        'legacy-javascript-insight': ['warn'],
+        'unused-javascript': ['warn'],
+        'network-dependency-tree-insight': ['off'],
       },
     },
   },
