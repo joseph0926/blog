@@ -13,7 +13,10 @@
     "format": "prettier --w \"**/*.{js,ts,jsx,tsx}\"",
     "new-mdx": "node scripts/new-post.mjs",
     "save-lhci": "node scripts/save-lhci.mjs",
-    "db:gen": "prisma generate"
+    "db:gen": "prisma generate",
+    "db:push": "prisma db push",
+    "db:re": "prisma migrate reset",
+    "db:stu": "prisma studio"
   },
   "dependencies": {
     "@hookform/resolvers": "^4.1.3",
