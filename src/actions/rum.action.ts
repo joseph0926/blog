@@ -1,7 +1,7 @@
+import { startOfDay } from 'date-fns';
 import { prisma } from '@/lib/prisma';
 import { APP_VERSION } from '@/lib/version';
 import { MetricType } from '@/types/action.type';
-import { startOfDay } from 'date-fns';
 
 export async function reportRUMServer(extra: MetricType, route: string) {
   const day = startOfDay(new Date());
