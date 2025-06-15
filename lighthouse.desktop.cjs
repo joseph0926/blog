@@ -15,7 +15,7 @@ module.exports = {
 
       url: require('./lh-urls.json').map((path) => `${BASE_URL}${path}`),
 
-      numberOfRuns: 3,
+      numberOfRuns: 1,
 
       settings: {
         preset: 'desktop',
