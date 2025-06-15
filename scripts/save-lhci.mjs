@@ -4,20 +4,27 @@ import { argv, exit } from 'node:process';
 import { startOfDay } from 'date-fns';
 import { PrismaClient } from '@prisma/client';
 
-const args = Object.fromEntries(
-  argv.slice(2).map((s) => {
-    const [k, v] = s.split('=');
-    return [k.replace(/^--/, ''), v ?? true];
-  }),
-);
+const args = {};
+for (let i = 2; i < argv.length; i++) {
+  const token = argv[i];
+  if (!token.startsWith('--')) continue;
+
+  if (token.includes('=')) {
+    const [k, v] = token.split('=');
+    args[k.replace(/^--/, '')] = v;
+  } else {
+    args[token.replace(/^--/, '')] = argv[i + 1];
+    i++;
+  }
+}
 
 const appVersion = args.appVersion ?? 'local';
 const formFactor = args.formFactor ?? 'desktop';
 const reportDir = args.dir ?? `.lhci/${appVersion}/${formFactor}`;
 
-if (!['desktop', 'mobile'].includes(formFactor)) {
-  console.error('❌  formFactor must be "desktop" or "mobile"');
-  exit(1);
+if (!args.appVersion || args.appVersion === 'local') {
+  console.error('--appVersion 인자가 전달되지 않았습니다.');
+  process.exit(1);
 }
 
 const prisma = new PrismaClient();
