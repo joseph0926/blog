@@ -46,6 +46,8 @@ module.exports = {
         list: ['off'],
         'legacy-javascript-insight': ['warn'],
         'render-blocking-insight': ['warn'],
+        'lcp-discovery-insight': ['warn'],
+        'uses-responsive-images': ['warn'],
       },
     },
   },

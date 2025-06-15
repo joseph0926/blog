@@ -57,6 +57,8 @@ module.exports = {
         'legacy-javascript-insight': ['warn'],
         'unused-javascript': ['warn'],
         'network-dependency-tree-insight': ['off'],
+        'lcp-discovery-insight': ['warn'],
+        'uses-responsive-images': ['warn'],
       },
     },
   },

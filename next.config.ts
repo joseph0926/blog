@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
     process.env.NODE_ENV !== 'production' ? ['next-mdx-remote'] : undefined,
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.APP_VERSION ?? 'dev',
+    NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV ?? 'dev',
   },
 };
 

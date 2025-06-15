@@ -50,6 +50,8 @@ export const metadata: Metadata = {
   authors: [{ name: '김영훈', url: 'https://joseph0926.com' }],
 };
 
+const isVercel = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -66,8 +68,12 @@ export default function RootLayout({
         >
           <Toaster richColors closeButton position="top-center" />
           {children}
-          <Analytics />
-          <SpeedInsights />
+          {isVercel && (
+            <>
+              <Analytics />
+              <SpeedInsights />
+            </>
+          )}
         </ThemeProvider>
       </body>
     </html>
