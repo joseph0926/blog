@@ -37,12 +37,11 @@ async function main() {
     console.warn(`Directory not found: ${reportDir}`);
     return;
   }
-  console.log('files', files);
 
   const reportFiles = files.filter(
     (f) =>
       f.endsWith('.report.json') ||
-      (f.startsWith('lhr-') && f.endsWith('.json')),
+      (f.startsWith('report-') && f.endsWith('.json')),
   );
   if (reportFiles.length === 0) {
     console.warn(`No reports found in ${reportDir}`);
