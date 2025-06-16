@@ -10,8 +10,10 @@ export async function reportRUMServer(extra: MetricType, route: string) {
     where: {
       day,
       backend: extra.backend,
+      appVersion: APP_VERSION,
     },
   });
+
   if (todayCount >= 3) return;
 
   await prisma.serverMetric.create({
