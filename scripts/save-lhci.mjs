@@ -2,6 +2,7 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { argv, exit } from 'node:process';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { startOfDay } from 'date-fns';
 import { PrismaClient } from '@prisma/client';
 
 const args = {};
