@@ -1,17 +1,6 @@
-import { cache } from 'react';
 import { getVersionDelta } from '@/actions/report.action';
-import { prisma } from '@/lib/prisma';
+import { getLatestVersions } from '@/actions/rum.action';
 import { VersionDeltaCards } from './version-delta-cards';
-
-const getLatestVersions = cache(async () => {
-  const rows = await prisma.lighthouseRun.findMany({
-    select: { appVersion: true },
-    distinct: ['appVersion'],
-    orderBy: { ts: 'desc' },
-    take: 6,
-  });
-  return rows.map((r) => r.appVersion);
-});
 
 type Props = {
   cur: string;

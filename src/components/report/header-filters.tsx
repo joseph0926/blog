@@ -1,8 +1,7 @@
 import { headers } from 'next/headers';
-import { cache } from 'react';
 import { Suspense } from 'react';
+import { getLatestVersions } from '@/actions/rum.action';
 import { Skeleton } from '@/components/ui/skeleton';
-import { prisma } from '@/lib/prisma';
 import { HeaderFiltersClient } from './header-filters.client';
 
 export const RANGES: { label: string; value: string }[] = [
@@ -10,16 +9,6 @@ export const RANGES: { label: string; value: string }[] = [
   { label: '7d', value: '7d' },
   { label: '30d', value: '30d' },
 ];
-
-const getLatestVersions = cache(async () => {
-  const rows = await prisma.lighthouseRun.findMany({
-    select: { appVersion: true },
-    distinct: ['appVersion'],
-    orderBy: { ts: 'desc' },
-    take: 6,
-  });
-  return rows.map((r) => r.appVersion);
-});
 
 export async function HeaderFilters() {
   const hdrs = await headers();

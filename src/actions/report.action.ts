@@ -4,11 +4,18 @@ import { FormFactor,Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import type { ActionResponse } from '@/types/action.type';
+import { getLatestVersions } from './rum.action';
 
-const rangeSchema = z.enum(['24h', '7d', '30d']);
+const RANGE = z.enum(['24h', '7d', '30d']);
+const VERSION_LITERAL = z.union([
+  z.literal('latest'),
+  z.literal('previous'),
+  z.string().min(1).max(40),
+]);
+
 const optionSchema = z.object({
-  range: rangeSchema,
-  version: z.string().min(1).max(40).optional(),
+  range: RANGE,
+  version: VERSION_LITERAL.optional(),
   backend: z.string().min(1).max(40).optional(),
   route: z.string().max(200).optional(),
   ff: z.enum(['desktop', 'mobile']).optional(),
@@ -17,7 +24,7 @@ type Option = z.infer<typeof optionSchema>;
 
 const limitSchema = z.coerce.number().int().min(1).max(100).default(10);
 
-function toUtcRange(range: '24h' | '7d' | '30d'): [Date, Date] {
+function toUtcRange(range: Option['range']): [Date, Date] {
   const to = new Date();
   const from = new Date();
   if (range === '24h') from.setUTCDate(to.getUTCDate() - 1);
@@ -28,7 +35,15 @@ function toUtcRange(range: '24h' | '7d' | '30d'): [Date, Date] {
   return [from, to];
 }
 
-function buildWhere(o: Option) {
+async function resolveVersion(ver?: string): Promise<string | undefined> {
+  if (!ver) return undefined;
+  const versions = await getLatestVersions();
+  if (ver === 'latest') return versions[0];
+  if (ver === 'previous') return versions.find((v) => v !== versions[0]);
+  return ver;
+}
+
+function buildWhere(o: Option & { version?: string | undefined }) {
   const [from, to] = toUtcRange(o.range);
   return {
     ts: { gte: from, lte: to },
@@ -38,7 +53,9 @@ function buildWhere(o: Option) {
   };
 }
 
-export async function getDashboardKpi(raw: unknown): Promise<
+export async function getDashboardKpi(
+  raw: unknown,
+): Promise<
   ActionResponse<{
     dbDurAvg: number | null;
     perfAvg: {
@@ -58,20 +75,19 @@ export async function getDashboardKpi(raw: unknown): Promise<
       data: null,
     };
 
-  const o = parsed.data;
-  const where = buildWhere(o);
+  const ver = await resolveVersion(parsed.data.version);
+  const where = buildWhere({ ...parsed.data, version: ver });
 
   try {
     const [ser, perf] = await prisma.$transaction([
-      prisma.serverMetric.aggregate({
-        _avg: { dbDur: true },
-        where,
-      }),
+      prisma.serverMetric.aggregate({ _avg: { dbDur: true }, where }),
       prisma.lighthouseRun.aggregate({
         _avg: { perfScore: true, lcp: true, cls: true, inp: true },
         where: {
           ...where,
-          ...(o.ff ? { formFactor: o.ff as FormFactor } : {}),
+          ...(parsed.data.ff
+            ? { formFactor: parsed.data.ff as FormFactor }
+            : {}),
         },
       }),
     ]);
@@ -115,21 +131,21 @@ export async function getTimeSeries(
       data: null,
     };
 
-  const o = parsed.data;
-  const where = buildWhere(o);
+  const ver = await resolveVersion(parsed.data.version);
+  const where = buildWhere({ ...parsed.data, version: ver });
 
   try {
     const rows = await prisma.$queryRaw<
       { day: Date; avg: number; p95: number }[]
     >(Prisma.sql`
       SELECT "day",
-             AVG("dbDur")                            AS avg,
+             AVG("dbDur") AS avg,
              PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "dbDur") AS p95
       FROM   "ServerMetric"
       WHERE  "day" BETWEEN ${where.ts.gte} AND ${where.ts.lte}
-      ${o.backend ? Prisma.sql`AND "backend"    = ${o.backend}` : Prisma.empty}
-      ${o.version ? Prisma.sql`AND "appVersion" = ${o.version}` : Prisma.empty}
-      ${o.route ? Prisma.sql`AND "route"      = ${o.route}` : Prisma.empty}
+      ${parsed.data.backend ? Prisma.sql`AND "backend"    = ${parsed.data.backend}` : Prisma.empty}
+      ${ver ? Prisma.sql`AND "appVersion" = ${ver}` : Prisma.empty}
+      ${parsed.data.route ? Prisma.sql`AND "route"      = ${parsed.data.route}` : Prisma.empty}
       GROUP  BY 1
       ORDER  BY 1;
     `);
@@ -171,9 +187,8 @@ export async function getTopSlowRoutes(
       data: null,
     };
 
-  const o = optParsed.data;
-  const limit = limitParsed.data;
-  const where = buildWhere(o);
+  const ver = await resolveVersion(optParsed.data.version);
+  const where = buildWhere({ ...optParsed.data, version: ver });
 
   try {
     const rows = await prisma.serverMetric.groupBy({
@@ -181,7 +196,7 @@ export async function getTopSlowRoutes(
       where,
       _avg: { dbDur: true },
       orderBy: { _avg: { dbDur: 'desc' } },
-      take: limit,
+      take: limitParsed.data,
     });
 
     return {
@@ -204,8 +219,8 @@ export async function getTopSlowRoutes(
 }
 
 export async function getVersionDelta(
-  curVersion: unknown,
-  prevVersion: unknown,
+  curVer: unknown,
+  prevVer: unknown,
   ffInput?: unknown,
 ): Promise<
   ActionResponse<{
@@ -214,16 +229,26 @@ export async function getVersionDelta(
     delta: number | null;
   }>
 > {
-  const verSchema = z.string().min(1).max(40);
-  const cur = verSchema.safeParse(curVersion);
-  const prev = verSchema.safeParse(prevVersion);
+  const verSchema = VERSION_LITERAL;
+  const curRaw = verSchema.safeParse(curVer);
+  const prevRaw = verSchema.safeParse(prevVer);
   const ff = z.enum(['desktop', 'mobile']).optional().safeParse(ffInput);
 
-  if (!cur.success || !prev.success)
+  if (!curRaw.success || !prevRaw.success)
     return {
       success: false,
       status: 400,
       message: 'version 파라미터가 유효하지 않습니다.',
+      data: null,
+    };
+
+  const cur = await resolveVersion(curRaw.data);
+  const prev = await resolveVersion(prevRaw.data);
+  if (!cur || !prev)
+    return {
+      success: false,
+      status: 404,
+      message: '버전 정보를 찾을 수 없습니다.',
       data: null,
     };
 
@@ -232,13 +257,13 @@ export async function getVersionDelta(
       by: ['appVersion'],
       _avg: { perfScore: true },
       where: {
-        appVersion: { in: [cur.data, prev.data] },
+        appVersion: { in: [cur, prev] },
         ...(ff.success && ff.data ? { formFactor: ff.data as FormFactor } : {}),
       },
     });
 
-    const curRow = rows.find((r) => r.appVersion === cur.data);
-    const prevRow = rows.find((r) => r.appVersion === prev.data);
+    const curRow = rows.find((r) => r.appVersion === cur);
+    const prevRow = rows.find((r) => r.appVersion === prev);
 
     const current = curRow?._avg.perfScore ?? null;
     const previous = prevRow?._avg.perfScore ?? null;

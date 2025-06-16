@@ -1,4 +1,5 @@
 import { startOfDay } from 'date-fns';
+import { cache } from 'react';
 import { prisma } from '@/lib/prisma';
 import { APP_VERSION } from '@/lib/version';
 import { MetricType } from '@/types/action.type';
@@ -27,3 +28,13 @@ export async function reportRUMServer(extra: MetricType, route: string) {
     },
   });
 }
+
+export const getLatestVersions = cache(async () => {
+  const rows = await prisma.lighthouseRun.findMany({
+    select: { appVersion: true },
+    distinct: ['appVersion'],
+    orderBy: { ts: 'desc' },
+    take: 6,
+  });
+  return rows.map((r) => r.appVersion);
+});
