@@ -1,4 +1,4 @@
-import { BarChart3, Github,HelpCircle, Home } from 'lucide-react';
+import { BarChart3, Github, HelpCircle, Home } from 'lucide-react';
 import Link from 'next/link';
 import {
   Sidebar,
@@ -59,14 +59,6 @@ export function ReportSidebar() {
                     <Github className="size-4" />
                     <span>GitHub</span>
                   </a>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild className="group">
-                  <Link href="/help">
-                    <HelpCircle className="size-4" />
-                    <span>Help</span>
-                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
