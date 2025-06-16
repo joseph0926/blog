@@ -1,18 +1,18 @@
+import { BarChart3, Github,HelpCircle, Home } from 'lucide-react';
 import Link from 'next/link';
 import {
   Sidebar,
   SidebarContent,
-  SidebarHeader,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
-  SidebarMenuItem,
   SidebarMenuButton,
+  SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar';
-import { Home, BarChart3, HelpCircle, Github } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { LogoIcon } from '../ui/icons';
 

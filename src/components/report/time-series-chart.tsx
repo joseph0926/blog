@@ -1,16 +1,16 @@
 'use client';
 
 import { format, parseISO } from 'date-fns';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { CartesianGrid,Line, LineChart, XAxis, YAxis } from 'recharts';
 import {
+  type ChartConfig,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
-  type ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
 } from '@/components/ui/chart';
-import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
 
 type Point = {
   day: string;
@@ -27,7 +27,7 @@ const nf = new Intl.NumberFormat('ko-KR', {
 
 const chartConfig = {
   avg: {
-    label: 'avg',
+    label: '평균',
     color: 'var(--chart-1)',
   },
   p95: {
@@ -44,22 +44,14 @@ export function TimeSeriesChart({ series }: Props) {
       </div>
     );
 
-  const formatSeries = useMemo(() => {
-    return series.map((s) => ({
-      avg: nf.format(s.avg),
-      p95: nf.format(s.p95),
-      day: s.day,
-    }));
-  }, [series]);
-
   return (
     <ChartContainer config={chartConfig} className="min-h-[280px] w-full">
       <LineChart
         accessibilityLayer
-        data={formatSeries}
+        data={series}
         margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
       >
-        <CartesianGrid vertical={false} strokeDasharray="3 3" />
+        <CartesianGrid strokeDasharray="3 3" />
         <XAxis
           dataKey="day"
           tickMargin={10}
@@ -70,13 +62,49 @@ export function TimeSeriesChart({ series }: Props) {
           tickMargin={8}
           tickFormatter={(v: number) => nf.format(v)}
         />
-        <ChartTooltip content={<ChartTooltipContent />} />
+        <ChartTooltip
+          content={<ChartTooltipContent />}
+          formatter={(_v, name, item) => (
+            <>
+              <div
+                className={cn(
+                  'size-2 shrink-0 rounded-[2px] border-[1.5px] border-dashed border-(--color-border) bg-(--color-bg)',
+                )}
+                style={
+                  {
+                    '--color-bg': chartConfig[item.name as 'avg' | 'p95'].color,
+                    '--color-border':
+                      chartConfig[item.name as 'avg' | 'p95'].color,
+                  } as React.CSSProperties
+                }
+              />
+              <div
+                className={cn(
+                  'flex flex-1 justify-between leading-none',
+                  name ? 'items-end' : 'items-center',
+                )}
+              >
+                <div className="grid gap-1.5">
+                  <span className="text-muted-foreground">
+                    {item.name === 'avg' ? '평균' : 'p95'}
+                  </span>
+                </div>
+                {item.value && (
+                  <span className="text-foreground font-mono font-medium tabular-nums">
+                    {nf.format(Number(item.value))}
+                  </span>
+                )}
+              </div>
+            </>
+          )}
+        />
         <ChartLegend content={<ChartLegendContent />} />
         <Line
           type="monotone"
           dataKey="avg"
           stroke="var(--color-avg)"
           strokeWidth={2}
+          dot={false}
         />
         <Line
           type="monotone"
@@ -84,6 +112,7 @@ export function TimeSeriesChart({ series }: Props) {
           stroke="var(--color-p95)"
           strokeWidth={2}
           strokeDasharray="4 2"
+          dot={false}
         />
       </LineChart>
     </ChartContainer>

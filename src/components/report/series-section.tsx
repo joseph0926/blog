@@ -1,26 +1,16 @@
 import { getTimeSeries } from '@/actions/report.action';
 import { TimeSeriesChart } from './time-series-chart';
 
-type Props = {
-  range: '24h' | '7d' | '30d';
-};
+type Props = { range: string; version: string };
 
-export default async function SeriesSection({ range }: Props) {
-  const series = await getTimeSeries(range);
-  if (!series.success || !series.data) {
-    return (
-      <div className="bg-muted/50 text-muted-foreground flex h-[280px] w-full items-center justify-center rounded-xl text-sm">
-        데이터가 없습니다.
-      </div>
-    );
-  }
+export async function SeriesSection({ range, version }: Props) {
+  const { data } = await getTimeSeries({ range, version });
+  const series = data?.series ?? [];
 
   return (
-    <section className="space-y-2">
-      <h2 className="text-base leading-none font-semibold tracking-tight">
-        DB 지연 추세 ({range})
-      </h2>
-      <TimeSeriesChart series={series.data?.series} />
+    <section className="bg-card rounded-xl border p-4 shadow-sm">
+      <h2 className="mb-2 font-medium">DB Duration - avg vs p95</h2>
+      <TimeSeriesChart series={series} />
     </section>
   );
 }

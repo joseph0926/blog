@@ -1,7 +1,7 @@
+import { Metadata } from 'next';
 import { ReportNavbar } from '@/components/report/report-navbar';
 import { ReportSidebar } from '@/components/report/report-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
-import { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '블로그 성능 대시보드',

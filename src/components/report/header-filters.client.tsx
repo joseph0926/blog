@@ -1,15 +1,59 @@
 'use client';
 
-import { useCallback, useLayoutEffect, useTransition } from 'react';
+import { CalendarRange, Tag } from 'lucide-react';
+import { AnimatePresence,motion } from 'motion/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { motion, AnimatePresence } from 'motion/react';
+import { useCallback, useLayoutEffect, useTransition } from 'react';
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
+
+interface FilterSelectProps {
+  value: string;
+  placeholder: string;
+  ariaLabel: string;
+  items: { label: string; value: string }[];
+  icon?: React.ReactNode;
+  onChange: (val: string) => void;
+  widthClass?: string;
+}
+
+function FilterSelect({
+  value,
+  placeholder,
+  ariaLabel,
+  items,
+  icon,
+  onChange,
+  widthClass = 'w-[96px]',
+}: FilterSelectProps) {
+  return (
+    <Select value={value} onValueChange={onChange} aria-label={ariaLabel}>
+      <SelectTrigger
+        className={`border-border bg-background h-8 ${widthClass} flex items-center gap-1 truncate`}
+      >
+        {icon}
+        <SelectValue
+          placeholder={placeholder}
+          className="truncate capitalize"
+        />
+      </SelectTrigger>
+      <SelectContent className="max-h-64 overflow-y-auto">
+        <motion.div {...pop}>
+          {items.map((i) => (
+            <SelectItem key={i.value} value={i.value} className="capitalize">
+              {i.label}
+            </SelectItem>
+          ))}
+        </motion.div>
+      </SelectContent>
+    </Select>
+  );
+}
 
 const pop = {
   initial: { opacity: 0, scale: 0.95, y: 4 },
@@ -25,7 +69,7 @@ type HeaderFiltersClientProps = {
   versions: string[];
 };
 
-export default function HeaderFiltersClient({
+export function HeaderFiltersClient({
   pathname,
   initRange,
   initVersion,
@@ -54,57 +98,41 @@ export default function HeaderFiltersClient({
     if (!range) sp.set('range', initRange);
     if (!version) sp.set('version', initVersion);
     router.replace(pathname + '?' + sp.toString());
-  }, [params, router, pathname, initRange, initVersion]);
+  }, []);
 
   const currentRange = params.get('range') ?? initRange;
   const currentVersion = params.get('version') ?? initVersion;
 
+  const versionItems = [
+    { label: 'Latest', value: 'latest' },
+    ...versions.map((v) => ({ label: v, value: v })),
+  ];
+
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div key="filters" {...pop} className="flex items-center gap-2">
-        <Select
+        <FilterSelect
           value={currentRange}
-          onValueChange={(val) =>
+          placeholder="range"
+          ariaLabel="기간 선택"
+          items={ranges}
+          icon={<CalendarRange className="text-muted-foreground h-3.5 w-3.5" />}
+          onChange={(val) =>
             startTransition(() => router.push(buildHref('range', val)))
           }
-        >
-          <SelectTrigger className="border-border bg-background h-8 w-[84px] capitalize">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <motion.div {...pop}>
-              {ranges.map((r) => (
-                <SelectItem
-                  key={r.value}
-                  value={r.value}
-                  className="capitalize"
-                >
-                  {r.label}
-                </SelectItem>
-              ))}
-            </motion.div>
-          </SelectContent>
-        </Select>
-        <Select
+        />
+
+        <FilterSelect
           value={currentVersion}
-          onValueChange={(val) =>
+          placeholder="version"
+          ariaLabel="버전 선택"
+          items={versionItems}
+          widthClass="w-[150px]"
+          icon={<Tag className="text-muted-foreground h-3.5 w-3.5" />}
+          onChange={(val) =>
             startTransition(() => router.push(buildHref('version', val)))
           }
-        >
-          <SelectTrigger className="border-border bg-background h-8 w-[140px] truncate">
-            <SelectValue placeholder="latest" className="truncate capitalize" />
-          </SelectTrigger>
-          <SelectContent className="max-h-64 overflow-y-auto">
-            <motion.div {...pop}>
-              <SelectItem value="latest">Latest</SelectItem>
-              {versions.map((v) => (
-                <SelectItem key={v} value={v} className="truncate">
-                  {v}
-                </SelectItem>
-              ))}
-            </motion.div>
-          </SelectContent>
-        </Select>
+        />
       </motion.div>
     </AnimatePresence>
   );

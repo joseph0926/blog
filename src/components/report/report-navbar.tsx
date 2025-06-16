@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { HeaderFilters } from './header-filters';
-import { Skeleton } from '@/components/ui/skeleton';
 
 export function ReportNavbar() {
   return (

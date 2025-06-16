@@ -1,75 +1,84 @@
 'use client';
 
+import { GaugeCircle, Server,Timer, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
-import { Card } from '@/components/ui/card';
 
-type KPIData = {
+interface PerfAvg {
+  score: number | null;
+  cls: number | null;
+  lcp: number | null;
+  inp: number | null;
+}
+interface KpiData {
   dbDurAvg: number | null;
-  perfAvg: {
-    score: number | null;
-    lcp: number | null;
-    cls: number | null;
-    inp: number | null;
-  };
-};
+  perfAvg: PerfAvg;
+}
 
-type MetricCardsProps = {
-  kpi: KPIData | null;
-};
+const METRICS = [
+  {
+    key: 'dbDurAvg',
+    label: 'DB Avg (ms)',
+    icon: <Server className="h-4 w-4" />,
+    formatter: (v: number | null) => (v ? v.toFixed(1) : '—'),
+    path: (d: KpiData) => d.dbDurAvg,
+  },
+  {
+    key: 'score',
+    label: 'Perf Score',
+    icon: <GaugeCircle className="h-4 w-4" />,
+    formatter: (v: number | null) => (v ? (v * 100).toFixed(0) + '%' : '—'),
+    path: (d: KpiData) => d.perfAvg.score,
+  },
+  {
+    key: 'cls',
+    label: 'CLS',
+    icon: <GaugeCircle className="h-4 w-4" />,
+    formatter: (v: number | null) => (v ? v.toFixed(4) : '—'),
+    path: (d: KpiData) => d.perfAvg.cls,
+  },
+  {
+    key: 'lcp',
+    label: 'LCP (ms)',
+    icon: <Timer className="h-4 w-4" />,
+    formatter: (v: number | null) => (v ? v.toFixed(1) : '—'),
+    path: (d: KpiData) => d.perfAvg.lcp,
+  },
+  {
+    key: 'inp',
+    label: 'INP (ms)',
+    icon: <Zap className="h-4 w-4" />,
+    formatter: (v: number | null) => (v ? v.toFixed(1) : '—'),
+    path: (d: KpiData) => d.perfAvg.inp,
+  },
+] as const;
 
-const fadeUp = {
-  initial: { opacity: 0, y: 6 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.25 } },
-};
+type MetricKey = (typeof METRICS)[number]['key'];
 
-export function MetricCards({ kpi }: MetricCardsProps) {
-  if (!kpi)
-    return (
-      <div className="grid gap-4 sm:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Card key={i} className="h-24 animate-pulse" />
-        ))}
-      </div>
-    );
-
-  const { dbDurAvg, perfAvg } = kpi;
-
+export function MetricCards({ data }: { data: KpiData | null }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <Card className="flex flex-col gap-1 p-4">
-        <span className="text-muted-foreground text-sm">DB 평균 지연(ms)</span>
-        <motion.span
-          key={dbDurAvg ?? '-'}
-          {...fadeUp}
-          className="text-3xl font-semibold tabular-nums"
-        >
-          {dbDurAvg !== null ? dbDurAvg.toFixed(1) : '-'}
-        </motion.span>
-      </Card>
-      <Card className="flex flex-col gap-1 p-4">
-        <span className="text-muted-foreground text-sm">PerfScore</span>
-        <motion.span
-          key={perfAvg.score ?? '-'}
-          {...fadeUp}
-          className="text-3xl font-semibold tabular-nums"
-        >
-          {perfAvg.score !== null ? perfAvg.score.toFixed(2) : '-'}
-        </motion.span>
-      </Card>
-      <Card className="flex flex-col gap-1 p-4">
-        <span className="text-muted-foreground text-sm">LCP / CLS / INP</span>
-        <motion.span
-          key={`${perfAvg.lcp}-${perfAvg.cls}-${perfAvg.inp}`}
-          {...fadeUp}
-          className="text-lg tabular-nums"
-        >
-          {[
-            perfAvg.lcp !== null ? perfAvg.lcp.toFixed(2) : '-',
-            perfAvg.cls !== null ? perfAvg.cls.toFixed(3) : '-',
-            perfAvg.inp !== null ? perfAvg.inp.toFixed(2) : '-',
-          ].join(' / ')}
-        </motion.span>
-      </Card>
-    </div>
+    <section className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-5">
+      {METRICS.map(({ key, label, icon, formatter, path }) => {
+        const value = data ? path(data) : null;
+        return (
+          <motion.div
+            key={key as MetricKey}
+            layout
+            layoutId={`metric-${key}`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="bg-card rounded-xl border p-4 shadow-sm dark:border-zinc-800"
+          >
+            <div className="text-muted-foreground flex items-center gap-2 text-sm">
+              {icon}
+              {label}
+            </div>
+            <div className="mt-2 text-2xl font-semibold tabular-nums">
+              {formatter(value)}
+            </div>
+          </motion.div>
+        );
+      })}
+    </section>
   );
 }
