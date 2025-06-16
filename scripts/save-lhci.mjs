@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { argv, exit } from 'node:process';
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { PrismaClient } from '@prisma/client';
 
 const args = {};
@@ -60,9 +60,9 @@ async function main() {
 
     const fetchTs = new Date(json.fetchTime);
     const KST = 'Asia/Seoul';
-    const zoned = utcToZonedTime(fetchTs, KST);
+    const zoned = toZonedTime(fetchTs, KST);
     const dayKst = startOfDay(zoned);
-    const day = zonedTimeToUtc(dayKst, KST);
+    const day = fromZonedTime(dayKst, KST);
     const url = json.finalUrl;
     const route = new URL(url).pathname || '/';
 
