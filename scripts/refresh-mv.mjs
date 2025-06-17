@@ -4,10 +4,10 @@ const prisma = new PrismaClient();
 
 try {
   await prisma.$executeRawUnsafe(
-    'REFRESH MATERIALIZED VIEW CONCURRENTLY "ApiMetricHourlyMV";',
+    'REFRESH MATERIALIZED VIEW "ApiMetricHourlyMV";',
   );
   await prisma.$executeRawUnsafe(
-    'REFRESH MATERIALIZED VIEW CONCURRENTLY "RumMetricDailyMV";',
+    'REFRESH MATERIALIZED VIEW "RumMetricDailyMV";',
   );
   console.log('Materialized views refreshed');
 } catch (err) {
