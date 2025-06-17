@@ -36,6 +36,7 @@ jobs:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:gen
       - run: pnpm lint
       - name: Build Next.js
         run: pnpm build
