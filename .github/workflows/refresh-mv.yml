@@ -29,6 +29,7 @@ jobs:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:gen
       - name: Refresh materialized views
         run: node scripts/refresh-mv.mjs
         env:
