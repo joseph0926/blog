@@ -51,36 +51,58 @@ model RefreshToken {
   @@index([token])
 }
 
-model ServerMetric {
-  id BigInt @id @default(autoincrement())
-
+model ApiMetric {
+  id         BigInt   @id @default(autoincrement())
   ts         DateTime @default(now())
   day        DateTime
   route      String
+  method     String
+  statusCode Int
   backend    String
-  dbDur      Float
+  region     String?
+  reqDur     Float
+  dbDur      Float?
+  cpuMs      Float?
+  memRssMb   Float?
+  cacheHit   Boolean  @default(false)
   appVersion String
 
-  @@index([day, backend])
+  @@index([day, route, method, statusCode])
+  @@index([appVersion, route, ts])
 }
 
-model LighthouseRun {
-  id BigInt @id @default(autoincrement())
-
+model RumMetric {
+  id         BigInt     @id @default(autoincrement())
   ts         DateTime   @default(now())
   day        DateTime
   url        String
   route      String
+  formFactor FormFactor
+  lcp        Float?
+  fid        Float?
+  cls        Float?
+  inp        Float?
+  ttfb       Float?
+  fcp        Float?
+
+  deviceMem  Float?
+  connType   String?
+  userAgent  String?
   appVersion String
-  formFactor FormFactor @default(desktop)
 
-  perfScore Float
+  @@index([day, route, formFactor])
+}
 
-  lcp  Float?
-  cls  Float?
-  inp  Float?
-  json Json?
-
-  @@index([appVersion, route, formFactor, ts], name: "idx_version_route_ts")
-  @@index([day, route, formFactor], name: "idx_day_route")
+model BuildArtifact {
+  id         BigInt   @id @default(autoincrement())
+  ts         DateTime @default(now())
+  appVersion String   @unique
+  commitHash String
+  branch     String
+  perfScore  Float
+  lcp        Float?
+  cls        Float?
+  inp        Float?
+  bundleKb   Float
+  jsCoverage Float?
 }
