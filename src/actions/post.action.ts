@@ -1,22 +1,20 @@
-'use server';
-
 import { Post, Prisma } from '@prisma/client';
 import { cache } from 'react';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { timed } from '@/lib/timer';
+import { withActionMetrics } from '@/lib/withActionMetrics';
 import { updatePostSchema } from '@/schemas/post.schema';
-import { ActionResponse } from '@/types/action.type';
-import {
+import type { ActionResponse } from '@/types/action.type';
+import type {
   PostResponse,
   UpdatePostPayload,
   UpdatePostResponse,
 } from '@/types/post.type';
-import { reportRUMServer } from './rum.action';
 
 const limitSchema = z.coerce.number().int().min(1).max(100);
 
-export const getRecentPosts = async (
+const _getRecentPosts = async (
   limitInput: number,
 ): Promise<ActionResponse<{ posts: PostResponse[] }>> => {
   const parse = limitSchema.safeParse(limitInput);
@@ -52,8 +50,6 @@ export const getRecentPosts = async (
       }),
     );
 
-    await reportRUMServer({ dbDur, backend }, 'getRecentPosts');
-
     return {
       data: { posts },
       message: posts.length ? '최신 글을 불러왔습니다.' : '글이 없습니다.',
@@ -71,8 +67,12 @@ export const getRecentPosts = async (
     };
   }
 };
+export const getRecentPosts = withActionMetrics(
+  _getRecentPosts,
+  'getRecentPosts',
+);
 
-export const getPostBySlug = cache(
+const _getPostBySlug = cache(
   async (slugInput: string): Promise<ActionResponse<{ post: Post }>> => {
     try {
       const {
@@ -80,10 +80,9 @@ export const getPostBySlug = cache(
         dbDur,
         backend,
       } = await timed('psql', () =>
-        prisma.post.findUnique({
-          where: { slug: slugInput },
-        }),
+        prisma.post.findUnique({ where: { slug: slugInput } }),
       );
+
       if (!post)
         return {
           status: 404,
@@ -91,8 +90,6 @@ export const getPostBySlug = cache(
           data: null,
           message: '해당 글을 찾을 수 없습니다.',
         };
-
-      await reportRUMServer({ dbDur, backend }, 'getPostBySlug');
 
       return {
         data: { post },
@@ -112,8 +109,9 @@ export const getPostBySlug = cache(
     }
   },
 );
+export const getPostBySlug = withActionMetrics(_getPostBySlug, 'getPostBySlug');
 
-export const updatePost = async (
+const _updatePost = async (
   slug: string,
   payload: UpdatePostPayload,
 ): Promise<ActionResponse<{ post: UpdatePostResponse }>> => {
@@ -131,48 +129,42 @@ export const updatePost = async (
 
   try {
     const post = await prisma.post.update({
-      where: {
-        slug,
-      },
-      data: {
-        thumbnail,
-      },
+      where: { slug },
+      data: { thumbnail },
       select: { slug: true, thumbnail: true, updatedAt: true },
     });
 
     return {
-      data: {
-        post,
-      },
+      data: { post },
       success: true,
       status: 200,
       message: '글을 업데이트하였습니다.',
     };
   } catch (e) {
     console.error(e);
+
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
-      switch (e.code) {
-        case 'P2025':
-          return {
-            status: 404,
-            success: false,
-            message: '해당 글이 없습니다.',
-            data: null,
-          };
-        case 'P2002':
-          return {
-            status: 409,
-            success: false,
-            message: 'slug 중복입니다.',
-            data: null,
-          };
-      }
+      if (e.code === 'P2025')
+        return {
+          status: 404,
+          success: false,
+          message: '해당 글이 없습니다.',
+          data: null,
+        };
+      if (e.code === 'P2002')
+        return {
+          status: 409,
+          success: false,
+          message: 'slug 중복입니다.',
+          data: null,
+        };
     }
     return {
-      message: '글을 업데이하는 중 오류가 발생했습니다.',
+      message: '글을 업데이트하는 중 오류가 발생했습니다.',
       data: null,
       success: false,
       status: 500,
     };
   }
 };
+export const updatePost = withActionMetrics(_updatePost, 'updatePost');

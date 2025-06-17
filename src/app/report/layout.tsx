@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { ReportNavbar } from '@/components/report/report-navbar';
 import { ReportSidebar } from '@/components/report/report-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import ReactQueryProvider from '@/providers/react-query-provider';
 
 export const metadata: Metadata = {
   title: '블로그 성능 대시보드',
@@ -15,7 +16,7 @@ export default function ReportLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <ReactQueryProvider>
       <div className="bg-background text-foreground flex h-screen w-full">
         <SidebarProvider>
           <ReportSidebar />
@@ -25,6 +26,6 @@ export default function ReportLayout({
           </div>
         </SidebarProvider>
       </div>
-    </>
+    </ReactQueryProvider>
   );
 }

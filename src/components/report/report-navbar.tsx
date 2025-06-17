@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { HeaderFilters } from './header-filters';
 
 export function ReportNavbar() {
   return (
@@ -17,9 +16,7 @@ export function ReportNavbar() {
               <Skeleton className="h-8 w-28 rounded-md" />
             </div>
           }
-        >
-          <HeaderFilters />
-        </Suspense>
+        ></Suspense>
         <ThemeToggle />
       </div>
     </nav>

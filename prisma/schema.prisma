@@ -75,7 +75,7 @@ model RumMetric {
   id         BigInt     @id @default(autoincrement())
   ts         DateTime   @default(now())
   day        DateTime
-  url        String
+  url        String?
   route      String
   formFactor FormFactor
   lcp        Float?
@@ -105,4 +105,18 @@ model BuildArtifact {
   inp        Float?
   bundleKb   Float
   jsCoverage Float?
+}
+
+model ApiMetricHourlyMV {
+  bucket     DateTime
+  route      String
+  appVersion String
+  hits       Int
+  p95Req     Float
+  p99Req     Float
+  p95Db      Float?
+  p99Db      Float?
+
+  @@map("ApiMetricHourlyMV")
+  @@ignore
 }
