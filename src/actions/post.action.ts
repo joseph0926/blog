@@ -1,3 +1,5 @@
+'use server';
+
 import { Post, Prisma } from '@prisma/client';
 import { cache } from 'react';
 import { z } from 'zod';

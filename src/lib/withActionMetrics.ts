@@ -14,8 +14,6 @@ export function withActionMetrics<Args extends unknown[], D = unknown>(
   let res: ActionResponse<D> | undefined;
 
   const wrapped = async (...args: Args): Promise<ActionResponse<D>> => {
-    'use server';
-
     const t0 = performance.now();
 
     return await reqStore.run({ dbDur: 0 }, async () => {
