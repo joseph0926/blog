@@ -6,9 +6,6 @@ try {
   await prisma.$executeRawUnsafe(
     'REFRESH MATERIALIZED VIEW "ApiMetricHourlyMV";',
   );
-  await prisma.$executeRawUnsafe(
-    'REFRESH MATERIALIZED VIEW "RumMetricDailyMV";',
-  );
   console.log('Materialized views refreshed');
 } catch (err) {
   console.error('[refresh-mv] error →', err);
