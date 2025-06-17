@@ -1,4 +1,6 @@
-import { type Metric,onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals';
+'use client';
+
+import { type Metric, onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals';
 
 type Extra = {
   appVersion: string;
@@ -10,7 +12,9 @@ type Extra = {
 
 export function initRUM(extra: Extra) {
   if (typeof window === 'undefined') return;
-  if (window.__RUM_INITIALIZED) return;
+  if (!window.__RUM_INITIALIZED) return;
+  console.log('test222');
+
   window.__RUM_INITIALIZED = true;
 
   const send = (metric: Metric) => {

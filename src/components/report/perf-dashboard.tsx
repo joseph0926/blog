@@ -1,6 +1,8 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
+import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import {
   Card,
@@ -24,8 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { fetchPerf } from '@/lib/fetch-perf';
 
 const chartCfg = {
