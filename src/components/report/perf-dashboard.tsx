@@ -1,8 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { fetchPerfLast24h } from '@/lib/fetch-perf';
 import { PerfLatencyCard } from '@/components/report/perf-chart';
+import { fetchPerfLast24h } from '@/lib/fetch-perf';
 
 export function PerfDashboard({ route }: { route: string }) {
   const { data = [] } = useQuery({

@@ -1,30 +1,29 @@
 'use client';
 
-import * as React from 'react';
-import { LineChart, Line, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { format } from 'date-fns';
-
+import * as React from 'react';
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import {
   Card,
-  CardHeader,
   CardContent,
-  CardTitle,
   CardDescription,
+  CardHeader,
+  CardTitle,
 } from '@/components/ui/card';
 import {
+  type ChartConfig,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
-  type ChartConfig,
+  ChartTooltip,
+  ChartTooltipContent,
 } from '@/components/ui/chart';
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 
 type Pt = { bucket: string | Date; p95req: number; p99req: number };
@@ -52,7 +51,10 @@ export function PerfLatencyCard({ data }: { data: Pt[] }) {
           <CardDescription>최근 {range} 지표</CardDescription>
         </div>
 
-        <Select value={range} onValueChange={(v) => setRange(v as any)}>
+        <Select
+          value={range}
+          onValueChange={(v) => setRange(v as '24h' | '7d' | '30d')}
+        >
           <SelectTrigger className="hidden w-[120px] sm:flex">
             <SelectValue placeholder="24h" />
           </SelectTrigger>

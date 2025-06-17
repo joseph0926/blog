@@ -1,4 +1,4 @@
-import { onLCP, onCLS, onINP, onFCP, onTTFB, type Metric } from 'web-vitals';
+import { type Metric,onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals';
 
 type Extra = {
   appVersion: string;

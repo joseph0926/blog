@@ -2,27 +2,26 @@ import { startOfDay } from 'date-fns';
 import { prisma, reqStore } from '@/lib/prisma';
 import type { ActionResponse } from '@/types/action.type';
 
-type ServerAction<Args extends any[], R extends ActionResponse<any>> = (
+type ServerAction<Args extends unknown[], D> = (
   ...args: Args
-) => Promise<R>;
+) => Promise<ActionResponse<D>>;
 
-export function withActionMetrics<
-  Args extends any[],
-  R extends ActionResponse<any>,
->(
-  fn: ServerAction<Args, R>,
+export function withActionMetrics<Args extends unknown[], D = unknown>(
+  fn: ServerAction<Args, D>,
   name: string,
   backend: string = 'action',
-): ServerAction<Args, R> {
-  return async (...args: Args): Promise<R> => {
+): ServerAction<Args, D> {
+  let res: ActionResponse<D> | undefined;
+
+  const wrapped = async (...args: Args): Promise<ActionResponse<D>> => {
+    'use server';
+
     const t0 = performance.now();
 
     return await reqStore.run({ dbDur: 0 }, async () => {
-      let res!: R;
       try {
         res = await fn(...args);
       } finally {
-        ('use server');
         void (async () => {
           try {
             const reqDur = performance.now() - t0;
@@ -42,11 +41,15 @@ export function withActionMetrics<
               } satisfies Parameters<typeof prisma.apiMetric.create>[0]['data'],
             });
           } catch (e) {
+            /* eslint-disable-next-line no-console */
             console.error('[metrics] action write error', e);
           }
         })();
       }
+
       return res;
     });
   };
+
+  return wrapped;
 }

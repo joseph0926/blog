@@ -1,10 +1,10 @@
 import {
-  QueryClient,
   dehydrate,
   HydrationBoundary,
+  QueryClient,
 } from '@tanstack/react-query';
-import { fetchPerfLast24h } from '@/lib/fetch-perf';
 import { PerfDashboard } from '@/components/report/perf-dashboard';
+import { fetchPerfLast24h } from '@/lib/fetch-perf';
 
 export default async function ReportHome() {
   const qc = new QueryClient();

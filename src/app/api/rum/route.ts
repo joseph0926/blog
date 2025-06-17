@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { startOfDay } from 'date-fns';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { prisma } from '@/lib/prisma';
 
 const MetricName = z.enum(['LCP', 'CLS', 'INP', 'FID', 'FCP', 'TTFB']);
 const FormFactor = z.enum(['desktop', 'mobile']);
