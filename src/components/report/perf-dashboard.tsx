@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { addHours, format, startOfDay } from 'date-fns';
 import { useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import {
@@ -36,7 +36,7 @@ const chartCfg = {
 const hourMap = { '24h': 24, '7d': 168, '30d': 720 } as const;
 
 export function PerfDashboard({ route }: { route: string }) {
-  const [range, setRange] = useState<'24h' | '7d' | '30d'>('24h');
+  const [range, setRange] = useState<'24h' | '7d' | '30d'>('7d');
 
   const { data = [] } = useQuery({
     queryKey: ['perf', route, range],
@@ -66,6 +66,13 @@ export function PerfDashboard({ route }: { route: string }) {
     return data.filter((d) => d.ts >= from);
   }, [data, range]);
 
+  const xTicks = useMemo(() => {
+    if (range === '24h') return undefined;
+    const days = range === '7d' ? 7 : 30;
+    const start = startOfDay(Date.now() - (days - 1) * 86_400_000);
+    return Array.from({ length: days }, (_, i) => +addHours(start, i * 24));
+  }, [range]);
+
   return (
     <section className="space-y-6">
       <h2 className="text-lg font-semibold">
@@ -77,7 +84,6 @@ export function PerfDashboard({ route }: { route: string }) {
             <CardTitle>요청 지연 - p95 / p99</CardTitle>
             <CardDescription>최근 {range} 지표</CardDescription>
           </div>
-
           <Select
             value={range}
             onValueChange={(v) => setRange(v as '24h' | '7d' | '30d')}
@@ -92,7 +98,6 @@ export function PerfDashboard({ route }: { route: string }) {
             </SelectContent>
           </Select>
         </CardHeader>
-
         <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
           <ChartContainer config={chartCfg} className="h-[260px] w-full">
             <LineChart data={filtered}>
@@ -102,7 +107,10 @@ export function PerfDashboard({ route }: { route: string }) {
                 type="number"
                 scale="time"
                 domain={['auto', 'auto']}
-                tickFormatter={(v) => format(v, 'HH:mm')}
+                ticks={xTicks}
+                tickFormatter={(v) =>
+                  range === '24h' ? format(v, 'HH:mm') : format(v, 'MM-dd')
+                }
               />
               <YAxis
                 unit="ms"
