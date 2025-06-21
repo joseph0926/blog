@@ -3,15 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { addHours, format, startOfDay } from 'date-fns';
 import { useMemo, useState } from 'react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Line,
-  LineChart,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
   type ChartConfig,
   ChartContainer,
