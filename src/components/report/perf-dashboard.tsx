@@ -2,7 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { addHours, format, startOfDay } from 'date-fns';
-import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 import {
   Card,
@@ -26,36 +27,49 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { fetchPerf } from '@/lib/fetch-perf';
-
-const chartCfg = {
-  p95req: { label: 'p95', color: 'blue' },
-  p99req: { label: 'p99', color: 'green' },
-} satisfies ChartConfig;
+import { fetchPerf } from '@/lib/server/fetch-perf';
 
 const hourMap = { '24h': 24, '7d': 168, '30d': 720 } as const;
 
-export function PerfDashboard({ route }: { route: string }) {
-  const [range, setRange] = useState<'24h' | '7d' | '30d'>('7d');
+const metrics = {
+  latency: {
+    keys: ['p95Req', 'p99Req'],
+    unit: 'ms',
+    title: '요청 지연 p95/p99',
+  },
+  db: { keys: ['p95Db', 'p99Db'], unit: 'ms', title: 'DB 지연 p95/p99' },
+  error: { keys: ['errRate'], unit: '%', title: '에러율' },
+  rps: { keys: ['rps'], unit: 'RPS', title: '처리량(RPS)' },
+} as const;
+
+type Range = keyof typeof hourMap;
+type Metric = keyof typeof metrics;
+
+export function PerfDashboard({
+  route,
+  initialRange = '7d',
+  initialMetric = 'latency',
+}: {
+  route: string;
+  initialRange?: '24h' | '7d' | '30d';
+  initialMetric?: 'latency' | 'db' | 'error' | 'rps';
+}) {
+  const router = useRouter();
+
+  const [range, setRange] = useState(initialRange);
+  const [metric, setMetric] = useState(initialMetric);
 
   const { data = [] } = useQuery({
     queryKey: ['perf', route, range],
     queryFn: () => fetchPerf(route, hourMap[range]),
     staleTime: 5 * 60_000,
-    select: (raw) => {
-      const seen = new Set<number>();
-      return raw
+    select: (rows) => {
+      return rows
         .map((r) => ({
-          ts: Number(r.ts),
-          p95req: +r.p95req,
-          p99req: +r.p99req,
+          ...r,
+          errRate: +((r.err / r.count) * 100).toFixed(2),
+          rps: +(r.count / (5 * 60)).toFixed(2),
         }))
-        .filter((r) => {
-          const key = Math.floor(r.ts / 1000);
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        })
         .sort((a, b) => a.ts - b.ts);
     },
   });
@@ -73,35 +87,69 @@ export function PerfDashboard({ route }: { route: string }) {
     return Array.from({ length: days }, (_, i) => +addHours(start, i * 24));
   }, [range]);
 
+  const chartCfg: ChartConfig = useMemo(() => {
+    const cfg: ChartConfig = {};
+    metrics[metric].keys.forEach((k) => {
+      cfg[k as keyof typeof cfg] = {
+        label: k,
+        color: k.includes('p95')
+          ? 'blue'
+          : k.includes('p99')
+            ? 'green'
+            : k.includes('err')
+              ? 'red'
+              : 'purple',
+      };
+    });
+    return cfg;
+  }, [metric]);
+
+  useEffect(() => {
+    router.replace(`?range=${range}&metric=${metric}`, { scroll: false });
+  }, [range, metric]);
+
   return (
     <section className="space-y-6">
       <h2 className="text-lg font-semibold">
-        홈 (Recent Posts) 최근 {range} 지연
+        {route} - 최근 {range} {metrics[metric].title}
       </h2>
+
+      <div className="flex gap-2">
+        <Select value={range} onValueChange={(v) => setRange(v as Range)}>
+          <SelectTrigger className="w-[110px]">
+            <SelectValue placeholder="24h" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="24h">24 시간</SelectItem>
+            <SelectItem value="7d">7 일</SelectItem>
+            <SelectItem value="30d">30 일</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <Select value={metric} onValueChange={(v) => setMetric(v as Metric)}>
+          <SelectTrigger className="w-[110px]">
+            <SelectValue placeholder="latency" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="latency">Latency</SelectItem>
+            <SelectItem value="db">DB</SelectItem>
+            <SelectItem value="error">Error Rate</SelectItem>
+            <SelectItem value="rps">RPS</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <Card className="pt-0">
-        <CardHeader className="flex items-center gap-2 space-y-0 border-b py-5 sm:flex-row">
-          <div className="grid flex-1 gap-1">
-            <CardTitle>요청 지연 - p95 / p99</CardTitle>
-            <CardDescription>최근 {range} 지표</CardDescription>
-          </div>
-          <Select
-            value={range}
-            onValueChange={(v) => setRange(v as '24h' | '7d' | '30d')}
-          >
-            <SelectTrigger className="hidden w-[120px] sm:flex">
-              <SelectValue placeholder="24h" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="24h">최근 24시간</SelectItem>
-              <SelectItem value="7d">최근 7일</SelectItem>
-              <SelectItem value="30d">최근 30일</SelectItem>
-            </SelectContent>
-          </Select>
+        <CardHeader className="border-b py-4">
+          <CardTitle>{metrics[metric].title}</CardTitle>
+          <CardDescription>range: {range}</CardDescription>
         </CardHeader>
+
         <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
           <ChartContainer config={chartCfg} className="h-[260px] w-full">
             <LineChart data={filtered}>
               <CartesianGrid vertical={false} />
+
               <XAxis
                 dataKey="ts"
                 type="number"
@@ -112,13 +160,14 @@ export function PerfDashboard({ route }: { route: string }) {
                   range === '24h' ? format(v, 'HH:mm') : format(v, 'MM-dd')
                 }
               />
+
               <YAxis
-                unit="ms"
+                unit={metrics[metric].unit}
                 tickLine={false}
                 axisLine={false}
                 domain={[
-                  (dataMin: number) => Math.floor(dataMin * 0.95),
-                  (dataMax: number) => Math.ceil(dataMax * 1.05),
+                  (min: number) => Math.floor(min * 0.95),
+                  (max: number) => Math.ceil(max * 1.05),
                 ]}
                 tickCount={4}
               />
@@ -128,20 +177,17 @@ export function PerfDashboard({ route }: { route: string }) {
                 content={<ChartTooltipContent indicator="dot" />}
               />
 
-              <Line
-                type="monotone"
-                dataKey="p95req"
-                stroke="var(--color-p95req)"
-                dot={false}
-                strokeWidth={2}
-              />
-              <Line
-                type="monotone"
-                dataKey="p99req"
-                stroke="var(--color-p99req)"
-                dot={false}
-                strokeDasharray="4 2"
-              />
+              {metrics[metric].keys.map((k) => (
+                <Line
+                  key={k}
+                  type="monotone"
+                  dataKey={k}
+                  stroke={`var(--color-${k})`}
+                  dot={false}
+                  strokeDasharray={k.includes('p99') ? '4 2' : undefined}
+                  strokeWidth={2}
+                />
+              ))}
 
               <ChartLegend content={<ChartLegendContent />} />
             </LineChart>
