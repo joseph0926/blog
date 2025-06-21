@@ -13,6 +13,7 @@ export function VitalGrid({}: { routes: string[] }) {
     queryFn: () => fetchRumOverviewStats(24),
     staleTime: 300_000,
   });
+  console.log(data);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

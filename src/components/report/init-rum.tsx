@@ -15,6 +15,7 @@ const deviceMemory: number | undefined =
 export default function InitRUM() {
   useEffect(() => {
     if (typeof window === 'undefined' || window.__RUM_INITIALIZED) return;
+    if (window.location.pathname.startsWith('/report')) return;
     window.__RUM_INITIALIZED = true;
 
     const nav = navigator as NavigatorConn;

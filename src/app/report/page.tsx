@@ -39,7 +39,6 @@ export default async function ReportHome() {
       <section className="space-y-8">
         <h2 className="text-xl font-semibold">API Overview</h2>
         <ApiGrid routes={routes} />
-
         <h2 className="text-xl font-semibold">Web Vitals Overview</h2>
         <VitalGrid routes={routes} />
       </section>
