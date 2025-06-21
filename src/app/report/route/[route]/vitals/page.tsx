@@ -19,7 +19,7 @@ export default async function RouteVitalsPage(props: {
   const searchParams = await props.searchParams;
 
   const route =
-    params.route === 'Home' ? '/' : decodeURIComponent(params.route);
+    params.route === 'home' ? '/' : decodeURIComponent(params.route);
   if (!route) notFound();
 
   const range: RangeKey = searchParams.range ?? '7d';

@@ -1,9 +1,17 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { addHours, format,startOfDay } from 'date-fns';
+import { addHours, format, startOfDay } from 'date-fns';
 import { useMemo, useState } from 'react';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import {
   type ChartConfig,
   ChartContainer,
@@ -92,7 +100,7 @@ export function WebVitalsDashboard({ route }: { route: string }) {
         config={cfg}
         className="h-[260px] w-full rounded-lg border"
       >
-        <LineChart data={data}>
+        <BarChart accessibilityLayer data={data}>
           <CartesianGrid vertical={false} />
           <XAxis
             dataKey="ts"
@@ -106,15 +114,14 @@ export function WebVitalsDashboard({ route }: { route: string }) {
           />
           <YAxis unit={metricMap[metric].unit} />
           <ChartTooltip content={<ChartTooltipContent indicator="dot" />} />
-          <Line
+          <Bar
             type="monotone"
             dataKey={metricMap[metric].key}
             stroke={`var(--color-${metricMap[metric].color})`}
-            dot={false}
             strokeWidth={2}
             isAnimationActive={false}
           />
-        </LineChart>
+        </BarChart>
       </ChartContainer>
 
       {isFetching && <p className="text-muted-foreground text-xs">loading …</p>}
