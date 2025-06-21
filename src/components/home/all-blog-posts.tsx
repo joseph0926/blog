@@ -14,8 +14,8 @@ export const AllBlogPosts = async () => {
   }
   return (
     <section className="grid grid-cols-2 gap-x-8 gap-y-12 lg:grid-cols-3">
-      {posts.map((post, idx) => (
-        <BlogPost key={post.id} post={post} disabled={idx !== 2} />
+      {posts.map((post) => (
+        <BlogPost key={post.id} post={post} />
       ))}
     </section>
   );
