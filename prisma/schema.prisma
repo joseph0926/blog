@@ -94,17 +94,15 @@ model RumMetric {
 }
 
 model BuildArtifact {
-  id         BigInt   @id @default(autoincrement())
-  ts         DateTime @default(now())
-  appVersion String   @unique
-  commitHash String
-  branch     String
-  perfScore  Float
-  lcp        Float?
-  cls        Float?
-  inp        Float?
-  bundleKb   Float
-  jsCoverage Float?
+  id           BigInt   @id @default(autoincrement())
+  ts           DateTime @default(now())
+  commitHash   String   @db.Char(40)
+  branch       String
+  bundleKb     Float
+  bundleGzipKb Float?
+  reportUrl    String?
+
+  @@index([branch, ts])
 }
 
 model ApiMetricHourlyMV {

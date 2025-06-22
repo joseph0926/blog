@@ -1,47 +1,91 @@
-import {
-  dehydrate,
-  HydrationBoundary,
-  QueryClient,
-} from '@tanstack/react-query';
-import { ApiGrid } from '@/components/report/api-grid';
-import { VitalGrid } from '@/components/report/vital-grid';
-import { fetchApiOverviewStats } from '@/lib/server/fetch-api-overview';
-import { fetchPerf } from '@/lib/server/fetch-perf';
-import { fetchRoutes } from '@/lib/server/fetch-routes';
-import { fetchRumOverviewStats } from '@/lib/server/fetch-rum-overview';
+import { KpiBadge } from '@/components/report/kpi-badge';
+import type { PerfChartDatum } from '@/components/report/perf-bar-chart';
+import PerfSection from '@/components/report/perf-section';
+import { StoryCard } from '@/components/report/story-card';
+import { getPerfSummary } from '@/lib/server/fetch-perf-summary';
 
-export default async function ReportHome() {
-  const qc = new QueryClient();
-  const routes = await fetchRoutes();
+export const revalidate = 1800;
 
-  await Promise.all([
-    ...routes.map((r) =>
-      qc.prefetchQuery({
-        queryKey: ['overview', r],
-        queryFn: () => fetchPerf(r, 24, 60),
-        staleTime: 300_000,
-      }),
-    ),
-    qc.prefetchQuery({
-      queryKey: ['apiOverview', '24h'],
-      queryFn: () => fetchApiOverviewStats(24),
-      staleTime: 300_000,
-    }),
-    qc.prefetchQuery({
-      queryKey: ['rumOverview', '24h'],
-      queryFn: () => fetchRumOverviewStats(24),
-      staleTime: 300_000,
-    }),
-  ]);
+export default async function ReportPage() {
+  const data = await getPerfSummary();
+
+  const lcpDelta =
+    data.lcpPast && data.lcpRecent
+      ? ((data.lcpRecent - data.lcpPast) / data.lcpPast) * 100
+      : 0;
+  const clsDelta =
+    data.clsPast && data.clsRecent
+      ? ((data.clsRecent - data.clsPast) / data.clsPast) * 100
+      : 0;
+  const p95Delta =
+    data.p95Past && data.p95Recent
+      ? ((data.p95Recent - data.p95Past) / data.p95Past) * 100
+      : 0;
+  const bundleDelta =
+    data.bundlePast && data.bundleRecent
+      ? ((data.bundleRecent - data.bundlePast) / data.bundlePast) * 100
+      : 0;
+
+  const chartData: PerfChartDatum[] = [
+    {
+      name: '평균 LCP(s)',
+      past: Number((data.lcpPast ?? 0).toFixed(2)),
+      recent: Number((data.lcpRecent ?? 0).toFixed(2)),
+    },
+    {
+      name: '평균 CLS',
+      past: Number((data.clsPast ?? 0).toFixed(3)),
+      recent: Number((data.clsRecent ?? 0).toFixed(3)),
+    },
+    {
+      name: 'API p95(ms)',
+      past: Math.round(data.p95Past ?? 0),
+      recent: Math.round(data.p95Recent ?? 0),
+    },
+    {
+      name: 'Bundle KB',
+      past: Math.round(data.bundlePast ?? 0),
+      recent: Math.round(data.bundleRecent ?? 0),
+    },
+  ];
 
   return (
-    <HydrationBoundary state={dehydrate(qc)}>
-      <section className="space-y-8">
-        <h2 className="text-xl font-semibold">API Overview</h2>
-        <ApiGrid routes={routes} />
-        <h2 className="text-xl font-semibold">Web Vitals Overview</h2>
-        <VitalGrid routes={routes} />
+    <main className="flex flex-col gap-6">
+      <section className="flex gap-3 overflow-x-auto">
+        <KpiBadge label="평균 LCP" delta={lcpDelta} />
+        <KpiBadge label="평균 CLS" delta={clsDelta} />
+        <KpiBadge label="API p95" delta={p95Delta} />
+        <KpiBadge label="JS 번들" delta={bundleDelta} />
       </section>
-    </HydrationBoundary>
+      <section className="grid gap-4 sm:grid-cols-2">
+        <StoryCard
+          title="평균 LCP"
+          past={`${(data.lcpPast ?? 0).toFixed(1)}s`}
+          recent={`${(data.lcpRecent ?? 0).toFixed(1)}s`}
+          delta={lcpDelta}
+        />
+        <StoryCard
+          title="평균 CLS"
+          past={`${(data.clsPast ?? 0).toFixed(3)}`}
+          recent={`${(data.clsRecent ?? 0).toFixed(3)}`}
+          delta={clsDelta}
+        />
+        <StoryCard
+          title="API p95"
+          past={`${Math.round(data.p95Past ?? 0)}ms`}
+          recent={`${Math.round(data.p95Recent ?? 0)}ms`}
+          delta={p95Delta}
+        />
+        <StoryCard
+          title="JS 번들"
+          past={`${Math.round(data.bundlePast ?? 0)}KB`}
+          recent={`${Math.round(data.bundleRecent ?? 0)}KB`}
+          delta={bundleDelta}
+        />
+      </section>
+      <section className="pb-10">
+        <PerfSection data={chartData} />
+      </section>
+    </main>
   );
 }

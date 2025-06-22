@@ -1,16 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+import { getPerfSummary } from '@/lib/server/fetch-perf-summary';
 
-export async function GET(req: NextRequest) {
-  const route = req.nextUrl.searchParams.get('route') ?? '/';
-  const rows = await prisma.$queryRaw<
-    { bucket: Date; p95req: number; p99req: number }[]
-  >`
-    SELECT "bucket","p95Req" as p95req,"p99Req" as p99req
-    FROM   "ApiMetricHourlyMV"
-    WHERE  "route" = ${route}
-      AND  "bucket" >= NOW() - interval '24 hours'
-    ORDER BY "bucket";
-  `;
-  return NextResponse.json(rows);
+export const runtime = 'edge';
+export const revalidate = 1800;
+
+export async function GET() {
+  const data = await getPerfSummary();
+  return NextResponse.json(data, {
+    headers: { 'Cache-Control': 's-maxage=1800' },
+  });
 }
