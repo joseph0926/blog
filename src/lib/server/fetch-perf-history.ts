@@ -23,7 +23,7 @@ export const getPerfHistory = cache(
       lcp_daily AS (
         SELECT day::date AS d, AVG(lcp)::float AS lcp
           FROM "RumMetric"
-         WHERE "environment" = ${PROD}
+         WHERE "environment" = CAST(${PROD} AS "Environment")
            AND ts >= CURRENT_DATE - INTERVAL '${days} days'
          GROUP BY day
       ),
@@ -31,7 +31,7 @@ export const getPerfHistory = cache(
         SELECT day::date AS d,
                percentile_cont(0.95) WITHIN GROUP (ORDER BY "reqDur")::float AS p95
           FROM "ApiMetric"
-         WHERE "environment" = ${PROD}
+         WHERE "environment" = CAST(${PROD} AS "Environment")
            AND ts >= CURRENT_DATE - INTERVAL '${days} days'
          GROUP BY day
       ),
@@ -39,7 +39,7 @@ export const getPerfHistory = cache(
         SELECT date_trunc('day', ts)::date AS d,
                AVG("bundleKb")::float       AS bundle
           FROM "BuildArtifact"
-         WHERE "environment" = ${PROD}
+         WHERE "environment" = CAST(${PROD} AS "Environment")
            AND ts >= CURRENT_DATE - INTERVAL '${days} days'
          GROUP BY date_trunc('day', ts)
       )

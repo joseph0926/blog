@@ -9,39 +9,39 @@ export const getPerfSummary = cache(async (): Promise<PerfSummary> => {
   const [{ value: lcpPast }] = await prisma.$queryRaw<OneVal[]>`
     SELECT AVG(lcp)::float AS value
       FROM "RumMetric"
-     WHERE "environment" = ${PROD}
+     WHERE "environment" = CAST(${PROD} AS "Environment")
        AND ts BETWEEN (NOW() - INTERVAL '8 days') AND (NOW() - INTERVAL '1 days')
   `;
   const [{ value: lcpRecent }] = await prisma.$queryRaw<OneVal[]>`
     SELECT AVG(lcp)::float AS value
       FROM "RumMetric"
-     WHERE "environment" = ${PROD}
+     WHERE "environment" = CAST(${PROD} AS "Environment")
        AND ts > (NOW() - INTERVAL '1 day')
   `;
 
   const [{ value: clsPast }] = await prisma.$queryRaw<OneVal[]>`
     SELECT AVG(cls)::float AS value
       FROM "RumMetric"
-     WHERE "environment" = ${PROD}
+     WHERE "environment" = CAST(${PROD} AS "Environment")
        AND ts BETWEEN (NOW() - INTERVAL '8 days') AND (NOW() - INTERVAL '1 days')
   `;
   const [{ value: clsRecent }] = await prisma.$queryRaw<OneVal[]>`
     SELECT AVG(cls)::float AS value
       FROM "RumMetric"
-     WHERE "environment" = ${PROD}
+     WHERE "environment" = CAST(${PROD} AS "Environment")
        AND ts > (NOW() - INTERVAL '1 day')
   `;
 
   const [{ value: p95Past }] = await prisma.$queryRaw<OneVal[]>`
     SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY "reqDur")::float AS value
       FROM "ApiMetric"
-     WHERE "environment" = ${PROD}
+     WHERE "environment" = CAST(${PROD} AS "Environment")
        AND ts BETWEEN (NOW() - INTERVAL '8 days') AND (NOW() - INTERVAL '1 days')
   `;
   const [{ value: p95Recent }] = await prisma.$queryRaw<OneVal[]>`
     SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY "reqDur")::float AS value
       FROM "ApiMetric"
-     WHERE "environment" = ${PROD}
+     WHERE "environment" = CAST(${PROD} AS "Environment")
        AND ts > (NOW() - INTERVAL '1 day')
   `;
 
