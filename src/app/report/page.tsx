@@ -1,7 +1,9 @@
+import Link from 'next/link';
 import { KpiBadge } from '@/components/report/kpi-badge';
 import type { PerfChartDatum } from '@/components/report/perf-bar-chart';
 import PerfSection from '@/components/report/perf-section';
 import { StoryCard } from '@/components/report/story-card';
+import { Button } from '@/components/ui/button';
 import { getPerfSummary } from '@/lib/server/fetch-perf-summary';
 
 export const revalidate = 1800;
@@ -51,12 +53,19 @@ export default async function ReportPage() {
 
   return (
     <main className="flex flex-col gap-6">
-      <section className="flex gap-3 overflow-x-auto">
-        <KpiBadge label="평균 LCP" delta={lcpDelta} />
-        <KpiBadge label="평균 CLS" delta={clsDelta} />
-        <KpiBadge label="API p95" delta={p95Delta} />
-        <KpiBadge label="JS 번들" delta={bundleDelta} />
-      </section>
+      <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+        <section className="flex gap-3 overflow-x-auto">
+          <KpiBadge label="평균 LCP" delta={lcpDelta} />
+          <KpiBadge label="평균 CLS" delta={clsDelta} />
+          <KpiBadge label="API p95" delta={p95Delta} />
+          <KpiBadge label="JS 번들" delta={bundleDelta} />
+        </section>
+        <Link href="/report/history" className="max-sm:w-full">
+          <Button variant="outline" className="cursor-pointer max-sm:w-full">
+            자세히 보기
+          </Button>
+        </Link>
+      </div>
       <section className="grid gap-4 sm:grid-cols-2">
         <StoryCard
           title="평균 LCP"
