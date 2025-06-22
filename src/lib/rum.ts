@@ -12,6 +12,7 @@ type Extra = {
 
 export function initRUM(extra: Extra) {
   if (typeof window === 'undefined') return;
+  if (window.location.pathname.startsWith('/report')) return;
   if (!window.__RUM_INITIALIZED) return;
 
   window.__RUM_INITIALIZED = true;

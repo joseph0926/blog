@@ -1,6 +1,7 @@
 import { startOfDay } from 'date-fns';
 import { prisma, reqStore } from '@/lib/prisma';
 import type { ActionResponse } from '@/types/action.type';
+import { ENV } from './env';
 
 type ServerAction<Args extends unknown[], D> = (
   ...args: Args
@@ -28,6 +29,7 @@ export function withActionMetrics<Args extends unknown[], D = unknown>(
             await prisma.apiMetric.create({
               data: {
                 ts: new Date(),
+                environment: ENV,
                 day: startOfDay(new Date()),
                 route: name,
                 method: 'ACTION',

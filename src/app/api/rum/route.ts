@@ -1,6 +1,7 @@
 import { startOfDay } from 'date-fns';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { ENV } from '@/lib/env';
 import { prisma } from '@/lib/prisma';
 
 const MetricName = z.enum(['LCP', 'CLS', 'INP', 'FID', 'FCP', 'TTFB']);
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
     await prisma.rumMetric.create({
       data: {
         ts,
+        environment: ENV,
         day,
         route: data.route,
         formFactor: data.formFactor,
