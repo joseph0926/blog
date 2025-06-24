@@ -4,12 +4,12 @@ import {
   QueryClient,
 } from '@tanstack/react-query';
 import { Metadata } from 'next';
+import { Suspense } from 'react';
 import { getRecentPosts } from '@/actions/post.action';
 import { BlogFilter } from '@/components/blog/blog-filter';
 import { BlogList } from '@/components/blog/blog-list';
 import { Container } from '@/components/ui/container';
 import { QUERY_KEY } from '@/lib/query-key';
-import { Suspense } from 'react';
 
 export const metadata: Metadata = {
   title: 'Blogs',
