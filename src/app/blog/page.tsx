@@ -9,6 +9,7 @@ import { BlogFilter } from '@/components/blog/blog-filter';
 import { BlogList } from '@/components/blog/blog-list';
 import { Container } from '@/components/ui/container';
 import { QUERY_KEY } from '@/lib/query-key';
+import { Suspense } from 'react';
 
 export const metadata: Metadata = {
   title: 'Blogs',
@@ -28,10 +29,12 @@ export default async function BlogPage() {
 
   return (
     <Container as="main" size="sm" className="relative min-h-[70vh]">
-      <BlogFilter />
-      <HydrationBoundary state={dehydrated}>
-        <BlogList />
-      </HydrationBoundary>
+      <Suspense>
+        <BlogFilter />
+        <HydrationBoundary state={dehydrated}>
+          <BlogList />
+        </HydrationBoundary>
+      </Suspense>
     </Container>
   );
 }
