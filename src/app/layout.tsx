@@ -7,6 +7,7 @@ import { Toaster } from 'sonner';
 import InitRUM from '@/components/report/init-rum';
 import { cn } from '@/lib/utils';
 import { commonOpenGraph } from '@/meta/open-graph';
+import ReactQueryProvider from '@/providers/react-query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 
 const geistSans = Geist({
@@ -68,7 +69,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Toaster richColors closeButton position="top-center" />
-          {children}
+          <ReactQueryProvider>{children}</ReactQueryProvider>
           {isVercel && (
             <>
               <Analytics />

@@ -2,10 +2,8 @@ import { JSX } from 'react';
 import { getRecentPosts } from '@/actions/post.action';
 import { BlogPost } from './blog-post';
 
-const LIMIT = 4;
-
 export const RecentBlogPosts = async () => {
-  const { data, message, success } = await getRecentPosts(LIMIT);
+  const { data, message, success } = await getRecentPosts({ limit: 4 });
   const posts = data?.posts;
 
   if (!success || !posts) {

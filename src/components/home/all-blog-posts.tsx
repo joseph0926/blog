@@ -2,7 +2,7 @@ import { getRecentPosts } from '@/actions/post.action';
 import { BlogPost } from './blog-post';
 
 export const AllBlogPosts = async () => {
-  const { data, message, success } = await getRecentPosts(3);
+  const { data, message, success } = await getRecentPosts({ limit: 3 });
 
   const posts = data?.posts;
 

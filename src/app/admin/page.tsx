@@ -6,7 +6,7 @@ import PostsTable from '@/components/admin/posts-table';
 export const metadata = { title: 'Admin | 게시글 관리' };
 
 export default async function AdminPostsPage() {
-  const { data, success } = await getRecentPosts(5);
+  const { data, success } = await getRecentPosts({ limit: 5 });
   if (!success || !data) notFound();
 
   const { posts } = data;

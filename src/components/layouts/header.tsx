@@ -4,11 +4,12 @@ import { Container } from '../ui/container';
 type HeaderProps = {
   useTitle?: boolean;
   title?: string;
+  size?: 'sm' | 'md' | 'lg';
 };
 
-export const Header = ({ useTitle, title }: HeaderProps) => {
+export const Header = ({ useTitle, title, size = 'md' }: HeaderProps) => {
   return (
-    <Container as="header" size="md" className="flex flex-col gap-12">
+    <Container as="header" size={size} className="flex flex-col gap-12">
       <Navbar />
       {useTitle && (
         <div className="border-t border-b py-12">

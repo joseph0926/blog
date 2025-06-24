@@ -14,22 +14,35 @@ import type {
   UpdatePostResponse,
 } from '@/types/post.type';
 
-const limitSchema = z.coerce.number().int().min(1).max(100);
+const RecentPostParamsSchema = z.object({
+  limit: z.number().min(1).max(100),
+  cursor: z.string().cuid().optional(),
+  filter: z
+    .object({
+      category: z.string().optional(),
+    })
+    .optional(),
+});
+type RecentPostParamsSchemaType = z.infer<typeof RecentPostParamsSchema>;
 
 const _getRecentPosts = async (
-  limitInput: number,
-): Promise<ActionResponse<{ posts: PostResponse[] }>> => {
-  const parse = limitSchema.safeParse(limitInput);
+  params: RecentPostParamsSchemaType,
+): Promise<
+  ActionResponse<{ posts: PostResponse[]; cursor: string | undefined }>
+> => {
+  const parse = RecentPostParamsSchema.safeParse(params);
   if (!parse.success)
     return {
       data: null,
       message:
-        parse.error.errors[0]?.message ?? 'limit 파라미터가 유효하지 않습니다.',
+        parse.error.errors[0]?.message ?? '파라미터가 유효하지 않습니다.',
       status: 400,
       success: false,
     };
 
-  const limit = parse.data;
+  const { limit, cursor, filter } = parse.data;
+
+  const categoryFilter = filter?.category?.toLowerCase();
 
   try {
     const {
@@ -47,13 +60,19 @@ const _getRecentPosts = async (
           description: true,
           tags: true,
         },
+        where: categoryFilter ? { tags: { has: categoryFilter } } : undefined,
         orderBy: { createdAt: 'desc' },
-        take: limit,
+        take: limit + 1,
+        skip: cursor ? 1 : 0,
+        cursor: cursor ? { id: cursor } : undefined,
       }),
     );
 
+    const sliced = posts.slice(0, limit);
+    const cursorRes = posts.length > limit ? posts[limit]?.id : undefined;
+
     return {
-      data: { posts },
+      data: { posts: sliced, cursor: cursorRes },
       message: posts.length ? '최신 글을 불러왔습니다.' : '글이 없습니다.',
       success: true,
       status: 200,

@@ -46,7 +46,7 @@ export const BlogPost = ({
         >
           <h2 className="line-clamp-1 text-2xl font-semibold">{post.title}</h2>
         </Link>
-        <p className="text-muted-foreground line-clamp-2 text-base">
+        <p className="text-muted-foreground line-clamp-1 text-base">
           {post.description}
         </p>
         <ul className="flex flex-wrap items-center gap-2">

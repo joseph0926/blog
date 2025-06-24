@@ -1,0 +1,67 @@
+'use client';
+
+import { usePathname, useRouter,useSearchParams } from 'next/navigation';
+import { useCallback, useRef } from 'react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+
+const DUMMY_CATEGORIES = ['react', 'javascript', 'tuto'];
+
+export const BlogFilter = () => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const createQueryString = useCallback(
+    (name: string, value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set(name, value);
+
+      return params.toString();
+    },
+    [searchParams],
+  );
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="fixed top-14 left-4 z-10 h-3/4 w-44 p-2">
+      <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-4">
+          <Label>Search</Label>
+          <Input ref={inputRef} />
+        </div>
+        <div className="flex flex-col gap-4">
+          <Label>Category</Label>
+          <ul className="flex flex-col gap-2.5">
+            {DUMMY_CATEGORIES.map((cat) => (
+              <li key={cat}>
+                <Button
+                  variant="link"
+                  className="cursor-pointer"
+                  onClick={() => {
+                    router.push(
+                      pathname + '?' + createQueryString('category', cat),
+                    );
+                  }}
+                >
+                  {cat}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <Button
+          variant="outline"
+          className="border-destructive text-destructive cursor-pointer"
+          onClick={() => {
+            router.push(pathname);
+          }}
+        >
+          Clear
+        </Button>
+      </div>
+    </div>
+  );
+};
