@@ -1,12 +1,13 @@
 'use client';
 
-import { usePathname, useRouter,useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useRef } from 'react';
 import { Button } from '../ui/button';
+import { Floating } from '../ui/floating';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
-const DUMMY_CATEGORIES = ['react', 'javascript', 'tuto'];
+const DUMMY_CATEGORIES = ['react', 'js', 'tuto'];
 
 export const BlogFilter = () => {
   const router = useRouter();
@@ -23,11 +24,15 @@ export const BlogFilter = () => {
     [searchParams],
   );
 
+  const handleCategoryFilter = (cat: string) => {
+    router.push(pathname + '?' + createQueryString('category', cat));
+  };
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
     <div className="fixed top-14 left-4 z-10 h-3/4 w-44 p-2">
-      <div className="flex flex-col gap-10">
+      <div className="hidden flex-col gap-10 xl:flex">
         <div className="flex flex-col gap-4">
           <Label>Search</Label>
           <Input ref={inputRef} />
@@ -40,11 +45,7 @@ export const BlogFilter = () => {
                 <Button
                   variant="link"
                   className="cursor-pointer"
-                  onClick={() => {
-                    router.push(
-                      pathname + '?' + createQueryString('category', cat),
-                    );
-                  }}
+                  onClick={() => handleCategoryFilter(cat)}
                 >
                   {cat}
                 </Button>
@@ -62,6 +63,7 @@ export const BlogFilter = () => {
           Clear
         </Button>
       </div>
+      <Floating onClick={handleCategoryFilter} items={DUMMY_CATEGORIES} />
     </div>
   );
 };
