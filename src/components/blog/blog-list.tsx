@@ -1,13 +1,14 @@
 'use client';
 
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { BookX, Loader2 } from 'lucide-react';
+import { BookX } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
 import { getRecentPosts } from '@/actions/post.action';
 import { QUERY_KEY } from '@/lib/query-key';
 import { BlogPost } from '../home/blog-post';
+import { BlogPostSkeleton } from '../home/blog-post.skeleton';
 
 export const BlogList = () => {
   const searchParams = useSearchParams();
@@ -69,7 +70,7 @@ export const BlogList = () => {
   }
   return (
     <div className="grid grid-cols-1 gap-x-4 gap-y-8 py-4 sm:grid-cols-2 md:grid-cols-3">
-      <AnimatePresence initial={false} mode="popLayout">
+      <AnimatePresence mode="popLayout">
         {posts.map((post) => (
           <motion.div
             key={post.id}
@@ -94,11 +95,7 @@ export const BlogList = () => {
         ))}
       </AnimatePresence>
       {hasNextPage && !isFetching ? <div className="h-1" ref={divRef} /> : null}
-      {!isPending && isFetching && (
-        <div className="flex h-10 w-full items-center justify-center">
-          <Loader2 className="size-4 animate-spin" />
-        </div>
-      )}
+      {!isPending && isFetching && <BlogPostSkeleton type="col" />}
     </div>
   );
 };

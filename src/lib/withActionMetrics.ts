@@ -3,7 +3,7 @@ import { prisma, reqStore } from '@/lib/prisma';
 import type { ActionResponse } from '@/types/action.type';
 import { ENV } from './env';
 
-type ServerAction<Args extends unknown[], D> = (
+export type ServerAction<Args extends unknown[], D> = (
   ...args: Args
 ) => Promise<ActionResponse<D>>;
 

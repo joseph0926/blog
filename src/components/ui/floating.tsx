@@ -4,15 +4,19 @@ import { Filter } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { TagResponse } from '@/types/post.type';
+import { Button } from './button';
 
 export const Floating = ({
   items,
   className,
   onClick,
+  clearFilter,
 }: {
-  items: string[];
+  items: TagResponse[] | undefined;
   className?: string;
   onClick: (cat: string) => void;
+  clearFilter: () => void;
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -27,11 +31,11 @@ export const Floating = ({
         {open && (
           <motion.div
             layoutId="nav"
-            className="absolute inset-x-0 bottom-full mb-2 flex flex-col gap-2"
+            className="bg-muted/50 absolute right-2 bottom-full mb-2 flex flex-col gap-2 rounded-2xl px-4 py-2 sm:right-0"
           >
-            {items.map((item, idx) => (
+            {items?.map((item, idx) => (
               <motion.div
-                key={item}
+                key={item.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{
                   opacity: 1,
@@ -47,14 +51,23 @@ export const Floating = ({
                 transition={{ delay: (items.length - 1 - idx) * 0.05 }}
               >
                 <button
-                  key={item}
-                  className="flex h-10 w-10 cursor-pointer items-center justify-start"
-                  onClick={() => onClick(item)}
+                  key={item.id}
+                  className="flex cursor-pointer items-center justify-start text-nowrap"
+                  onClick={() => onClick(item.name)}
                 >
-                  <div className="underline">{item}</div>
+                  <div className="text-xs underline">
+                    {item.name.toUpperCase()}
+                  </div>
                 </button>
               </motion.div>
             ))}
+            <Button
+              variant="link"
+              onClick={clearFilter}
+              className="cursor-pointer"
+            >
+              Clear
+            </Button>
           </motion.div>
         )}
       </AnimatePresence>

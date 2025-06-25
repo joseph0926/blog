@@ -56,7 +56,7 @@ export const BlogPost = ({
               variant="outline"
               className="mt-0.5 inline-block rounded-full px-2.5 text-xs font-medium md:mt-3"
             >
-              {tag.name}
+              {tag.name.toUpperCase()}
             </Badge>
           ))}
         </ul>

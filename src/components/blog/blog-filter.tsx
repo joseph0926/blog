@@ -1,13 +1,14 @@
 'use client';
 
+import { useSuspenseQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useRef } from 'react';
+import { getTags } from '@/actions/post.action';
+import { QUERY_KEY } from '@/lib/query-key';
 import { Button } from '../ui/button';
 import { Floating } from '../ui/floating';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-
-const DUMMY_CATEGORIES = ['react', 'js', 'tuto'];
 
 export const BlogFilter = () => {
   const router = useRouter();
@@ -25,8 +26,18 @@ export const BlogFilter = () => {
   );
 
   const handleCategoryFilter = (cat: string) => {
-    router.push(pathname + '?' + createQueryString('category', cat));
+    router.replace(pathname + '?' + createQueryString('category', cat));
   };
+  const clearFilter = () => {
+    router.replace(pathname);
+  };
+
+  const { data: tags } = useSuspenseQuery({
+    queryKey: QUERY_KEY.TAG.ALL,
+    queryFn: getTags,
+    staleTime: 1000 * 60 * 5,
+    select: (res) => res.data?.tags,
+  });
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -40,14 +51,14 @@ export const BlogFilter = () => {
         <div className="flex flex-col gap-4">
           <Label>Category</Label>
           <ul className="flex flex-col gap-2.5">
-            {DUMMY_CATEGORIES.map((cat) => (
-              <li key={cat}>
+            {tags?.map((tag) => (
+              <li key={tag.id}>
                 <Button
                   variant="link"
                   className="cursor-pointer"
-                  onClick={() => handleCategoryFilter(cat)}
+                  onClick={() => handleCategoryFilter(tag.name)}
                 >
-                  {cat}
+                  {tag.name.toUpperCase()}
                 </Button>
               </li>
             ))}
@@ -56,14 +67,16 @@ export const BlogFilter = () => {
         <Button
           variant="outline"
           className="border-destructive text-destructive cursor-pointer"
-          onClick={() => {
-            router.push(pathname);
-          }}
+          onClick={clearFilter}
         >
           Clear
         </Button>
       </div>
-      <Floating onClick={handleCategoryFilter} items={DUMMY_CATEGORIES} />
+      <Floating
+        clearFilter={clearFilter}
+        onClick={handleCategoryFilter}
+        items={tags}
+      />
     </div>
   );
 };
