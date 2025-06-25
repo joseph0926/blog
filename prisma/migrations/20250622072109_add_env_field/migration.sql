@@ -34,13 +34,15 @@ ALTER COLUMN "commitHash" SET DATA TYPE CHAR(40);
 -- AlterTable
 ALTER TABLE "RumMetric" ADD COLUMN     "environment" "Environment" NOT NULL DEFAULT 'prod';
 
+DROP MATERIALIZED VIEW IF EXISTS "ApiMetricHourlyMV" CASCADE;
+
 -- CreateIndex
 CREATE INDEX "BuildArtifact_branch_ts_idx" ON "BuildArtifact"("branch", "ts");
 
 CREATE MATERIALIZED VIEW "ApiMetricHourlyMV" AS
 SELECT
   date_trunc('hour', "ts")                            AS "bucket",
-  "env",
+  "environment",
   "route",
   "appVersion",
   count(*)                                            AS "hits",
@@ -49,7 +51,7 @@ SELECT
   percentile_cont(0.95) WITHIN GROUP (ORDER BY "dbDur")  AS "p95Db",
   percentile_cont(0.99) WITHIN GROUP (ORDER BY "dbDur")  AS "p99Db"
 FROM "ApiMetric"
-GROUP BY 1,2,3
+GROUP BY 1,2,3,4
 WITH NO DATA;
 
 CREATE INDEX "ApiMetricHourly_bucket_idx"

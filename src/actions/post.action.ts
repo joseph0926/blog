@@ -58,9 +58,16 @@ const _getRecentPosts = async (
           thumbnail: true,
           createdAt: true,
           description: true,
-          tags: true,
+          tags: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
         },
-        where: categoryFilter ? { tags: { has: categoryFilter } } : undefined,
+        where: categoryFilter
+          ? { tags: { some: { name: categoryFilter } } }
+          : undefined,
         orderBy: { createdAt: 'desc' },
         take: limit + 1,
         skip: cursor ? 1 : 0,

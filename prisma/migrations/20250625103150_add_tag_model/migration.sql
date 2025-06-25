@@ -1,0 +1,13 @@
+DROP MATERIALIZED VIEW IF EXISTS "ApiMetricHourlyMV" CASCADE;
+
+-- CreateTable
+CREATE TABLE "ApiMetricHourlyMV" (
+    "bucket" TIMESTAMP(3) NOT NULL,
+    "route" TEXT NOT NULL,
+    "appVersion" TEXT NOT NULL,
+    "hits" INTEGER NOT NULL,
+    "p95Req" DOUBLE PRECISION NOT NULL,
+    "p99Req" DOUBLE PRECISION NOT NULL,
+    "p95Db" DOUBLE PRECISION,
+    "p99Db" DOUBLE PRECISION
+);

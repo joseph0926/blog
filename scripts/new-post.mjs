@@ -28,12 +28,13 @@ async function prompt(question) {
       await prompt('태그를 쉼표(,)로 구분하여 입력하세요: ')
     ).trim();
 
-    const tags = tagsInput
+    const rawTags = tagsInput
       ? tagsInput
           .split(',')
           .map((tag) => tag.trim())
           .filter(Boolean)
       : [];
+    const tags = rawTags.map((t) => t.trim().toLowerCase());
 
     const slug = generateSlug(title);
     const date = new Date().toISOString().split('T')[0];
@@ -62,7 +63,12 @@ async function prompt(question) {
         slug: `${date}-${slug}`,
         title,
         description,
-        tags,
+        tags: {
+          connectOrCreate: tags.map((tag) => ({
+            where: { name: tag },
+            create: { name: tag },
+          })),
+        },
       },
     });
 

@@ -50,13 +50,13 @@ export const BlogPost = ({
           {post.description}
         </p>
         <ul className="flex flex-wrap items-center gap-2">
-          {post.tags.map((tag, idx) => (
+          {post.tags.map((tag) => (
             <Badge
-              key={idx}
+              key={tag.id}
               variant="outline"
               className="mt-0.5 inline-block rounded-full px-2.5 text-xs font-medium md:mt-3"
             >
-              {tag}
+              {tag.name}
             </Badge>
           ))}
         </ul>

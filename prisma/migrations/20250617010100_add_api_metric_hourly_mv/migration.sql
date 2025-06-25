@@ -130,6 +130,8 @@ CREATE UNIQUE INDEX "BuildArtifact_appVersion_key" ON "BuildArtifact"("appVersio
 -- AddForeignKey
 ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
+DROP MATERIALIZED VIEW IF EXISTS "ApiMetricHourlyMV" CASCADE;
+
 CREATE MATERIALIZED VIEW "ApiMetricHourlyMV" AS
 SELECT
   date_trunc('hour', "ts")                            AS "bucket",

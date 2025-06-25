@@ -35,11 +35,21 @@ model Post {
 
   title       String
   description String
-  tags        String[]
   thumbnail   String?
 
+  tags Tag[]
+
   @@index([createdAt, id])
-  @@index([tags], type: Gin)
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name String @unique
+
+  posts Post[]
 }
 
 model RefreshToken {
