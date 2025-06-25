@@ -10,10 +10,7 @@ import { BlogFilter } from '@/components/blog/blog-filter';
 import { BlogFilterSkeleton } from '@/components/blog/blog-filter.skeleton';
 import { BlogList } from '@/components/blog/blog-list';
 import { BlogPostSkeleton } from '@/components/home/blog-post.skeleton';
-import { Button } from '@/components/ui/button';
 import { Container } from '@/components/ui/container';
-import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
 import { QUERY_KEY } from '@/lib/query-key';
 
 export const metadata: Metadata = {
