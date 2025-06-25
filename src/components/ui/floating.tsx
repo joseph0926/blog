@@ -31,7 +31,7 @@ export const Floating = ({
         {open && (
           <motion.div
             layoutId="nav"
-            className="bg-muted/50 absolute right-2 bottom-full mb-2 flex flex-col gap-2 rounded-2xl px-4 py-2 sm:right-0"
+            className="bg-muted/80 absolute right-2 bottom-full mb-2 flex flex-col gap-2 rounded-2xl px-4 py-2 sm:right-0"
           >
             {items?.map((item, idx) => (
               <motion.div
