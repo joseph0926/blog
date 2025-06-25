@@ -45,8 +45,8 @@ async function prompt(question) {
       },
     });
     if (existingPost) {
-      console.error('이미 존재하는 slug입니다:', error);
-      await prisma.$disconnect;
+      console.error('이미 존재하는 slug입니다');
+      await prisma.$disconnect();
       rl.close();
       return;
     }
