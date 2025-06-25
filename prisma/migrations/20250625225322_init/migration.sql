@@ -1,6 +1,9 @@
 -- CreateEnum
 CREATE TYPE "FormFactor" AS ENUM ('desktop', 'mobile');
 
+-- CreateEnum
+CREATE TYPE "Environment" AS ENUM ('prod', 'dev');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -20,10 +23,19 @@ CREATE TABLE "Post" (
     "slug" TEXT NOT NULL,
     "title" TEXT NOT NULL,
     "description" TEXT NOT NULL,
-    "tags" TEXT[],
     "thumbnail" TEXT,
 
     CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Tag" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "name" TEXT NOT NULL,
+
+    CONSTRAINT "Tag_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -54,6 +66,7 @@ CREATE TABLE "ApiMetric" (
     "memRssMb" DOUBLE PRECISION,
     "cacheHit" BOOLEAN NOT NULL DEFAULT false,
     "appVersion" TEXT NOT NULL,
+    "environment" "Environment" NOT NULL DEFAULT 'prod',
 
     CONSTRAINT "ApiMetric_pkey" PRIMARY KEY ("id")
 );
@@ -76,6 +89,7 @@ CREATE TABLE "RumMetric" (
     "connType" TEXT,
     "userAgent" TEXT,
     "appVersion" TEXT NOT NULL,
+    "environment" "Environment" NOT NULL DEFAULT 'prod',
 
     CONSTRAINT "RumMetric_pkey" PRIMARY KEY ("id")
 );
@@ -84,17 +98,22 @@ CREATE TABLE "RumMetric" (
 CREATE TABLE "BuildArtifact" (
     "id" BIGSERIAL NOT NULL,
     "ts" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "appVersion" TEXT NOT NULL,
-    "commitHash" TEXT NOT NULL,
+    "commitHash" CHAR(40) NOT NULL,
     "branch" TEXT NOT NULL,
-    "perfScore" DOUBLE PRECISION NOT NULL,
-    "lcp" DOUBLE PRECISION,
-    "cls" DOUBLE PRECISION,
-    "inp" DOUBLE PRECISION,
     "bundleKb" DOUBLE PRECISION NOT NULL,
-    "jsCoverage" DOUBLE PRECISION,
+    "bundleGzipKb" DOUBLE PRECISION,
+    "reportUrl" TEXT,
+    "environment" "Environment" NOT NULL DEFAULT 'prod',
 
     CONSTRAINT "BuildArtifact_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "_PostToTag" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_PostToTag_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -107,7 +126,7 @@ CREATE UNIQUE INDEX "Post_slug_key" ON "Post"("slug");
 CREATE INDEX "Post_createdAt_id_idx" ON "Post"("createdAt", "id");
 
 -- CreateIndex
-CREATE INDEX "Post_tags_idx" ON "Post" USING GIN ("tags");
+CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
@@ -125,28 +144,16 @@ CREATE INDEX "ApiMetric_appVersion_route_ts_idx" ON "ApiMetric"("appVersion", "r
 CREATE INDEX "RumMetric_day_route_formFactor_idx" ON "RumMetric"("day", "route", "formFactor");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "BuildArtifact_appVersion_key" ON "BuildArtifact"("appVersion");
+CREATE INDEX "BuildArtifact_branch_ts_idx" ON "BuildArtifact"("branch", "ts");
+
+-- CreateIndex
+CREATE INDEX "_PostToTag_B_index" ON "_PostToTag"("B");
 
 -- AddForeignKey
 ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
-DROP MATERIALIZED VIEW IF EXISTS "ApiMetricHourlyMV" CASCADE;
+-- AddForeignKey
+ALTER TABLE "_PostToTag" ADD CONSTRAINT "_PostToTag_A_fkey" FOREIGN KEY ("A") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-CREATE MATERIALIZED VIEW "ApiMetricHourlyMV" AS
-SELECT
-  date_trunc('hour', "ts")                            AS "bucket",
-  "route",
-  "appVersion",
-  count(*)                                            AS "hits",
-  percentile_cont(0.95) WITHIN GROUP (ORDER BY "reqDur") AS "p95Req",
-  percentile_cont(0.99) WITHIN GROUP (ORDER BY "reqDur") AS "p99Req",
-  percentile_cont(0.95) WITHIN GROUP (ORDER BY "dbDur")  AS "p95Db",
-  percentile_cont(0.99) WITHIN GROUP (ORDER BY "dbDur")  AS "p99Db"
-FROM "ApiMetric"
-GROUP BY 1,2,3
-WITH NO DATA;
-
-CREATE INDEX "ApiMetricHourly_bucket_idx"
-  ON "ApiMetricHourlyMV" ("bucket" DESC);
-
-REFRESH MATERIALIZED VIEW "ApiMetricHourlyMV";
+-- AddForeignKey
+ALTER TABLE "_PostToTag" ADD CONSTRAINT "_PostToTag_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;

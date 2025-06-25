@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["views"]
 }
 
 datasource db {
@@ -123,7 +124,7 @@ model BuildArtifact {
   @@index([branch, ts])
 }
 
-model ApiMetricHourlyMV {
+view ApiMetricHourlyMV {
   bucket     DateTime
   route      String
   appVersion String
