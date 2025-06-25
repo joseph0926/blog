@@ -157,3 +157,26 @@ ALTER TABLE "_PostToTag" ADD CONSTRAINT "_PostToTag_A_fkey" FOREIGN KEY ("A") RE
 
 -- AddForeignKey
 ALTER TABLE "_PostToTag" ADD CONSTRAINT "_PostToTag_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+DROP MATERIALIZED VIEW IF EXISTS "ApiMetricHourlyMV" CASCADE;
+DROP TABLE           IF EXISTS "ApiMetricHourlyMV" CASCADE;
+
+CREATE MATERIALIZED VIEW "ApiMetricHourlyMV" AS
+SELECT
+  date_trunc('hour', "ts")                             AS bucket,
+  route,
+  "appVersion",
+  COUNT(*)                                             AS hits,
+  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "reqDur") AS p95Req,
+  PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY "reqDur") AS p99Req,
+  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "dbDur")  AS p95Db,
+  PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY "dbDur")  AS p99Db
+FROM "ApiMetric"
+GROUP BY
+  date_trunc('hour', "ts"),
+  route,
+  "appVersion";
+
+CREATE UNIQUE INDEX IF NOT EXISTS
+  "ApiMetricHourlyMV_bucket_route_version_idx"
+  ON "ApiMetricHourlyMV"(bucket, route, "appVersion");
