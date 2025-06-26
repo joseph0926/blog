@@ -30,7 +30,7 @@ export default async function ReportPage() {
 
   const chartData: PerfChartDatum[] = [
     {
-      name: '평균 LCP(s)',
+      name: '평균 LCP(ms)',
       past: Number((data.lcpPast ?? 0).toFixed(2)),
       recent: Number((data.lcpRecent ?? 0).toFixed(2)),
     },
@@ -69,8 +69,8 @@ export default async function ReportPage() {
       <section className="grid gap-4 sm:grid-cols-2">
         <StoryCard
           title="평균 LCP"
-          past={`${(data.lcpPast ?? 0).toFixed(1)}s`}
-          recent={`${(data.lcpRecent ?? 0).toFixed(1)}s`}
+          past={`${(data.lcpPast ?? 0).toFixed(1)}ms`}
+          recent={`${(data.lcpRecent ?? 0).toFixed(1)}ms`}
           delta={lcpDelta}
         />
         <StoryCard
