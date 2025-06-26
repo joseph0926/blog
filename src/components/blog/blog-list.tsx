@@ -31,7 +31,6 @@ export const BlogList = () => {
       },
       initialPageParam: undefined,
       staleTime: 1000 * 60 * 5,
-      placeholderData: (res) => res,
     });
 
   const posts = useMemo(
