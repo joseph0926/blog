@@ -42,6 +42,8 @@ export const metadata: Metadata = {
   keywords: [
     '김영훈',
     '프론트엔드',
+    '김영훈 프론트엔드',
+    '프론트엔드 김영훈',
     'React',
     '웹 개발',
     '웹 성능 최적화',

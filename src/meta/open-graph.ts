@@ -8,7 +8,7 @@ export const commonOpenGraph: Metadata['openGraph'] = {
   siteName: '김영훈 블로그',
   images: [
     {
-      url: '/logo/logo.webp',
+      url: 'https://joseph0926.com/logo/logo.webp',
       width: 1200,
       height: 630,
       alt: '김영훈 블로그 로고',
