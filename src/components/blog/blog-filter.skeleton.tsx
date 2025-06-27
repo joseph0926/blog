@@ -4,8 +4,8 @@ import { Skeleton } from '../ui/skeleton';
 
 export const BlogFilterSkeleton = () => {
   return (
-    <div className="fixed top-14 left-4 z-10 h-3/4 w-44 p-2">
-      <div className="hidden flex-col gap-10 xl:flex">
+    <div className="sticky top-14 left-4 z-10 hidden h-3/4 w-44 p-2 xl:block">
+      <div className="flex flex-col gap-10">
         <div className="flex flex-col gap-4">
           <Label>Search</Label>
           <Skeleton className="h-10 w-full" />
