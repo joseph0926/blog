@@ -13,10 +13,7 @@ export const metadata: Metadata = {
 
 export default function BlogPage() {
   return (
-    <Container as="main" size="sm" className="relative min-h-[70vh]">
-      <Suspense fallback={<BlogFilterSkeleton />}>
-        <BlogFilterServer />
-      </Suspense>
+    <Container as="section" size="md" className="relative min-h-[70vh]">
       <Suspense
         fallback={
           <div className="grid h-full w-full grid-cols-1 gap-x-4 gap-y-8 py-4 sm:grid-cols-2 md:grid-cols-3">

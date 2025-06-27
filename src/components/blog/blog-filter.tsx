@@ -42,41 +42,43 @@ export const BlogFilter = () => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="fixed top-14 left-4 z-10 h-3/4 w-44 p-2">
-      <div className="hidden flex-col gap-10 xl:flex">
-        <div className="flex flex-col gap-4">
-          <Label>Search</Label>
-          <Input ref={inputRef} />
+    <>
+      <div className="sticky top-14 left-4 z-10 hidden h-3/4 w-44 p-2 xl:block">
+        <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-4">
+            <Label>Search</Label>
+            <Input ref={inputRef} />
+          </div>
+          <div className="flex flex-col gap-4">
+            <Label>Category</Label>
+            <ul className="flex flex-col gap-2.5">
+              {tags?.map((tag) => (
+                <li key={tag.id}>
+                  <Button
+                    variant="link"
+                    className="cursor-pointer"
+                    onClick={() => handleCategoryFilter(tag.name)}
+                  >
+                    {tag.name.toUpperCase()}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <Button
+            variant="outline"
+            className="border-destructive text-destructive cursor-pointer"
+            onClick={clearFilter}
+          >
+            Clear
+          </Button>
         </div>
-        <div className="flex flex-col gap-4">
-          <Label>Category</Label>
-          <ul className="flex flex-col gap-2.5">
-            {tags?.map((tag) => (
-              <li key={tag.id}>
-                <Button
-                  variant="link"
-                  className="cursor-pointer"
-                  onClick={() => handleCategoryFilter(tag.name)}
-                >
-                  {tag.name.toUpperCase()}
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <Button
-          variant="outline"
-          className="border-destructive text-destructive cursor-pointer"
-          onClick={clearFilter}
-        >
-          Clear
-        </Button>
       </div>
       <Floating
         clearFilter={clearFilter}
         onClick={handleCategoryFilter}
         items={tags}
       />
-    </div>
+    </>
   );
 };
