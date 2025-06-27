@@ -1,7 +1,5 @@
 import { Metadata } from 'next';
 import { Suspense } from 'react';
-import { BlogFilterServer } from '@/components/blog/blog-filter.server';
-import { BlogFilterSkeleton } from '@/components/blog/blog-filter.skeleton';
 import { BlogListServer } from '@/components/blog/blog-list.server';
 import { BlogPostSkeleton } from '@/components/home/blog-post.skeleton';
 import { Container } from '@/components/ui/container';
