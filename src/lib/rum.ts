@@ -1,6 +1,7 @@
 'use client';
 
 import { type Metric, onCLS, onFCP, onINP, onLCP, onTTFB } from 'web-vitals';
+import { ENV } from './env';
 
 type Extra = {
   appVersion: string;
@@ -14,6 +15,7 @@ export function initRUM(extra: Extra) {
   if (typeof window === 'undefined') return;
   if (window.location.pathname.startsWith('/report')) return;
   if (!window.__RUM_INITIALIZED) return;
+  if (ENV === 'dev') return;
 
   window.__RUM_INITIALIZED = true;
 

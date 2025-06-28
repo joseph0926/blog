@@ -22,6 +22,7 @@ export function withActionMetrics<Args extends unknown[], D = unknown>(
         res = await fn(...args);
       } finally {
         void (async () => {
+          if (ENV === 'dev') return;
           try {
             const reqDur = performance.now() - t0;
             const { dbDur } = reqStore.getStore() ?? { dbDur: 0 };

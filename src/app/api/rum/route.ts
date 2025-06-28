@@ -25,6 +25,10 @@ type RumPayload = z.infer<typeof RumSchema>;
 export async function POST(req: NextRequest) {
   let data: RumPayload;
 
+  if (ENV === 'dev') {
+    return;
+  }
+
   try {
     const body = await req.json();
     data = RumSchema.parse(body);

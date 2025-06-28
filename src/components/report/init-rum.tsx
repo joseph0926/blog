@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { ENV } from '@/lib/env';
 import { initRUM } from '@/lib/rum';
 
 type NavigatorConn = Navigator & {
@@ -16,6 +17,7 @@ export default function InitRUM() {
   useEffect(() => {
     if (typeof window === 'undefined' || window.__RUM_INITIALIZED) return;
     if (window.location.pathname.startsWith('/report')) return;
+    if (ENV === 'dev') return;
     window.__RUM_INITIALIZED = true;
 
     const nav = navigator as NavigatorConn;
