@@ -5,7 +5,7 @@ import { BookX } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
-import { getRecentPosts } from '@/actions/post.action';
+import { getPosts } from '@/actions/post/getPosts.action';
 import { QUERY_KEY } from '@/lib/query-key';
 import { BlogPost } from '../home/blog-post';
 import { BlogPostSkeleton } from '../home/blog-post.skeleton';
@@ -20,7 +20,7 @@ export const BlogList = () => {
     useInfiniteQuery({
       queryKey: QUERY_KEY.POST.ALL({ category }),
       queryFn: ({ pageParam = undefined }: { pageParam: string | undefined }) =>
-        getRecentPosts({ limit: 10, cursor: pageParam, filter: { category } }),
+        getPosts({ limit: 10, cursor: pageParam, filter: { category } }),
       getNextPageParam: (lastPage) => {
         const cursor = lastPage.data?.cursor;
         if (cursor) {

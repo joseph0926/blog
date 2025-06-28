@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import { getRecentPosts } from '@/actions/post.action';
+import { getPosts } from '@/actions/post/getPosts.action';
 import PostsTable from '@/components/admin/posts-table';
 
 export const metadata = { title: 'Admin | 게시글 관리' };
 
 export default async function AdminPostsPage() {
-  const { data, success } = await getRecentPosts({ limit: 5 });
+  const { data, success } = await getPosts({ limit: 5 });
   if (!success || !data) notFound();
 
   const { posts } = data;

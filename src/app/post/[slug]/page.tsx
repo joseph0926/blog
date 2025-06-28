@@ -1,13 +1,13 @@
 import { Metadata } from 'next';
-import { compileMDX } from 'next-mdx-remote/rsc';
 import { Suspense } from 'react';
-import { getPostBySlug } from '@/actions/post.action';
+import { getPostBySlug } from '@/actions/post/getPostBySlug.action';
 import { PostHeaderLoading } from '@/components/loading/post-header.loading';
+import { PostContent } from '@/components/post/post-content';
 import { PostHeader } from '@/components/post/post-header';
 import { Container } from '@/components/ui/container';
-import { FiberWrapper, StackReconciler } from '@/mdx/components';
 import { commonOpenGraph } from '@/meta/open-graph';
-import { getPostContent } from '@/services/post.service';
+
+export const dynamic = 'force-static';
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -51,13 +51,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PostPage({ params }: Props) {
   const { slug } = await params;
-  const { source } = await getPostContent(slug);
-
-  const { content } = await compileMDX({
-    source,
-    components: { StackReconciler, FiberWrapper },
-    options: { parseFrontmatter: true },
-  });
 
   return (
     <Container as="main" size="lg" className="relative">
@@ -65,7 +58,9 @@ export default async function PostPage({ params }: Props) {
         <PostHeader slug={slug} />
       </Suspense>
       <article className="prose dark:prose-invert max-w-none py-8">
-        {content}
+        <Suspense fallback={<div className="h-[67vh]" />}>
+          <PostContent slug={slug} />
+        </Suspense>
       </article>
     </Container>
   );

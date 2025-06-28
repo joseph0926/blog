@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { getPostBySlug } from '@/actions/post.action';
+import { getPostBySlug } from '@/actions/post/getPostBySlug.action';
 
 export const PostHeader = async ({ slug }: { slug: string }) => {
   const { data } = await getPostBySlug(slug);

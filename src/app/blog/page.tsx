@@ -4,6 +4,8 @@ import { BlogListServer } from '@/components/blog/blog-list.server';
 import { BlogPostSkeleton } from '@/components/home/blog-post.skeleton';
 import { Container } from '@/components/ui/container';
 
+export const dynamic = 'force-static';
+
 export const metadata: Metadata = {
   title: 'Blogs',
   description: '작성된 블로그 글 전체를 확인해보세요!',

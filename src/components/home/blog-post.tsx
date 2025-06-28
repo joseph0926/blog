@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -36,9 +37,7 @@ export const BlogPost = ({
       />
       <div className="flex flex-col gap-3">
         <span className="text-muted-foreground text-sm">
-          {post.createdAt
-            .toISOString()
-            .slice(0, post.createdAt.toISOString().indexOf('T'))}
+          {format(new Date(post.createdAt), 'yyyy-MM-dd')}
         </span>
         <Link
           href={disabled ? '#' : `/post/${post.slug}`}

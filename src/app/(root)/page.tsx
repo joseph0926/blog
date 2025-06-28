@@ -5,6 +5,8 @@ import { AllBlogPostsLoading } from '@/components/loading/all-blog-posts.loading
 import { RecentBlogPostsLoading } from '@/components/loading/recent-blog-posts.loading';
 import { Container } from '@/components/ui/container';
 
+export const dynamic = 'force-static';
+
 export default function HomePage() {
   return (
     <Container as="main" size="lg" className="mt-16 flex flex-col gap-8">

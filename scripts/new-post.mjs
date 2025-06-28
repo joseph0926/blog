@@ -73,6 +73,14 @@ async function prompt(question) {
     });
 
     console.log(`새 글이 생성되었습니다: ${fileName}`);
+
+    await fetch('https://www.joseph0926.com/api/revalidate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug: `${date}-${slug}` }),
+    });
+
+    console.log('캐시가 무효화되었습니다.');
   } catch (error) {
     console.error('오류가 발생했습니다:', error);
   } finally {

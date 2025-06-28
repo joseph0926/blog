@@ -1,5 +1,6 @@
 'use client';
 
+import { format } from 'date-fns';
 import Image from 'next/image';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -45,7 +46,7 @@ export default function PostsTable({
             <TableRow key={p.slug}>
               <TableCell className="max-w-xs truncate">{p.title}</TableCell>
               <TableCell>
-                {new Date(p.createdAt).toLocaleDateString()}
+                {format(new Date(p.createdAt), 'yyyy-MM-dd')}
               </TableCell>
               <TableCell>
                 {p.thumbnail ? (
