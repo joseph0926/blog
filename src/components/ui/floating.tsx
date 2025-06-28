@@ -23,7 +23,7 @@ export const Floating = ({
   return (
     <div
       className={cn(
-        'fixed right-6 bottom-6 block sm:right-10 sm:bottom-10 xl:hidden',
+        'fixed right-6 bottom-6 z-[100] block sm:right-10 sm:bottom-10 xl:hidden',
         className,
       )}
     >
