@@ -1,0 +1,72 @@
+---
+slug: '2025-06-28-css-sonner-toast-'
+title: 'CSS를 이용하여 sonner toast 구현해보기'
+description: 'toast 패키지인 sonner를 CSS를 이용하여 구현해봅니다.'
+date: '2025-06-28'
+tags: ['css', 'motion']
+---
+
+import {
+  SonnerSample,
+  SonnerImpl1,
+  SonnerImpl2,
+  SonnerImpl3,
+  SonnerImpl4,
+} from '@/mdx/components';
+
+웹 개발을 하다보면 거의 필수적으로 사용자의 행동등에 대한 피드백을 줘야하는 상황이 존재하고, 이를 위해 보통 `toast`가 필요합니다.<br/>
+물론 브라우저 기본 내장 `alert`과 `confirm`이 존재하지만, 이들의 성격은 기본적으로 피드백도 존재하지만 보통 사용자의 확인을 위함입니다. 또한 UI/UX적으로도 그렇게 세련되지 않습니다.<br/>
+
+그래서 보통 toast를 직접 구현하거나, 사용중인 디자인 라이브러리에 포함된 toast를 사용하거나, toast 패키지를 사용합니다.<br/>
+저는 이중에서 `sonner`라는 toast 패키지를 사용합니다.<br/>
+사용하는 이유는 여러가지가 존재하지만 기본적으로 가장 깔끔한 디자인 + 자연스러운 애니메이션이 존재하여 사용하는 이유가 큽니다.<br/>
+
+> [sonner](https://sonner.emilkowal.ski/)
+
+<SonnerSample />
+
+위 버튼을 눌러서 나오는 toast들을 보시면 toast가 카드를 예쁘게 겹치듯이 쌓입니다.<br/>
+이 부분에 대해서 이번 글에서 간단하게 구현해보려합니다.<br/>
+
+## sonner 애니메이션 구현해보기
+
+우선 sonner와 비슷한 toast 컴포넌트를 구현합니다.<br/>
+
+<SonnerImpl1 />
+
+이 예시도 지금 잘 작동하지만 기존 sonner와 비교해보면 몇가지 다른게 존재합니다<br/>
+우선 애니메이션이 없습니다. -> 버튼을 누르고 toast가 나올떄 애니메이션, toast가 쌓이는 애니메이션등,,<br/>
+
+이러한 애니메이션을 차례대로 추가해보겠습니다.<br/>
+
+우선 sonner를 보시면 지금 코드 샌드박스 예시처럼 하나씩 위로 올라가는게 아니라 마치 카드가 겹치듯이 쌓입니다.<br/>
+이를 구현하기 위해서는 `.toast`의 `position: relative`를 `position: absolute`로 변경해줘야할듯합니다.<br/>
+
+<SonnerImpl2 />
+
+이제 겹쳐서 나타나지만 문제는 모든 toast가 하나의 절대적 위치에 나타나기떄문에 기존 sonner처럼 겹쳐보이지 않습니다.<br/>
+이를 해결하기 위해서 상대적 위치가 필요하고, 좀 더 자세히 말하면 각 카드 순서에 따른 상대적 위치가 필요합니다.<br/>
+예를들어 1번째 카드가 2번째 카드보다 약간 위에 존재해야합니다.<br/>
+
+그렇다면 이러한 순서에 기반한 상대적 위치를 컨트롤하기 위해 두가지 방법을 섞어서 사용하면 해결할수 있을거같습니다.<br/>
+
+- 순서 => index 활용
+- 순서에 따른 위치 변화 => index를 활용한 `translateY`
+
+그러면 문제는 `index`를 어떻게 css로 가져오냐인데,, -> 이때 사용하기 좋은 방법이 **CSS var**이 존재합니다.<br/>
+
+> css var는 `--xxx` 처럼 --를 이용하여 css에 사용할 변수를 저장하고 사용하는 방식입니다.
+
+<SonnerImpl3 />
+
+핵심 변경부부만 보면,
+
+- `index = toasts - (i + 1)`: toasts의 index가 가장 낮은것이 가장 오래된 toast라는 뜻이기떄문에 가장 뒤로 가야합니다. -> 따라서 이를 위해 index를 toasts의 index를 역순으로 계산해줍니다.
+- `style={{"--index": index}}`: 이제 index를 css에서 사용할수있게 css var로 넘겨줍니다.
+- `transform: translateY(calc(var(--index) * (5% + var(--gap)) * -1))`: 이제 index를 이용하여 카드를 위로 올려야하므로 `--index`에 위로 올리고싶은 값(`(5% + var(--gap))`)을 곱하고 올립니다(`-1`)
+  > 5%는 그냥 제가 정한 임의의 숫자입니다. 실제와 다를수있습니다.
+
+이제 sonner처럼 카드가 마치 겹치듯이 쌓이는것까지 구현이되었습니다.<br/>
+그러면 여기에 `transition`을 추가하고 마운트 상태를 컨트롤하여 초기 `opacity`와 마운트되었을때 `opacity`를 조절하면 부드러운 애니메이션이 완성됩니다.<br/>
+
+<SonnerImpl4 />

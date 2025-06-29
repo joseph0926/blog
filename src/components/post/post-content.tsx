@@ -1,5 +1,13 @@
 import { compileMDX } from 'next-mdx-remote/rsc';
-import { FiberWrapper, StackReconciler } from '@/mdx/components';
+import {
+  FiberWrapper,
+  SonnerImpl1,
+  SonnerImpl2,
+  SonnerImpl3,
+  SonnerImpl4,
+  SonnerSample,
+  StackReconciler,
+} from '@/mdx/components';
 import { getPostContent } from '@/services/post.service';
 
 export async function PostContent({ slug }: { slug: string }) {
@@ -7,7 +15,15 @@ export async function PostContent({ slug }: { slug: string }) {
 
   const { content } = await compileMDX({
     source,
-    components: { StackReconciler, FiberWrapper },
+    components: {
+      StackReconciler,
+      FiberWrapper,
+      SonnerSample,
+      SonnerImpl1,
+      SonnerImpl2,
+      SonnerImpl3,
+      SonnerImpl4,
+    },
     options: { parseFrontmatter: true },
   });
 
