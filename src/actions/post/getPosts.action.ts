@@ -1,12 +1,10 @@
 'use server';
 
+import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { timed } from '@/lib/timer';
 import { withActionMetrics } from '@/lib/withActionMetrics';
-import type { MetricType } from '@/types/action.type';
-import type { PostResponse } from '@/types/post.type';
-import { unstable_cache } from 'next/cache';
 
 const RecentPostParamsSchema = z.object({
   limit: z.number().min(1).max(100),
@@ -38,59 +36,6 @@ function generateCacheKey(params: {
 
   return parts;
 }
-
-const getPostsDB = async ({
-  categoryFilter,
-  limit,
-  cursor,
-}: {
-  categoryFilter: string | undefined;
-  limit: number;
-  cursor: string | undefined;
-}): Promise<{
-  posts: PostResponse[];
-  cursorRes: string | undefined;
-  metric: MetricType;
-}> => {
-  const {
-    data: posts,
-    dbDur,
-    backend,
-  } = await timed('psql', () =>
-    prisma.post.findMany({
-      select: {
-        id: true,
-        slug: true,
-        title: true,
-        thumbnail: true,
-        createdAt: true,
-        description: true,
-        tags: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      where: categoryFilter
-        ? { tags: { some: { name: categoryFilter } } }
-        : undefined,
-      orderBy: { createdAt: 'desc' },
-      take: limit + 1,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
-    }),
-  );
-
-  const sliced = posts.slice(0, limit);
-  const cursorRes = posts.length > limit ? posts[limit]?.id : undefined;
-
-  return {
-    posts: sliced,
-    cursorRes,
-    metric: { dbDur, backend, cacheHit: false },
-  };
-};
 
 const getPostsCached = async ({
   categoryFilter,

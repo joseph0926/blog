@@ -1,7 +1,7 @@
 'use client';
 
 import { Sandpack, SandpackProps } from '@codesandbox/sandpack-react';
-import { useEffect, useState, useRef, memo, useCallback, FC } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 function useInView(options?: IntersectionObserverInit) {
   const [inView, setInView] = useState(false);
