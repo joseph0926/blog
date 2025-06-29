@@ -1,12 +1,12 @@
 'use server';
 
 import { z } from 'zod';
-import { cached } from '@/lib/cache';
 import { prisma } from '@/lib/prisma';
 import { timed } from '@/lib/timer';
 import { withActionMetrics } from '@/lib/withActionMetrics';
 import type { MetricType } from '@/types/action.type';
 import type { PostResponse } from '@/types/post.type';
+import { unstable_cache } from 'next/cache';
 
 const RecentPostParamsSchema = z.object({
   limit: z.number().min(1).max(100),
@@ -18,6 +18,26 @@ const RecentPostParamsSchema = z.object({
     .optional(),
 });
 type RecentPostParamsSchemaType = z.infer<typeof RecentPostParamsSchema>;
+
+function generateCacheKey(params: {
+  categoryFilter?: string;
+  limit: number;
+  cursor?: string;
+}) {
+  const parts = ['posts'];
+
+  if (params.categoryFilter) {
+    parts.push(`cat:${params.categoryFilter}`);
+  }
+
+  parts.push(`limit:${params.limit}`);
+
+  if (params.cursor) {
+    parts.push(`cursor:${params.cursor}`);
+  }
+
+  return parts;
+}
 
 const getPostsDB = async ({
   categoryFilter,
@@ -65,24 +85,102 @@ const getPostsDB = async ({
   const sliced = posts.slice(0, limit);
   const cursorRes = posts.length > limit ? posts[limit]?.id : undefined;
 
-  return { posts: sliced, cursorRes, metric: { dbDur, backend } };
+  return {
+    posts: sliced,
+    cursorRes,
+    metric: { dbDur, backend, cacheHit: false },
+  };
 };
 
-const getPostsCached = cached(getPostsDB, ['posts'], ['posts']);
+const getPostsCached = async ({
+  categoryFilter,
+  limit,
+  cursor,
+}: {
+  categoryFilter: string | undefined;
+  limit: number;
+  cursor: string | undefined;
+}) => {
+  let cacheHit = true;
+  const cacheKey = generateCacheKey({ categoryFilter, limit, cursor });
+
+  const cachedFn = unstable_cache(
+    async () => {
+      cacheHit = false;
+
+      const {
+        data: posts,
+        dbDur,
+        backend,
+      } = await timed('psql', () =>
+        prisma.post.findMany({
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            thumbnail: true,
+            createdAt: true,
+            description: true,
+            tags: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          where: categoryFilter
+            ? { tags: { some: { name: categoryFilter } } }
+            : undefined,
+          orderBy: { createdAt: 'desc' },
+          take: limit + 1,
+          skip: cursor ? 1 : 0,
+          cursor: cursor ? { id: cursor } : undefined,
+        }),
+      );
+
+      const sliced = posts.slice(0, limit);
+      const nextCursor = posts.length > limit ? posts[limit]?.id : undefined;
+
+      return {
+        posts: sliced,
+        cursorRes: nextCursor,
+        metric: { dbDur, backend },
+      };
+    },
+    cacheKey,
+    {
+      tags: [
+        'all-posts',
+        ...(categoryFilter ? [`posts-category:${categoryFilter}`] : []),
+      ],
+      revalidate: cursor ? 60 : 300,
+    },
+  );
+
+  const result = await cachedFn();
+
+  return {
+    ...result,
+    metric: {
+      ...result.metric,
+      cacheHit,
+    },
+  };
+};
 
 export const getPosts = withActionMetrics(
   async (params: RecentPostParamsSchemaType) => {
-    try {
-      const parse = RecentPostParamsSchema.safeParse(params);
-      if (!parse.success)
-        return {
-          data: null,
-          message:
-            parse.error.errors[0]?.message ?? '파라미터가 유효하지 않습니다.',
-          status: 400,
-          success: false,
-        };
+    const parse = RecentPostParamsSchema.safeParse(params);
+    if (!parse.success)
+      return {
+        data: null,
+        message:
+          parse.error.errors[0]?.message ?? '파라미터가 유효하지 않습니다.',
+        status: 400,
+        success: false,
+      };
 
+    try {
       const { limit, cursor, filter } = parse.data;
 
       const categoryFilter = filter?.category?.toLowerCase();

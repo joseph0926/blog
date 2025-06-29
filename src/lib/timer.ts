@@ -4,12 +4,25 @@ export const timed = async <T>(
   backend: 'psql' | 'kv',
   fn: () => Promise<T>,
 ): Promise<{ data: T; dbDur: number; backend: typeof backend }> => {
-  const t0 = performance.now();
-  const data = await fn();
-  const dbDur = performance.now() - t0;
-
   const store = reqStore.getStore();
-  if (store) store.dbDur += dbDur;
+  const t0 = performance.now();
 
-  return { data, dbDur, backend };
+  try {
+    const data = await fn();
+    const dbDur = performance.now() - t0;
+
+    if (store) {
+      store.dbDur += dbDur;
+    }
+
+    return { data, dbDur, backend };
+  } catch (error) {
+    const dbDur = performance.now() - t0;
+
+    if (store) {
+      store.dbDur += dbDur;
+    }
+
+    throw error;
+  }
 };
