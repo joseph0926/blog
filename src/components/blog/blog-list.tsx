@@ -47,7 +47,7 @@ export const BlogList = () => {
       },
       {
         root: null,
-        rootMargin: '4px',
+        rootMargin: '100px',
         threshold: 0.5,
       },
     );
@@ -59,6 +59,15 @@ export const BlogList = () => {
     return () => observer.disconnect();
   }, [divRef, hasNextPage, isPending, isFetching]);
 
+  if (isPending) {
+    return (
+      <div className="grid grid-cols-1 gap-x-4 gap-y-8 py-4 sm:grid-cols-2 md:grid-cols-3">
+        {Array.from({ length: 5 }).map((_, index) => (
+          <BlogPostSkeleton type="col" key={index} />
+        ))}
+      </div>
+    );
+  }
   if (!isPending && !isFetching && posts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center">
