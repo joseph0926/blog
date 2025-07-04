@@ -1,5 +1,6 @@
 import { Footer } from '@/components/home/footer';
 import { Header } from '@/components/layouts/header';
+import { TopProgress } from '@/components/ui/top-progress';
 
 export default function PostLayout({
   children,
@@ -8,6 +9,7 @@ export default function PostLayout({
 }) {
   return (
     <>
+      <TopProgress />
       <Header useTitle={false} />
       {children}
       <Footer />
