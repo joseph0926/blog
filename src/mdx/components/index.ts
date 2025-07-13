@@ -2,3 +2,8 @@ export * from './fiber/fiber-wrapper';
 export * from './sonner/sonner-impl';
 export * from './sonner/sonner-sample';
 export * from './stack-reconciler';
+export * from './suspense/perf-compare-demo';
+export * from './suspense/suspense-demo';
+export * from './suspense/suspense-transition-demo';
+export * from './suspense/sync-vs-async-demo';
+export * from './suspense/traditional-loading-demo';

@@ -1,0 +1,173 @@
+---
+slug: '2025-07-13-learn-react-02-suspense-'
+title: 'Learn React 02: 왜 Suspense가 도입되었을까?'
+description: '왜 데이터 패칭에 비동기 함수가 사용되는지와 기존 로딩 처리 전략이 존재함에도 Suspense가 도입되었는지 알아봅니다.'
+date: '2025-07-13'
+tags: ['react', 'learn_react', 'suspense']
+---
+
+import { SyncVsAsyncDemo } from '@/components/blog/SyncVsAsyncDemo';
+import { TraditionalLoadingDemo } from '@/components/blog/TraditionalLoadingDemo';
+import { SuspenseDemo } from '@/components/blog/SuspenseDemo';
+import { SuspenseTransitionDemo } from '@/components/blog/SuspenseTransitionDemo';
+import { PerformanceComparisonDemo } from '@/components/blog/PerformanceComparisonDemo';
+
+## 1. 비동기가 필수인 이유
+
+웹 등에서 서버로부터 데이터를 받아오는 **fetch** 로직은 기본적으로 비동기 함수입니다. 이 문장은 당연해 보이지만, "왜 **반드시** 비동기 함수여야 할까?"라는 질문을 한 번쯤 던져 보는 것도 좋습니다.
+
+웹·앱을 구현하다 보면 개발자가 컨트롤할 수 있는 부분과 그렇지 못한 부분이 나뉩니다.
+
+예를 들어 버튼을 눌러 `alert` 창을 띄우는 일은 개발자가 마음대로 제어할 수 있지만, 네트워크 요청에 문제가 생겨 데이터 도착이 지연되거나 실패하는 부분은 개발자가 컨트롤할 수 없습니다.
+
+<SyncVsAsyncDemo />
+
+이런 컨트롤 불가능한 부분이 만약 동기적으로 작동한다고 가정해 봅시다.
+
+개발자와 사용자 모두 데이터 패칭 동안 웹·앱이 멈추는 것을 원하지 않습니다. 설령 멈춘다 하더라도 사용자가 체감하지 못할 정도(보통 100~200ms 이하)의 짧은 시간이어야 할 것입니다.
+
+하지만 동기적으로 작성하면 이러한 부분의 제어가 개발자 손을 떠납니다.
+
+사람마다 웹·앱에 접속하는 환경과 디바이스가 다르고, 어떤 곳에서는 네트워크가 불안정해 속도가 매우 느릴 수 있습니다. 이 경우 웹·앱은 상당 시간 먹통이 될 것입니다.
+
+왜냐하면 싱글 스레드 JS에서 네트워크 I/O가 동기라면 메인 스레드가 콜 스택을 비우지 못해 이벤트 루프가 돌지 않기 때문입니다.
+
+따라서 이러한 문제를 우회하려면 비동기로 데이터 패칭을 진행해야 합니다. 즉, 데이터 패칭 로직이 다른 로직을 블로킹해서는 안 됩니다.
+
+---
+
+## 2. async/await로 동기 흐름처럼 다루기
+
+비동기 로직만으로는 UI가 복잡해지기 때문에, JS는 **콜백 → `.then()` → `async/await`** 순으로 고수준 문법을 제공해 왔습니다.
+
+EX
+
+```javascript
+const data = await 비동기함수();
+```
+
+- `await` 직전에 **Promise**를 반환
+- 현재 실행 컨텍스트가 **콜 스택에서 제거**
+- 결과가 준비되면 **Micro-task Queue**에 콜백 등록
+- 이벤트 루프가 다시 실행
+
+이렇게 비동기로 블로킹 문제를 피하면서 `async/await`를 통해 마치 동기 로직처럼 작성할 수 있습니다.
+
+---
+
+## 3. 로딩 상태 관리의 전통적 방법
+
+이제 고려할 부분은 데이터 패칭 로직에서 데이터를 기다리는, 즉 `await`되는 동안 UI를 어떻게 처리할지입니다.
+
+<TraditionalLoadingDemo />
+
+React 자체에 **범용 데이터 Suspense API**가 없어서, 다음과 같은 방법을 사용했습니다
+
+- `useState`로 로딩 상태를 직접 트래킹
+- React Query에서 제공하는 `isPending` 같은 플래그 활용
+- 프레임워크(Next.js 13+, Relay 등)에 의존한 데이터 Suspense
+
+```javascript
+// 전통적인 방법
+const [loading, setLoading] = useState(false);
+const [data, setData] = useState(null);
+
+useEffect(() => {
+  setLoading(true);
+  fetchData()
+    .then(setData)
+    .finally(() => setLoading(false));
+}, []);
+
+if (loading) return <Spinner />;
+return <div>{data}</div>;
+```
+
+**참고**: React 17부터 코드 분할용 `<Suspense>`는 존재했지만, 데이터 페칭을 위한 Suspense는 프레임워크 레벨에서만 지원되었습니다.
+
+---
+
+## 4. Suspense 도입 배경과 React 철학
+
+그러나 React 팀은 **`Suspense`**라는 개념을 도입했고(초기에는 사용 범위가 좁아 `lazy` 로드 등에만 쓰였음) 이를 권장합니다.
+
+<SuspenseDemo />
+
+저는 처음 `Suspense`를 접했을 때 "이미 로딩 상태를 제어할 수 있는데 왜 또 다른 개념이 필요할까?"라는 의문이 들었습니다. 그래서 `Suspense` 도입 배경을 설명하는 [RFC 문서](https://github.com/reactjs/rfcs/blob/main/text/0213-suspense-in-react-18.md)를 찾아보았습니다.
+
+`Suspense`의 핵심은 React의 철학과 연결됩니다. React는 "우리는 선언만 하고 내부 제어는 React가 수행한다"는 철학을 가지고 있습니다.
+
+하지만 로딩 플래그를 직접 정의해 "이 부분에서는 로딩이면 이걸 보여줘야 하고…" 같은 패턴은 React의 핵심 개념과는 다소 어긋납니다.
+
+React 철학에 따르면 "이 컴포넌트에서 로딩이 발생하면 이 `fallback` UI를 보여줘"라고 선언하는 편이 더 적합합니다. 이를 만족시키는 개념이 바로 `Suspense`입니다.
+
+```javascript
+// Suspense를 사용한 선언적 방법
+<Suspense fallback={<Spinner />}>
+  <DataComponent />
+</Suspense>;
+
+// React 19의 use() API 사용 예시
+function DataComponent() {
+  const data = use(fetchData()); // Promise를 직접 읽기
+  return <div>{data}</div>;
+}
+```
+
+### Suspense 사용 시 제약사항
+
+React 공식 문서에 따르면, **Suspense-enabled data source만 지원**됩니다
+
+- React.lazy로 로드된 컴포넌트
+- Next.js, Relay 같은 Suspense 지원 프레임워크
+- React 19의 `use()` API
+- 일반 Promise를 직접 throw하는 것은 공식적으로 지원되지 않음
+
+---
+
+## 5. Suspense의 추가 이점
+
+[React `Suspense` 공식 문서](https://react.dev/reference/react/Suspense#caveats)에 따르면, `Suspense`에는 다음과 같은 장점이 있습니다.
+
+### 커밋된 컴포넌트만 상태 유지
+
+불완전한 트리가 커밋되지 않으므로 일관성이 보장됩니다.
+
+### startTransition과 통합
+
+이전 UI를 유지한 채 새 UI를 준비할 수 있습니다.
+
+<SuspenseTransitionDemo />
+
+### 서버 컴포넌트와 자연스러운 통합
+
+스트리밍 SSR 등 서버 사이드 렌더링 시 이점을 제공합니다.
+
+---
+
+## 6. 성능 비교: 전통적 방법 vs Suspense
+
+실제로 Suspense가 성능면에서 어떤 이점이 있는지 시각적으로 비교해보겠습니다.
+
+<PerformanceComparisonDemo />
+
+### 주요 성능 차이점
+
+1. **렌더링 최적화**
+
+   - 전통적 방법: 로딩 상태 변경 시마다 전체 컴포넌트 리렌더링
+   - Suspense: React가 렌더링을 지연시켜 불필요한 중간 상태 렌더링 방지
+
+2. **코드 복잡도 감소**
+
+   - 전통적 방법: 각 컴포넌트마다 로딩 상태 관리 필요
+   - Suspense: 로딩 플래그 state 분산을 줄여 코드 단순화
+
+3. **코드 스플리팅**
+   - Suspense는 `lazy`와 자연스럽게 통합되어 번들 크기 최적화
+
+## 그래서 결국 왜 Suspense 사용을 권장하는지?
+
+위에서 알아본 여러 이유가 존재하지만 사실 제가 느낀 핵심은 리액트답게 사용하기 위함이 가장 의미깊게 다가왔습니다.<br/>
+결국 리액트 핵심은 "너는(개발자) 선언만 해 나머지는 내가(리액트) 처리할게"입니다.<br/>
+로딩도 내가 직접 모든걸 컨트롤하는게 아니라 **"로딩이 존재할 부분에 로딩 상태면 이 Fallback UI를 보여줘"라고 선언만 하면 끝나는 부분에서 Suspense 개념 확장은 혁신적**이라고 생각합니다.
