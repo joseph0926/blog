@@ -1,0 +1,271 @@
+---
+slug: '2025-07-24-react-query-issue-'
+title: 'React Query Issue 해결하기'
+description: 'React Query의 이슈 즁 하나를 해결하여 머지된 과정에 대해서 서술합니다.'
+date: '2025-07-24'
+tags: ['react-query']
+---
+
+React Query의 성능 이슈를 해결한 경험을 서술한 글입니다.
+
+## 어떤 문제가 있었나?
+
+<img
+  src="/content/query-1.png"
+  alt="React Query 이슈 설명 이미지"
+  width={1200}
+  height={800}
+/>
+
+[이슈](https://github.com/TanStack/query/issues/8604#issue-2829836925): useQueries 내부 로직의 문제를 지적하며 구체적으로 n개의 쿼리에 대해 n번 순회 → O(n²) 하는 문제가 있다고 언급하는 이슈
+
+정확히는 아래와 같은 문제가 있습니다.
+
+1. 여러 데이터를 한번에 가져옴 (배치 → 이슈에는 DataLoader를 예시로 들고있음)
+
+```tsx
+// idx = [1, 2, 3, 4, 5] 라고 가정
+const userLoader = new DataLoader(async (ids) => {
+  const users = await fetch(`/api/users?ids=${ids.join(',')}`);
+  return users; // [user1, user2, user3, user4, user5] 한번에 반환
+});
+```
+
+1. DataLoader 내부에서 각각의 Promise를 개별적으로 resolve함
+
+```tsx
+// DataLoader 내부
+promise1.resolve(user1); // useQueries의 첫 번째 쿼리로
+promise2.resolve(user2); // useQueries의 두 번째 쿼리로
+promise3.resolve(user3); // useQueries의 세 번째 쿼리로
+// ...
+```
+
+1. useQueries는 각 promise가 resolve될때 마다 모든 observe를 순회함
+
+```tsx
+// 각 Promise가 resolve될 때마다
+user1 도착 → observer1 업데이트 → findMatchingObservers() 실행 → 모든 observer 순회
+user2 도착 → observer2 업데이트 → findMatchingObservers() 실행 → 모든 observer 순회
+user3 도착 → observer3 업데이트 → findMatchingObservers() 실행 → 모든 observer 순회
+// ...
+```
+
+1. 최종적으로 하나의 promise resolve마다 전체의 observer 순회를 반복하므로 최종적으로 O(n^2)의 결과가 나옴
+
+```tsx
+택배 기사가 100개의 택배를 가져옴
+
+1번 택배 배송
+- 택배 배송장소 탐색: 101동 -> 102동 -> 103동 -> ... -> 200동 (전체 100개 동 확인)
+- 최종적으로 101동임을 찾아서 배송 완료
+
+2번 택배 배송
+- 택배 배송장소 탐색: 101동 -> 102동 -> 103동 -> ... -> 200동 (전체 100개 동 확인)
+- 최종적으로 102동임을 찾아서 배송 완료
+
+이렇게 100번 반복
+
+총 확인 횟수: 100개 택배 × 100개 동 = 10,000번
+```
+
+### 코드적으로 살펴본 문제
+
+위 문제를 이해하고 코드를 보니, 제가 생각할때는 2가지 문제가 존재한느거같았습니다.
+
+- 어떤 observer를 업데이트할지 알고있음에도 무조건 전체 순회를 돌리는 코드
+
+```tsx
+// array2.includes(x)를 매 원소마다 호출하므로
+// prevObservers <-> newObservers 가 거의 동일해도 두 배열을 교차로 전부 스캔
+// 이미 존재하는 observer라도 매번 includes 선형 탐색이 반복
+function difference<T>(array1: Array<T>, array2: Array<T>): Array<T> {
+  return array1.filter((x) => !array2.includes(x)); // O(n²) 복잡도
+}
+```
+
+```tsx
+// EX: 100개의 observer가 있고, 1개만 변경된 상황
+prevObservers = [obs1, obs2, obs3, ..., obs100];
+newObservers = [obs1, obs2, obs3, ..., obs99, obs101]; // obs100 → obs101로 변경
+
+// difference(prevObservers, newObservers)
+// obs1: newObservers 100개 전체 확인 → 있음
+// obs2: newObservers 100개 전체 확인 → 있음
+// obs3: newObservers 100개 전체 확인 → 있음
+// ...
+// obs100: newObservers 100개 전체 확인 → 없음 -> 제거 대상
+
+// 총 연산: 100 × 100 = 10,000번
+```
+
+- 이미 알고있을 경우 조기 반환하는 코드가 누락된 부분
+
+```tsx
+#onUpdate(observer: QueryObserver, result: QueryObserverResult): void {
+// 이미 observer 파라미터로 어떤걸 업데이트해야하는 알지만 indexOf로 다시 전체 탐색
+  const index = this.#observers.indexOf(observer)
+  if (index !== -1) {
+    this.#result = replaceAt(this.#result, index, result)
+    this.#notify()
+  }
+}
+```
+
+```tsx
+  #trackResult(
+    result: Array<QueryObserverResult>,
+    queries: Array<QueryObserverOptions>,
+  ) {
+	  // 매번 findMatchingObservers를 반복함
+    const matches = this.#findMatchingObservers(queries)
+
+    return matches.map((match, index) => {
+      const observerResult = result[index]!
+      return !match.defaultedQueryOptions.notifyOnChangeProps
+        ? match.observer.trackResult(observerResult, (accessedProp) => {
+            // track property on all observers to ensure proper (synchronized) tracking (#7000)
+            matches.forEach((m) => {
+              m.observer.trackProp(accessedProp)
+            })
+          })
+        : observerResult
+    })
+  }
+```
+
+## 어떻게 해결했는가?
+
+당시에는 문제 코드 3개중 하나의 문제만 파악하였습니다.
+
+```tsx
+  #trackResult(
+    result: Array<QueryObserverResult>,
+    matches: Array<QueryObserverMatch>,
+  ) {
+    return matches.map((match, index) => {
+      const observerResult = result[index]!
+      return !match.defaultedQueryOptions.notifyOnChangeProps
+        ? match.observer.trackResult(observerResult, (accessedProp) => {
+            // track property on all observers to ensure proper (synchronized) tracking (#7000)
+            matches.forEach((m) => {
+              m.observer.trackProp(accessedProp)
+            })
+          })
+        : observerResult
+    })
+  }
+```
+
+trackResult에서 매번 findMatchingObservers를 하지 않게하려고, observerMatches를 선언한 후 findMatchingObservers의 결과를 저장하였습니다.
+
+```tsx
+// 이전 코드: 찾은 후 따로 저장해놓지 않음
+const newObserverMatches = this.#findMatchingObservers(this.#queries);
+
+// 개선 코드: 찾은 후 저장하여 이후에도 사용 가능하도록 개선
+const newObserverMatches = this.#findMatchingObservers(this.#queries);
+this.#observerMatches = newObserverMatches;
+```
+
+## 공식 릴리즈까지의 과정
+
+이렇게 수정한 [PR](https://github.com/TanStack/query/pull/8641)을 올렸지만, 이슈를 처음 제시하신 분이 [아래와 같은 피드백](https://github.com/TanStack/query/issues/8604#issuecomment-2656213898)을 주셨습니다.
+
+```tsx
+Looking at the code myself and at your PR @joseph0926 I realized that this will be quite hard to solve entirely. Your PR does remove some quadratic work but onUpdate still contain the mentioned indexOf, trackResult still contain a map over all observers, any user defined combine method will most likely also do N amount of work and if not combineResult will in replaceEqualDeep.
+
+What fundamentally makes multiple useQuery faster than useQueries is reacts auto batching. We notify react once for each updated useQuery but react only rerender once.
+
+I thought that maybe we could do the same for useQueries by notifying useSyncExternalStore on every update and doing combineResult/trackResult lazily when react request the value in getSnapshot. However it seems like react will call getSnapshot every time it is notified defeating this idea.
+```
+
+간단히 요약하면 약간의 성능은 개선되겠지만, 근본적인 문제가 해결된거같지 않다는 말인거같습니다.
+
+저는 당시에는 이 근본적인 문제가 뭔지 정확히 찾지 못하여 여기서 수정을 멈췄습니다.
+
+하지만 [React Query 원작자](https://github.com/TanStack/query/issues/8604#issuecomment-2661416880)가 이정도 성능 개선도 의미있다고 판단하였는지 merge를 진행해주셨습니다.
+
+이후 몇달이 지나서 여러 문제가 개선되었습니다.
+
+- difference 개선
+
+```tsx
+function difference<T>(array1: Array<T>, array2: Array<T>): Array<T> {
+  const excludeSet = new Set(array2);
+  return array1.filter((x) => !excludeSet.has(x));
+}
+```
+
+- findMatchingObservers 개선
+
+```tsx
+#findMatchingObservers(queries: Array<QueryObserverOptions>): Array<QueryObserverMatch> {
+  const prevObserversMap = new Map(
+    this.#observers.map((observer) => [observer.options.queryHash, observer]),
+  )
+
+  queries.forEach((options) => {
+    const match = prevObserversMap.get(defaultedOptions.queryHash)
+    // ...
+  })
+}
+```
+
+## 추가 개선
+
+여전히 존재하는 문제: `#onUpdate`의 indexOf 문제
+
+이를 해결하기 위해 `#observerIndexMap = new Map<QueryObserver, number>()` 처럼 인덱스 Map을 추가하여 indexOf 대신 Map을 활용하여 O(1)로 최적화를 검토
+
+하지만 [이미 이러한 방식이 원작자의 약간의 우려를 받은 적이 있음](https://github.com/TanStack/query/pull/8686#issue-2870648738)
+
+<img
+  src="/content/query-2.png"
+  alt="React Query 이슈 설명 이미지"
+  width={1200}
+  height={800}
+/>
+
+따라서 WeakMap을 사용하여 문제 해결 + 우려 감소를 노림
+
+> WeakMap: 메모리 누수 걱정 없이 Observer와 인덱스를 1:1로 매핑할 수 있는 자료구조
+
+```tsx
+- 단일 진실의 소스 (Array만 유지)
+- O(1) 성능
+- 메모리 효율적 (observer가 제거되면 자동 GC)
+- 기존 코드 구조 유지
+```
+
+이를 해결하기 위해 아래와 같은 PR를 추가로 올렸습니다.
+[추가 PR #9467](https://github.com/TanStack/query/pull/9467)
+
+### 핵심 변경점
+
+1. indexOf 사용을 회피 + Map 사용 회피를 위해 WeakMap 추가
+
+```ts
+#indexMap: WeakMap<QueryObserver, number> = new WeakMap()
+```
+
+2. 옵저버를 배치 업데이트하는 타이밍에 WeakMap에 인덱스 저장
+
+```ts
+this.#indexMap = new WeakMap();
+newObservers.forEach((observer, index) => {
+  this.#indexMap.set(observer, index);
+});
+```
+
+3. 결과적으로 indexOf 대신 Map에서 찾는 방식으로 O(1)로 개선
+
+```ts
+// 기존
+const index = this.#observers.indexOf(observer)
+if (index !== -1) { ... }
+
+// 개선
+const index = this.#indexMap.get(observer)
+if (index !== undefined) { ... }
+```
