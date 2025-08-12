@@ -50,6 +50,7 @@ export const metadata: Metadata = {
     '개발 블로그',
     'TypeScript',
     'Next.js',
+    'joseph0926',
   ],
   authors: [{ name: '김영훈', url: 'https://joseph0926.com' }],
 };
