@@ -3,19 +3,29 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-export const prisma = globalForPrisma.prisma || new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
-
 export const reqStore = new AsyncLocalStorage<{ dbDur: number }>();
 
-prisma.$use(async (params, next) => {
-  const t0 = performance.now();
-  const result = await next(params);
-  const dur = performance.now() - t0;
+const createPrismaClient = () => {
+  const client = new PrismaClient();
 
-  const store = reqStore.getStore();
-  if (store) store.dbDur += dur;
+  return client.$extends({
+    query: {
+      async $allOperations({ args, query }) {
+        const t0 = performance.now();
+        const result = await query(args);
+        const dur = performance.now() - t0;
 
-  return result;
-});
+        const store = reqStore.getStore();
+        if (store) store.dbDur += dur;
+
+        return result;
+      },
+    },
+  });
+};
+
+export const prisma = globalForPrisma.prisma || createPrismaClient();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma;
+}
