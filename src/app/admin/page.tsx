@@ -2,8 +2,12 @@ import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import { getPosts } from '@/actions/post/getPosts.action';
 import PostsTable from '@/components/admin/posts-table';
+import { pageRobots } from '@/meta/robots';
 
-export const metadata = { title: 'Admin | 게시글 관리' };
+export const metadata = {
+  title: 'Admin | 게시글 관리',
+  robots: pageRobots.admin,
+};
 
 export default async function AdminPostsPage() {
   const { data, success } = await getPosts({ limit: 5 });

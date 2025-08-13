@@ -6,6 +6,7 @@ import { PostContent } from '@/components/post/post-content';
 import { PostHeader } from '@/components/post/post-header';
 import { Container } from '@/components/ui/container';
 import { commonOpenGraph } from '@/meta/open-graph';
+import { pageRobots } from '@/meta/robots';
 
 export const dynamic = 'force-static';
 
@@ -27,6 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       icons: {
         icon: '/logo/logo.svg',
       },
+      robots: pageRobots.blogPost,
     };
   }
 
@@ -46,6 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           ]
         : commonOpenGraph?.images,
     },
+    robots: pageRobots.blogPost,
   };
 }
 

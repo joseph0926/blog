@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { commonOpenGraph } from '@/meta/open-graph';
 import ReactQueryProvider from '@/providers/react-query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
+import { getRobotsByEnvironment } from '@/meta/robots';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,6 +30,7 @@ export const metadata: Metadata = {
   description:
     '프론트엔드 개발자 김영훈의 블로그입니다. React, 웹 성능 최적화, 최신 개발 기술 및 경험을 공유합니다.',
   openGraph: commonOpenGraph,
+  robots: getRobotsByEnvironment(),
   twitter: {
     card: 'summary_large_image',
     title: '김영훈 블로그',
