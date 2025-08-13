@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = 'https://joseph0926.com';
+  const baseUrl = 'https://www.joseph0926.com';
   const isProduction = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
 
   if (!isProduction) {

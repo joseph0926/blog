@@ -3,7 +3,7 @@ import matter from 'gray-matter';
 import { MetadataRoute } from 'next';
 import path from 'path';
 
-const BASE_URL = 'https://joseph0926.com';
+const BASE_URL = 'https://www.joseph0926.com';
 
 type PostData = {
   slug: string;

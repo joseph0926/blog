@@ -22,7 +22,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://joseph0926.com'),
+  metadataBase: new URL('https://www.joseph0926.com'),
   title: {
     default: '김영훈 블로그',
     template: '%s | 김영훈 블로그',
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     'Next.js',
     'joseph0926',
   ],
-  authors: [{ name: '김영훈', url: 'https://joseph0926.com' }],
+  authors: [{ name: '김영훈', url: 'https://www.joseph0926.com' }],
 };
 
 const isVercel = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
