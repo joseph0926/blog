@@ -7,9 +7,9 @@ import { Toaster } from 'sonner';
 import InitRUM from '@/components/report/init-rum';
 import { cn } from '@/lib/utils';
 import { commonOpenGraph } from '@/meta/open-graph';
+import { getRobotsByEnvironment } from '@/meta/robots';
 import ReactQueryProvider from '@/providers/react-query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
-import { getRobotsByEnvironment } from '@/meta/robots';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',

@@ -15,7 +15,17 @@
     "db:gen": "prisma generate",
     "db:push": "prisma db push",
     "db:re": "prisma migrate reset",
-    "db:stu": "prisma studio"
+    "db:stu": "prisma studio",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,mdx,css}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",
@@ -87,6 +97,8 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "eslint-plugin-simple-import-sort": "^12.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.5",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "prisma": "^6.8.2",
