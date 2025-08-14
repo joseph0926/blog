@@ -1,0 +1,10 @@
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@tailwindcss/oxide'
+  - '@vercel/speed-insights'
+  - bcrypt
+  - es5-ext
+  - prisma
+  - sharp
+  - unrs-resolver

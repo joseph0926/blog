@@ -108,7 +108,7 @@
     "wait-on": "^8.0.3"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18.0"
   },
-  "packageManager": "pnpm@10.11.1"
+  "packageManager": "pnpm@10.14.0"
 }
