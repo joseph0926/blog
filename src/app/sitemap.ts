@@ -4,7 +4,6 @@ import { MetadataRoute } from 'next';
 import path from 'path';
 
 const BASE_URL = 'https://www.joseph0926.com';
-const POSTS_PER_SITEMAP = 50000;
 
 type PostData = {
   slug: string;
@@ -129,23 +128,7 @@ function getChangeFrequency(
   return 'weekly';
 }
 
-export async function generateSitemaps() {
-  const posts = await getMDXPosts();
-  const totalPosts = posts.length;
-
-  if (totalPosts <= POSTS_PER_SITEMAP) {
-    return [{ id: 0 }];
-  }
-
-  const numberOfSitemaps = Math.ceil(totalPosts / POSTS_PER_SITEMAP);
-  return Array.from({ length: numberOfSitemaps }, (_, i) => ({ id: i }));
-}
-
-export default async function sitemap({
-  id = 0,
-}: {
-  id?: number;
-} = {}): Promise<MetadataRoute.Sitemap> {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes: MetadataRoute.Sitemap = [
     {
       url: BASE_URL,
@@ -190,11 +173,7 @@ export default async function sitemap({
 
   const posts = await getMDXPosts();
 
-  const start = id * POSTS_PER_SITEMAP;
-  const end = start + POSTS_PER_SITEMAP;
-  const paginatedPosts = posts.slice(start, end);
-
-  const postRoutes: MetadataRoute.Sitemap = paginatedPosts.map((post) => {
+  const postRoutes: MetadataRoute.Sitemap = posts.map((post) => {
     const lastModified = post.updatedAt || post.publishedAt || new Date();
     const postUrl = `${BASE_URL}/post/${post.slug}`;
 
@@ -206,38 +185,11 @@ export default async function sitemap({
     };
   });
 
-  if (id === 0) {
-    const allRoutes = [...staticRoutes, ...adminRoute, ...postRoutes];
+  const allRoutes = [...staticRoutes, ...adminRoute, ...postRoutes];
 
-    const uniqueRoutes = Array.from(
-      new Map(allRoutes.map((route) => [route.url, route])).values(),
-    ).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+  const uniqueRoutes = Array.from(
+    new Map(allRoutes.map((route) => [route.url, route])).values(),
+  ).sort((a, b) => (b.priority || 0) - (a.priority || 0));
 
-    return uniqueRoutes;
-  }
-
-  return postRoutes.sort((a, b) => (b.priority || 0) - (a.priority || 0));
-}
-
-export async function generateSitemapIndex(): Promise<string> {
-  const sitemaps = await generateSitemaps();
-
-  if (sitemaps.length <= 1) {
-    return '';
-  }
-
-  const sitemapUrls = sitemaps.map(({ id }) => `${BASE_URL}/sitemap/${id}.xml`);
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  ${sitemapUrls
-    .map(
-      (url) => `
-  <sitemap>
-    <loc>${url}</loc>
-    <lastmod>${new Date().toISOString()}</lastmod>
-  </sitemap>`,
-    )
-    .join('')}
-</sitemapindex>`;
+  return uniqueRoutes;
 }
