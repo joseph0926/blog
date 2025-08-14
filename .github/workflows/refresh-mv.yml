@@ -8,7 +8,7 @@ jobs:
   refresh:
     runs-on: ubuntu-22.04
     env:
-      PNPM_VERSION: 10.11.1
+      PNPM_VERSION: 10.14.0
       NODE_VERSION: 22
       NEXT_TELEMETRY_DISABLED: 1
     steps:
