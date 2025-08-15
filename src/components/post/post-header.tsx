@@ -1,9 +1,19 @@
 import Image from 'next/image';
-import { getPostBySlug } from '@/actions/post/getPostBySlug.action';
+import { createTRPCContext } from '@/server/trpc/context';
+import { appRouter } from '@/server/trpc/root';
 
 export const PostHeader = async ({ slug }: { slug: string }) => {
-  const { data } = await getPostBySlug(slug);
-  const post = data?.post;
+  const ctx = await createTRPCContext({ headers: new Headers() });
+
+  let post = null;
+  try {
+    const result = await appRouter
+      .createCaller(ctx)
+      .post.getPostBySlug({ slug });
+    post = result.post;
+  } catch (e) {
+    console.error(`Failed to fetch post: ${slug}`, e);
+  }
 
   return (
     <>
