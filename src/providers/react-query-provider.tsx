@@ -2,7 +2,10 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
-import { useRef } from 'react';
+import { httpBatchLink } from '@trpc/react-query';
+import { useRef, useState } from 'react';
+import superjson from 'superjson';
+import { trpc } from '@/lib/trpc';
 
 export default function ReactQueryProvider({
   children,
@@ -10,17 +13,29 @@ export default function ReactQueryProvider({
   children: React.ReactNode;
 }) {
   const queryClientRef = useRef<QueryClient>(null);
+  const [trpcClient] = useState(() =>
+    trpc.createClient({
+      links: [
+        httpBatchLink({
+          url: '/api/trpc',
+          transformer: superjson,
+        }),
+      ],
+    }),
+  );
 
   if (!queryClientRef.current) {
     queryClientRef.current = new QueryClient({
-      defaultOptions: { queries: { staleTime: 5 * 60_000 } },
+      defaultOptions: { queries: { staleTime: 60 * 1000 } },
     });
   }
 
   return (
-    <QueryClientProvider client={queryClientRef.current}>
-      {children}
-      <ReactQueryDevtools initialIsOpen={false} />
-    </QueryClientProvider>
+    <trpc.Provider client={trpcClient} queryClient={queryClientRef.current}>
+      <QueryClientProvider client={queryClientRef.current}>
+        {children}
+        <ReactQueryDevtools initialIsOpen={false} />
+      </QueryClientProvider>
+    </trpc.Provider>
   );
 }
