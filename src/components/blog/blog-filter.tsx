@@ -1,16 +1,18 @@
 'use client';
 
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { Tag } from '@prisma/client';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useRef } from 'react';
-import { getTags } from '@/actions/post.action';
-import { QUERY_KEY } from '@/lib/query-key';
 import { Button } from '../ui/button';
 import { Floating } from '../ui/floating';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
-export const BlogFilter = () => {
+type BlogFilterProps = {
+  tags: Tag[];
+};
+
+export const BlogFilter = ({ tags }: BlogFilterProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -31,13 +33,6 @@ export const BlogFilter = () => {
   const clearFilter = () => {
     router.replace(pathname);
   };
-
-  const { data: tags } = useSuspenseQuery({
-    queryKey: QUERY_KEY.TAG.ALL,
-    queryFn: getTags,
-    staleTime: 1000 * 60 * 5,
-    select: (res) => res.data?.tags,
-  });
 
   const inputRef = useRef<HTMLInputElement>(null);
 
