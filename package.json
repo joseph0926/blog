@@ -20,6 +20,7 @@
     "db:push": "prisma db push",
     "db:re": "prisma migrate reset",
     "db:stu": "prisma studio",
+    "db:test:push": "dotenv -e .env.test -- prisma db push",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -106,6 +107,7 @@
     "@types/react-sparklines": "^1.7.5",
     "@vitejs/plugin-react": "^5.0.0",
     "dotenv": "^17.2.1",
+    "dotenv-cli": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
     "eslint-plugin-simple-import-sort": "^12.1.1",
