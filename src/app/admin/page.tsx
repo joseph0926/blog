@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import { getPosts } from '@/actions/post/getPosts.action';
 import PostsTable from '@/components/admin/posts-table';
 import { pageRobots } from '@/meta/robots';
+import { createTRPCContext } from '@/server/trpc/context';
+import { appRouter } from '@/server/trpc/root';
 
 export const metadata = {
   title: 'Admin | 게시글 관리',
@@ -10,12 +11,20 @@ export const metadata = {
 };
 
 export default async function AdminPostsPage() {
-  const { data, success } = await getPosts({ limit: 5 });
-  if (!success || !data) notFound();
+  const ctx = await createTRPCContext({ headers: new Headers() });
 
-  const { posts } = data;
-  if (!posts.length) notFound();
+  let posts = null;
+  try {
+    const result = await appRouter
+      .createCaller(ctx)
+      .post.getPosts({ limit: 5 });
 
+    posts = result.posts;
+  } catch (e) {
+    console.error(`Failed to fetch posts`, e);
+  }
+
+  if (!posts?.length) notFound();
   return (
     <section className="space-y-8">
       <h1 className="text-2xl font-semibold">게시글 관리</h1>

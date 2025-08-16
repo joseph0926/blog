@@ -15,6 +15,101 @@ const updatePostOutput = z.object({
 });
 
 export const postRouter = router({
+  getPosts: publicProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(10),
+        cursor: z.string().cuid().optional(),
+        filter: z
+          .object({
+            category: z.string().optional(),
+          })
+          .optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { limit, cursor, filter } = input;
+      const categoryFilter = filter?.category?.toLowerCase();
+
+      const cacheKey = ['posts'];
+      if (categoryFilter) {
+        cacheKey.push(`cat:${categoryFilter}`);
+      }
+      cacheKey.push(`limit:${limit}`);
+      if (cursor) {
+        cacheKey.push(`cursor:${cursor}`);
+      }
+
+      let cacheHit = true;
+
+      const cachedFn = unstable_cache(
+        async () => {
+          cacheHit = false;
+
+          const posts = await ctx.prisma.post.findMany({
+            select: {
+              id: true,
+              slug: true,
+              title: true,
+              thumbnail: true,
+              createdAt: true,
+              description: true,
+              tags: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+            where: categoryFilter
+              ? { tags: { some: { name: categoryFilter } } }
+              : undefined,
+            orderBy: { createdAt: 'desc' },
+            take: limit + 1,
+            skip: cursor ? 1 : 0,
+            cursor: cursor ? { id: cursor } : undefined,
+          });
+
+          const hasMore = posts.length > limit;
+          const slicedPosts = posts.slice(0, limit);
+          const nextCursor = hasMore ? posts[limit]?.id : undefined;
+
+          return {
+            posts: slicedPosts,
+            nextCursor,
+          };
+        },
+        cacheKey,
+        {
+          tags: [
+            'all-posts',
+            ...(categoryFilter ? [`posts-category:${categoryFilter}`] : []),
+          ],
+          revalidate: cursor ? 60 : 300,
+        },
+      );
+
+      try {
+        const result = await cachedFn();
+
+        return {
+          posts: result.posts,
+          nextCursor: result.nextCursor,
+          message: result.posts.length
+            ? '최신 글을 불러왔습니다.'
+            : '글이 없습니다.',
+          cacheHit,
+        };
+      } catch (error) {
+        console.error('Error fetching posts:', error);
+
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: '글을 불러오는 중 오류가 발생했습니다.',
+        });
+      }
+    }),
+
   getPostBySlug: publicProcedure
     .input(
       z.object({

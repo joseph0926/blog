@@ -1,12 +1,10 @@
 'use client';
 
-import { useInfiniteQuery } from '@tanstack/react-query';
 import { BookX } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
-import { getPosts } from '@/actions/post/getPosts.action';
-import { QUERY_KEY } from '@/lib/query-key';
+import { trpc } from '@/lib/trpc';
 import { BlogPost } from '../home/blog-post';
 import { BlogPostSkeleton } from '../home/blog-post.skeleton';
 
@@ -17,24 +15,19 @@ export const BlogList = () => {
   const divRef = useRef<HTMLDivElement>(null);
 
   const { data, isPending, isFetching, hasNextPage, fetchNextPage } =
-    useInfiniteQuery({
-      queryKey: QUERY_KEY.POST.ALL({ category }),
-      queryFn: ({ pageParam = undefined }: { pageParam: string | undefined }) =>
-        getPosts({ limit: 10, cursor: pageParam, filter: { category } }),
-      getNextPageParam: (lastPage) => {
-        const cursor = lastPage.data?.cursor;
-        if (cursor) {
-          return cursor;
-        }
-
-        return undefined;
+    trpc.post.getPosts.useInfiniteQuery(
+      {
+        limit: 10,
+        filter: { category },
       },
-      initialPageParam: undefined,
-      staleTime: 1000 * 60 * 5,
-    });
+      {
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+        staleTime: 1000 * 60 * 5,
+      },
+    );
 
   const posts = useMemo(
-    () => data?.pages.flatMap((p) => p.data?.posts ?? []) ?? [],
+    () => data?.pages.flatMap((page) => page.posts) ?? [],
     [data],
   );
 

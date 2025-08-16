@@ -1,12 +1,25 @@
 import { JSX } from 'react';
-import { getPosts } from '@/actions/post/getPosts.action';
+import { createTRPCContext } from '@/server/trpc/context';
+import { appRouter } from '@/server/trpc/root';
 import { BlogPost } from './blog-post';
 
 export const RecentBlogPosts = async () => {
-  const { data, message, success } = await getPosts({ limit: 4 });
-  const posts = data?.posts;
+  const ctx = await createTRPCContext({ headers: new Headers() });
 
-  if (!success || !posts) {
+  let posts = null;
+  let message = null;
+  try {
+    const result = await appRouter
+      .createCaller(ctx)
+      .post.getPosts({ limit: 4 });
+
+    posts = result.posts;
+    message = result.message;
+  } catch (e) {
+    console.error(`Failed to fetch posts`, e);
+  }
+
+  if (!posts) {
     return <div>게시글을 불러오는 중 에러가 발생했습니다. ({message})</div>;
   }
   if (posts.length === 0) {
