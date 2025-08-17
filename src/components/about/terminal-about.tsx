@@ -93,7 +93,7 @@ export const TerminalAbout = () => {
                           <div className="break-words">
                             <span className="text-muted-foreground">위치:</span>
                             <span className="ml-1 sm:ml-2">
-                              EA Korea (Frontend Lead)
+                              EA Korea (Frontend)
                             </span>
                           </div>
                           <div className="break-words">
