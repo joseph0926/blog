@@ -66,7 +66,7 @@ export const postRouter = router({
               : undefined,
             orderBy: { createdAt: 'desc' },
             take: limit + 1,
-            skip: cursor ? 1 : 0,
+            skip: 0,
             cursor: cursor ? { id: cursor } : undefined,
           });
 
