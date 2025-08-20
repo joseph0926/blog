@@ -1,5 +1,7 @@
 # 개발 블로그
 
+![kyh-blog](https://github.com/user-attachments/assets/57fed4a0-fd95-4724-b4c7-21cc73f9756b)
+
 타입 안전성과 개발자 경험에 집중한 개인 블로그 프로젝트
 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black)](https://nextjs.org/)
