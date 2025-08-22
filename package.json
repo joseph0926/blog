@@ -15,7 +15,6 @@
     "test:ci": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "new-mdx": "node scripts/new-post.mjs",
     "db:gen": "prisma generate",
     "db:push": "prisma db push",
     "db:re": "prisma migrate reset",

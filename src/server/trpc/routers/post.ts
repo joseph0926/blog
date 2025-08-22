@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { updatePostSchema } from '@/schemas/post.schema';
+import { createPost } from '@/services/post.service';
 import { protectedProcedure, publicProcedure, router } from '../trpc';
 
 const updatePostOutput = z.object({
@@ -15,6 +16,45 @@ const updatePostOutput = z.object({
 });
 
 export const postRouter = router({
+  createPost: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().min(1).max(100),
+        description: z.string().min(1),
+        tags: z.array(z.string()),
+        thumbnail: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const post = await createPost(input, ctx.prisma);
+
+        await Promise.all([
+          revalidateTag('all-posts'),
+          revalidateTag(`post-${post.slug}`),
+        ]);
+
+        return {
+          post,
+          message: '포스트가 성공적으로 생성되었습니다.',
+        };
+      } catch (e) {
+        console.error(`tRPC createPost Error: ${e}`);
+
+        if (e instanceof Error && e.message.includes('이미 존재하는 slug')) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: e.message,
+          });
+        }
+
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: '글을 생성하는 중 오류가 발생했습니다.',
+        });
+      }
+    }),
+
   getPosts: publicProcedure
     .input(
       z.object({
