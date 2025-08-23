@@ -1,5 +1,6 @@
 # 개발 블로그
 
+<img width="1470" height="666" alt="blog_readme" src="https://github.com/user-attachments/assets/a04314f1-596d-4a05-ac67-3c4f0bc05ce6" />
 ![kyh-blog](https://github.com/user-attachments/assets/57fed4a0-fd95-4724-b4c7-21cc73f9756b)
 
 타입 안전성과 개발자 경험에 집중한 개인 블로그 프로젝트
