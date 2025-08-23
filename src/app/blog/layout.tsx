@@ -10,15 +10,13 @@ export default function BlogLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex gap-10">
+    <>
+      <Header />
       <Suspense fallback={<BlogFilterSkeleton />}>
         <BlogFilterServer />
       </Suspense>
-      <main>
-        <Header useTitle={false} />
-        {children}
-        <Footer />
-      </main>
-    </div>
+      <main>{children}</main>
+      <Footer />
+    </>
   );
 }

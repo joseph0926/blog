@@ -1,17 +1,16 @@
 'use client';
 
 import { BookX } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef } from 'react';
 import { trpc } from '@/lib/trpc';
-import { BlogPost } from '../home/blog-post';
 import { BlogPostSkeleton } from '../home/blog-post.skeleton';
+import { BlogPostCard } from './blog-post-card';
 
 export const BlogList = () => {
   const searchParams = useSearchParams();
   const category = searchParams.get('category') ?? undefined;
-
   const divRef = useRef<HTMLDivElement>(null);
 
   const { data, isPending, isFetching, hasNextPage, fetchNextPage } =
@@ -38,11 +37,7 @@ export const BlogList = () => {
           fetchNextPage();
         }
       },
-      {
-        root: null,
-        rootMargin: '100px',
-        threshold: 0.5,
-      },
+      { root: null, rootMargin: '100px', threshold: 0.5 },
     );
 
     if (divRef.current) {
@@ -50,53 +45,57 @@ export const BlogList = () => {
     }
 
     return () => observer.disconnect();
-  }, [divRef, hasNextPage, isPending, isFetching]);
+  }, [divRef, hasNextPage, isPending, isFetching, fetchNextPage]);
 
   if (isPending) {
     return (
-      <div className="grid grid-cols-1 gap-x-4 gap-y-8 py-4 sm:grid-cols-2 md:grid-cols-3">
-        {Array.from({ length: 5 }).map((_, index) => (
-          <BlogPostSkeleton type="col" key={index} />
-        ))}
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <BlogPostSkeleton key={index} />
+          ))}
+        </div>
       </div>
     );
   }
+
   if (!isPending && !isFetching && posts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center">
-        <BookX className="size-10" />
-        <p className="text-sm font-semibold">블로그 글이 존재하지 않습니다.</p>
+      <div className="container mx-auto px-4 py-16">
+        <div className="flex flex-col items-center justify-center text-center">
+          <BookX className="text-muted-foreground mb-4 h-12 w-12" />
+          <h3 className="mb-2 text-lg font-semibold">No posts found</h3>
+          <p className="text-muted-foreground text-sm">
+            Try adjusting your filters or check back later
+          </p>
+        </div>
       </div>
     );
   }
+
   return (
-    <div className="grid grid-cols-1 gap-x-4 gap-y-8 py-4 sm:grid-cols-2 md:grid-cols-3">
+    <div className="container mx-auto px-4 py-8">
       <AnimatePresence mode="popLayout">
-        {posts.map((post) => (
-          <motion.div
-            key={post.id}
-            layout
-            layoutId={post.id}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{
-              layout: {
-                type: 'spring',
-                stiffness: 120,
-                damping: 28,
-                mass: 0.9,
-              },
-              opacity: { duration: 0.2 },
-            }}
-            whileHover={{ scale: 1.02 }}
-          >
-            <BlogPost post={post} type="col" />
-          </motion.div>
-        ))}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {posts[0] && (
+            <BlogPostCard
+              key={posts[0].id}
+              post={posts[0]}
+              featured={true}
+              index={0}
+            />
+          )}
+          {posts.slice(1).map((post, index) => (
+            <BlogPostCard key={post.id} post={post} index={index + 1} />
+          ))}
+        </div>
       </AnimatePresence>
-      {hasNextPage && !isFetching ? <div className="h-1" ref={divRef} /> : null}
-      {!isPending && isFetching && <BlogPostSkeleton type="col" />}
+      {hasNextPage && !isFetching && <div className="h-1" ref={divRef} />}
+      {!isPending && isFetching && (
+        <div className="mt-8 text-center">
+          <div className="border-primary inline-block h-8 w-8 animate-spin rounded-full border-b-2"></div>
+        </div>
+      )}
     </div>
   );
 };
