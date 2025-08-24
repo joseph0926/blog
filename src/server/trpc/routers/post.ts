@@ -153,9 +153,12 @@ export const postRouter = router({
   getPostBySlug: publicProcedure
     .input(
       z.object({
-        slug: z.string().regex(/^[a-z0-9-]+$/, {
-          message: '잘못된 글 주소입니다.',
-        }),
+        slug: z.preprocess(
+          (val) => (typeof val === 'string' ? decodeURIComponent(val) : val),
+          z.string().regex(/^[\p{L}\p{N}\-._~]+$/u, {
+            message: '잘못된 글 주소입니다.',
+          }),
+        ),
       }),
     )
     .query(async ({ ctx, input }) => {

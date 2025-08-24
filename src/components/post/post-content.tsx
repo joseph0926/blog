@@ -1,6 +1,10 @@
 import { compileMDX } from 'next-mdx-remote/rsc';
 import {
+  AuctionSimulator,
+  CacheDescription,
+  CacheStrategyQuiz,
   FiberWrapper,
+  NetworkSimulator,
   PerformanceComparisonDemo,
   SonnerImpl1,
   SonnerImpl2,
@@ -33,6 +37,10 @@ export async function PostContent({ slug }: { slug: string }) {
       SuspenseDemo,
       SuspenseTransitionDemo,
       PerformanceComparisonDemo,
+      CacheDescription,
+      NetworkSimulator,
+      AuctionSimulator,
+      CacheStrategyQuiz,
     },
     options: { parseFrontmatter: true },
   });

@@ -20,7 +20,8 @@
     "db:re": "prisma migrate reset",
     "db:stu": "prisma studio",
     "db:test:push": "dotenv -e .env.test -- prisma db push",
-    "prepare": "husky"
+    "prepare": "husky",
+    "new-mdx": "node scripts/new-post.mjs"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

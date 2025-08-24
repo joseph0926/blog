@@ -2,11 +2,10 @@ export function generateSlug(title: string) {
   return title
     .trim()
     .toLowerCase()
-    .replace(/[가-힣]/g, (char) => {
-      return char;
-    })
     .replace(/[^\w\s가-힣-]/g, '')
     .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
     .slice(0, 100);
 }
 

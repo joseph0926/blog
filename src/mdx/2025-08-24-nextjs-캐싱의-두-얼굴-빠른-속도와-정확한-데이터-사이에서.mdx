@@ -1,0 +1,457 @@
+---
+slug: '2025-08-24-nextjs-캐싱의-두-얼굴-빠른-속도와-정확한-데이터-사이에서'
+title: 'Next.js 캐싱의 두 얼굴: 빠른 속도와 정확한 데이터 사이에서'
+description: '웹의 기본적인 캐싱 전략부터 Next.js에서의 캐싱 전략까지 알아봅니다.'
+date: '2025-08-24'
+tags: ['nextjs', 'cache']
+---
+
+import {
+  CacheDescription,
+  NetworkSimulator,
+  AuctionSimulator,
+  CacheStrategyQuiz,
+} from '@/mdx/components';
+
+> 개발자 도구를 켜고 웹사이트를 새로고침해보셨나요?<br/>
+> Network 탭을 보면 어떤 요청은 200, 어떤 건 304를 반환합니다. 강제 새로고침(Ctrl+Shift+F5)을 해도 x-vercel-cache: HIT이 뜨는 걸 보고 "이건 또 뭐지?" 싶었던 적 있으신가요?<br/>
+> Next.js로 개발하다 보면 이런 의문이 들 때가 있습니다. "분명 데이터를 수정했는데 왜 화면에는 반영이 안 되지?"<br/>
+> 캐싱은 정말 필요악일까요? 아니면 제대로 이해하지 못해서일까요?
+
+## 내 데이터가 왜 안 바뀌지?
+
+Next.js 15로 간단한 상품 목록 페이지를 만들었다고 가정해봅시다.
+
+```tsx
+export default async function ProductsPage() {
+  const response = await fetch('https://api.mystore.com/products');
+  const products = await response.json();
+
+  return (
+    <div>
+      <h1>상품 목록</h1>
+      {products.map((product) => (
+        <div key={product.id}>
+          <h2>{product.name}</h2>
+          <p>{product.price}원</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+개발 환경(`npm run dev`)에서는 API 데이터를 변경하면 새로고침할 때마다 즉시 반영됩니다.
+하지만 프로덕션(`npm run build && npm run start`)에서는... 새로고침을 해도 변경사항이 반영되지 않습니다.
+
+### 무엇이 다를까?
+
+여기서 중요한점이 존재합니다. Next.js 15에서 `fetch`의 기본 동작이 바뀌었습니다.
+
+- **Next.js 14**: fetch는 기본적으로 캐싱됨 (cache: 'force-cache')
+- **Next.js 15**: fetch는 기본적으로 캐싱 안 됨 (cache: 'no-store')
+
+"그렇다면 v15에서는 캐싱이 안 되는데 왜 데이터가 안 바뀔까?"
+
+이러한 질문에서 시작해서 Next.js 캐싱의 복잡한 부분을 천천히 알아보려합니다. 가볍게 언급만 해보면, `fetch` 캐싱은 Next.js가 가진 **4가지 캐싱 메커니즘** 중 하나일 뿐입니다.
+
+## 네트워크 응답 코드의 304와 200
+
+먼저 브라우저가 어떻게 캐싱하는지 실험해봅시다.
+
+<CacheDescription>
+### 실험 1: 브라우저 캐시 관찰하기
+
+1. 아무 웹사이트나 열고 개발자 도구(F12) → Network 탭을 켜세요
+2. 일반 새로고침(F5)을 해보세요
+3. 강제 새로고침(Ctrl+Shift+F5)을 해보세요
+
+무엇이 다른가요?
+
+</CacheDescription>
+
+아마 이런 차이를 발견하셨을 겁니다:
+
+- **일반 새로고침**: 일부 요청이 `304 Not Modified` 상태
+- **강제 새로고침**: 모든 요청이 `200 OK` 상태
+
+### 304가 뭐길래?
+
+`304 Not Modified`는 서버가 "니가 가진 버전이랑 똑같아, 그거 써!"라고 말하는 겁니다.
+
+```
+브라우저: "저 이 파일 가지고 있는데, 2025-08-24 버전이에요"
+서버: "확인해보니 안 바뀌었네? 304를 줄게요"
+브라우저: "그러면 캐시에서 꺼내 쓸게요"
+```
+
+이때 실제 데이터는 전송되지 않습니다. Network 탭에서 Size가 0.1KB 정도로 작은 이유입니다.
+
+## 웹 캐싱의 기초: 왜 필요할까?
+
+만약에 웹에서 캐싱이 없다면 어떻게 될까요?
+
+```
+사용자: 네이버 로고 주세요 (3MB)
+서버: 네이버 로고 전달 (3MB 전송)
+사용자: (0.1초 후) 다시 네이버 로고 주세요
+서버: 네이버 로고 전달 (또 3MB 전송)
+```
+
+이렇게 매번 전송한다면 얼마나 비효율적일까요?
+
+### 편의점 비유로 이해하기
+
+캐싱은 편의점과 비슷합니다
+
+- **본사(서버)**: 모든 상품의 원본 보관
+- **편의점(CDN)**: 자주 찾는 상품을 동네에 보관
+- **냉장고(브라우저 캐시)**: 자주 먹는 것을 집에 보관
+
+각 레벨마다 장단점은 아래와 같습니다.
+
+- 냉장고: 가장 빠르지만 나만 사용 가능
+- 편의점: 동네 사람들과 공유, 꽤 빠름
+- 본사: 항상 최신 상품이 있지만 멀어서 느림
+
+## 캐시 검증: 어떻게 "변경되지 않았음"을 아는가?
+
+<NetworkSimulator />
+
+위 시뮬레이터에서 보셨듯이, 304 응답은 데이터 전송량이 현저히 적습니다. 그런데 서버는 어떻게 파일이 변경되지 않았다는 걸 알까요?
+
+### ETag와 Last-Modified
+
+브라우저와 서버는 두 가지 방법으로 파일 버전을 확인합니다.
+
+1. **Last-Modified / If-Modified-Since**
+
+```
+첫 요청:
+서버 → 브라우저: "Last-Modified: 2025-08-24 10:00:00"
+재요청:
+브라우저 → 서버: "If-Modified-Since: 2025-08-24 10:00:00"
+서버: (파일 수정 시간 확인) "304 Not Modified"
+```
+
+2. **ETag / If-None-Match**
+
+```
+첫 요청:
+서버 → 브라우저: "ETag: abc123" (파일 내용의 해시값)
+재요청:
+브라우저 → 서버: "If-None-Match: abc123"
+서버: (현재 파일 해시 확인) "304 Not Modified"
+```
+
+### 왜 두 가지 방법이 필요할까?
+
+- **날짜만으로는 부족한 경우**: 파일을 수정했다가 원래대로 되돌렸다면?
+- **해시만으로는 부족한 경우**: 매번 파일 전체를 읽어서 해시를 계산하는 비용
+
+## CDN 캐시: 강제 새로고침해도 HIT이 뜨는 이유
+
+이제 처음 질문으로 돌아가봅시다. "강제 새로고침을 해도 `x-vercel-cache: HIT`이 뜨는 이유"는 뭘까요?
+
+### 실험 2: Vercel Cache 관찰하기
+
+1. [Next.js 공식 문서](https://nextjs.org/docs)를 열어보세요
+2. 개발자 도구 → Network 탭 열기
+3. 강제 새로고침(Ctrl+Shift+F5) 실행
+4. Response Headers에서 `x-vercel-cache` 값 확인
+
+무엇을 발견하셨나요?
+
+- `HIT`: 캐시에서 가져옴
+- `MISS`: 캐시에 없어서 원본 서버에서 가져옴
+- `STALE`: 오래됐지만 일단 제공, 백그라운드에서 갱신 중
+
+강제 새로고침은 **브라우저 캐시**만 무시합니다. 하지만 브라우저와 서버 사이에는 또 다른 캐시 레이어가 있습니다. 바로 **CDN(Content Delivery Network)**입니다.
+
+```
+[브라우저] ← 강제 새로고침은 여기만 무시 → [CDN 캐시] ← → [Next.js 서버]
+↑
+x-vercel-cache: HIT
+```
+
+### CDN은 왜 필요할까?
+
+한국의 사용자 100명이 동시에 미국 서버의 같은 페이지를 요청한다면?
+
+**CDN 없이**
+100명 → 태평양 건너 → 미국 서버 (100번 처리)
+
+**CDN 있으면**
+1명 → 태평양 건너 → 미국 서버 → 서울 CDN에 저장
+나머지 99명 → 서울 CDN에서 바로 응답
+
+## Next.js의 4가지 캐싱 레이어
+
+이제 본격적으로 Next.js의 캐싱 시스템을 파헤쳐봅시다. Next.js는 총 4가지 캐싱 메커니즘을 제공합니다.
+
+### 1. Request Memoization (요청 메모이제이션)
+
+같은 렌더링 사이클에서 동일한 요청을 중복 제거합니다.
+
+```tsx
+// 이 컴포넌트들이 같은 페이지에 있다면?
+async function Header() {
+  const user = await fetch('/api/user'); // 첫 번째 호출
+  // ...
+}
+
+async function Sidebar() {
+  const user = await fetch('/api/user'); // 중복! (0ms, 캐시 사용)
+  // ...
+}
+
+async function MainContent() {
+  const user = await fetch('/api/user'); // 중복! (0ms, 캐시 사용)
+  // ...
+}
+```
+
+`Request Memoization`의 특징은 아래와 같습니다.
+
+- 수명: 단일 렌더링 사이클 (한 페이지 요청 동안만)
+- 범위: 서버 사이드 렌더링 중에만
+- 자동: 별도 설정 없이 자동으로 동작
+
+2. Data Cache (데이터 캐시)
+   fetch 요청의 결과를 서버에 저장합니다.
+
+```tsx
+// Next.js 15 기본값: 캐싱 안 함
+const data = await fetch('https://api.example.com/data');
+
+// 명시적으로 캐싱 활성화
+const data = await fetch('https://api.example.com/data', {
+  cache: 'force-cache', // 또는 next: { revalidate: 3600 }
+});
+```
+
+`Data Cache`의 특징은 아래와 같습니다.
+
+- 수명: 설정에 따라 (무제한 or revalidate 시간)
+- 범위: 모든 사용자가 공유
+- v15 변경점: 기본값이 'no-store'로 변경
+
+3. Full Route Cache (전체 라우트 캐시)
+   빌드 시점에 생성된 전체 HTML을 캐싱합니다.
+
+```tsx
+// 이 페이지는 정적으로 빌드됨
+export default async function StaticPage() {
+  const data = await fetch('...', { cache: 'force-cache' });
+  return <div>{data}</div>;
+}
+
+// 이 페이지는 동적 (매 요청마다 렌더링)
+export default async function DynamicPage() {
+  const data = await fetch('...', { cache: 'no-store' });
+  return <div>{data}</div>;
+}
+```
+
+`Full Route Cache`의 특징은 아래와 같습니다.
+
+- 정적 페이지: 빌드 시점에 HTML 생성 및 캐싱
+- 동적 페이지: 캐싱하지 않음
+- fetch 옵션이 페이지 전체에 영향
+
+4. Router Cache (라우터 캐시)
+   클라이언트 사이드 네비게이션을 위한 캐시입니다.
+
+```tsx
+// Link로 이동한 페이지는 브라우저 메모리에 캐싱
+<Link href="/about">About</Link>
+
+// 뒤로가기 했을 때 즉시 로딩되는 이유
+```
+
+`Router Cache`의 특징은 아래와 같습니다.
+
+- 수명: 세션 동안 (브라우저 메모리)
+- 범위: 개별 사용자
+- 용도: 빠른 네비게이션
+
+## 실전: 언제 어떤 캐시를 써야 할까?
+
+### 시나리오 1: 전자상거래 사이트
+
+상품 목록 페이지를 만든다고 가정해봅시다. 각 데이터의 특성을 생각해보세요.
+
+- **상품 정보**: 자주 안 바뀜
+- **재고 수량**: 실시간으로 변함
+- **리뷰**: 가끔 추가됨
+- **추천 상품**: 사용자마다 다름
+
+<CacheStrategyQuiz />
+
+### 시나리오 2: 실시간 경매 사이트
+
+이번엔 더 복잡한 상황입니다. 실시간성과 성능을 모두 고려해야 합니다.
+
+<AuctionSimulator />
+
+## 캐싱의 트레이드오프: 속도 vs 정확성
+
+캐싱은 항상 좋을까요? 그렇지 않습니다.
+
+### SWR (Stale-While-Revalidate) 패턴
+
+Next.js의 `revalidate`는 흥미로운 방식으로 동작합니다.
+
+```tsx
+// revalidate: 60 = 60초마다 갱신
+const data = await fetch('/api/data', {
+  next: { revalidate: 60 },
+});
+```
+
+60초가 지나면 어떻게 동작할까요?
+
+```
+13:00:00 - 사용자 1 접속 → 캐시 생성
+13:00:30 - 사용자 2 접속 → 캐시 사용 (신선함)
+13:01:00 - 사용자 3 접속 → 캐시 사용 (60초 지남, stale 상태)
+         → 동시에 백그라운드에서 새 데이터 가져오기 시작
+13:01:01 - 사용자 4 접속 → 새로운 캐시 사용
+```
+
+사용자 3은 오래된 데이터를 받지만 **즉시** 응답을 받습니다. 이게 SWR의 핵심입니다.
+
+### 언제 SWR을 사용해야 할까?
+
+**적합한 경우:**
+
+- 블로그 조회수, 좋아요 수
+- 상품 리뷰 개수
+- 날씨 정보
+
+**부적합한 경우:**
+
+- 은행 잔액
+- 재고 수량 (결제 시점)
+- 실시간 입찰가
+
+## 실전 최적화 패턴
+
+### 패턴 1: 계층적 캐싱
+
+```tsx
+// 페이지 레벨: 정적 생성
+export default async function ProductPage({ params }) {
+  // 상품 정보: 긴 캐싱
+  const product = await fetch(`/api/products/${params.id}`, {
+    next: { revalidate: 3600 },
+  });
+
+  // 리뷰: 중간 캐싱
+  const reviews = await fetch(`/api/products/${params.id}/reviews`, {
+    next: { revalidate: 300 },
+  });
+
+  return (
+    <>
+      <ProductInfo data={product} />
+      <Reviews data={reviews} />
+      <StockStatus productId={params.id} /> {/* 클라이언트 컴포넌트 */}
+    </>
+  );
+}
+
+// 클라이언트 컴포넌트: 실시간 데이터
+('use client');
+function StockStatus({ productId }) {
+  // 실시간 재고는 클라이언트에서 처리
+  const { data } = useSWR(`/api/stock/${productId}`, fetcher, {
+    refreshInterval: 5000,
+  });
+  return <div>재고: {data?.quantity}개</div>;
+}
+```
+
+### 패턴 2: 캐시 무효화 전략
+
+```tsx
+// 서버 액션으로 캐시 무효화
+async function updateProduct(productId: string, data: any) {
+  await db.products.update({ id: productId, ...data });
+
+  // 특정 태그 무효화
+  revalidateTag(`product-${productId}`);
+  // 또는 특정 경로 무효화
+  revalidatePath(`/products/${productId}`);
+}
+```
+
+## 자주 하는 실수들
+
+### 실수 1: 모든 것을 캐싱
+
+```tsx
+// ❌ 나쁜 예: 사용자별 데이터를 캐싱
+const userData = await fetch('/api/me', {
+  next: { revalidate: 3600 }, // 다른 사용자에게도 같은 데이터가?
+});
+
+// ✅ 좋은 예: 사용자별 데이터는 캐싱하지 않음
+const userData = await fetch('/api/me', {
+  cache: 'no-store',
+});
+```
+
+### 실수 2: 캐시 의존성 무시
+
+```tsx
+// ❌ 나쁜 예: 연관 데이터 캐시 불일치
+const product = await fetch(`/api/products/${id}`, {
+  next: { revalidate: 3600 },
+});
+const category = await fetch(`/api/categories/${product.categoryId}`, {
+  next: { revalidate: 86400 }, // 카테고리가 변경되면?
+});
+
+// ✅ 좋은 예: 연관 데이터 동기화
+const [product, category] = await Promise.all([
+  fetch(`/api/products/${id}`, { next: { tags: [`product-${id}`] } }),
+  fetch(`/api/categories/${categoryId}`, {
+    next: { tags: [`category-${categoryId}`] },
+  }),
+]);
+```
+
+## 결론: 캐싱은 도구일 뿐
+
+캐싱은 만능 해결책이 아닙니다. 상황에 맞는 적절한 전략이 필요합니다.
+
+### 기억해야 할 원칙들
+
+1. **데이터의 특성을 파악하라**
+   - 얼마나 자주 변경되는가?
+   - 정확성이 얼마나 중요한가?
+   - 잘못된 데이터의 비용은?
+
+2. **사용자 경험을 우선하라**
+   - 빠른 로딩 vs 정확한 데이터
+   - 대부분의 경우 둘 다 필요
+
+3. **측정하고 개선하라**
+   - 캐시 히트율 모니터링
+   - 사용자 피드백 수집
+   - 지속적인 최적화
+
+### Next.js 15에서 달라진 점
+
+```tsx
+// v14: 기본 캐싱 (개발자가 명시적으로 끄기)
+// v15: 기본 no-cache (개발자가 명시적으로 켜기)
+
+// 이제 의도를 명확히 표현해야 합니다
+const cachedData = await fetch('/api/data', {
+  cache: 'force-cache', // "나는 캐싱을 원한다"
+});
+```
+
+이 변화는 "예측 가능한 동작"을 우선시한 결정입니다. 캐싱으로 인한 혼란보다는, 필요할 때 명시적으로 활성화하는 것이 더 안전하다는 철학입니다.

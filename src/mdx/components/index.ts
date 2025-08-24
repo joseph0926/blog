@@ -1,3 +1,7 @@
+export * from './cache/auction-simulator';
+export * from './cache/cache-description';
+export * from './cache/cache-strategy-quiz';
+export * from './cache/network-simulator';
 export * from './fiber/fiber-wrapper';
 export * from './sonner/sonner-impl';
 export * from './sonner/sonner-sample';
