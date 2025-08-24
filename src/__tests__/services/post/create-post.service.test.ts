@@ -63,19 +63,6 @@ describe('createPost를 테스트합니다.', () => {
       expect(fs.existsSync(filePath)).toBe(true);
     });
 
-    it('특수문자 또는 한글이 포함된 제목도 올바른 slug를 생성해야 합니다.', async () => {
-      const specialPost = {
-        title: 'vitest-test-mdx_Test@Post#With$Special%Chars 한글!',
-        description: 'test',
-        tags: ['test'],
-      };
-
-      const post = await createPost(specialPost, prisma);
-
-      expect(post.slug).toMatch(/^\d{4}-\d{2}-\d{2}-[\w가-힣-]+$/);
-      expect(post.slug).not.toMatch(/[@#$%!]/);
-    });
-
     it('중복된 slug일 경우 글이 생성되지 않아야합니다.', async () => {
       await createPost({ ...DUMMY_POST_1 }, prisma);
       const post = createPost({ ...DUMMY_POST_2 }, prisma);

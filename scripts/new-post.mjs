@@ -90,10 +90,9 @@ async function prompt(question) {
 })();
 
 export function generateSlug(title) {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s가-힣-]/g, '')
+  const slug = title.trim().toLowerCase();
+  return slug
+    .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
