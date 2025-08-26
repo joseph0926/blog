@@ -67,50 +67,6 @@ model RefreshToken {
   @@index([token])
 }
 
-model ApiMetric {
-  id          BigInt      @id @default(autoincrement())
-  ts          DateTime    @default(now())
-  day         DateTime
-  route       String
-  method      String
-  statusCode  Int
-  backend     String
-  region      String?
-  reqDur      Float
-  dbDur       Float?
-  cpuMs       Float?
-  memRssMb    Float?
-  cacheHit    Boolean     @default(false)
-  appVersion  String
-  environment Environment @default(prod)
-
-  @@index([day, route, method, statusCode])
-  @@index([appVersion, route, ts])
-}
-
-model RumMetric {
-  id         BigInt     @id @default(autoincrement())
-  ts         DateTime   @default(now())
-  day        DateTime
-  url        String?
-  route      String
-  formFactor FormFactor
-  lcp        Float?
-  fid        Float?
-  cls        Float?
-  inp        Float?
-  ttfb       Float?
-  fcp        Float?
-
-  deviceMem   Float?
-  connType    String?
-  userAgent   String?
-  appVersion  String
-  environment Environment @default(prod)
-
-  @@index([day, route, formFactor])
-}
-
 model BuildArtifact {
   id           BigInt      @id @default(autoincrement())
   ts           DateTime    @default(now())
@@ -122,18 +78,4 @@ model BuildArtifact {
   environment  Environment @default(prod)
 
   @@index([branch, ts])
-}
-
-view ApiMetricHourlyMV {
-  bucket     DateTime
-  route      String
-  appVersion String
-  hits       Int
-  p95Req     Float
-  p99Req     Float
-  p95Db      Float?
-  p99Db      Float?
-
-  @@map("ApiMetricHourlyMV")
-  @@ignore
 }
