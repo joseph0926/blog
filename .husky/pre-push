@@ -1,1 +1,2 @@
+pnpm db:gen
 pnpm build
