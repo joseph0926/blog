@@ -97,6 +97,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@lhci/cli": "^0.15.0",
+    "@next/bundle-analyzer": "^15.5.2",
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.16",
     "@types/bcrypt": "^5.0.2",
