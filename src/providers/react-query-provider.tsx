@@ -6,33 +6,46 @@ import { httpBatchLink } from '@trpc/react-query';
 import { useRef, useState } from 'react';
 import superjson from 'superjson';
 import { trpc } from '@/lib/trpc';
+import { makeQueryClient } from '@/server/trpc/query-client';
+
+let clientQueryClientSingleton: QueryClient;
+function getQueryClient() {
+  if (typeof window === 'undefined') {
+    return makeQueryClient();
+  }
+  return (clientQueryClientSingleton ??= makeQueryClient());
+}
+function getUrl() {
+  const base = (() => {
+    if (typeof window !== 'undefined') return '';
+    if (process.env.VERCEL_ENV === 'production')
+      return `https://www.joseph0926.com`;
+    return 'http://localhost:3000';
+  })();
+  return `${base}/api/trpc`;
+}
 
 export default function ReactQueryProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const queryClientRef = useRef<QueryClient>(null);
+  const queryClient = getQueryClient();
+
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
         httpBatchLink({
-          url: '/api/trpc',
           transformer: superjson,
+          url: getUrl(),
         }),
       ],
     }),
   );
 
-  if (!queryClientRef.current) {
-    queryClientRef.current = new QueryClient({
-      defaultOptions: { queries: { staleTime: 60 * 1000 } },
-    });
-  }
-
   return (
-    <trpc.Provider client={trpcClient} queryClient={queryClientRef.current}>
-      <QueryClientProvider client={queryClientRef.current}>
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
         {children}
         <ReactQueryDevtools initialIsOpen={false} />
       </QueryClientProvider>

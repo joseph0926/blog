@@ -1,19 +1,8 @@
-import { HydrationBoundary } from '@tanstack/react-query';
-import { createServerSideHelpers } from '@trpc/react-query/server';
-import superjson from 'superjson';
-import { createTRPCContext } from '@/server/trpc/context';
-import { appRouter } from '@/server/trpc/root';
+import { HydrateClient, serverTrpc } from '@/server/trpc/server';
 import { BlogList } from './blog-list';
 
 export async function BlogListServer() {
-  const ctx = await createTRPCContext({ headers: new Headers() });
-  const helpers = createServerSideHelpers({
-    router: appRouter,
-    ctx,
-    transformer: superjson,
-  });
-
-  await helpers.post.getPosts.prefetchInfinite(
+  void serverTrpc.post.getPosts.prefetchInfinite(
     {
       limit: 10,
       filter: { category: undefined },
@@ -33,8 +22,8 @@ export async function BlogListServer() {
   );
 
   return (
-    <HydrationBoundary state={helpers.dehydrate()}>
+    <HydrateClient>
       <BlogList />
-    </HydrationBoundary>
+    </HydrateClient>
   );
 }
