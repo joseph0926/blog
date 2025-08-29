@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X } from 'lucide-react';
+import { Link, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { trpc } from '@/lib/trpc';
 import { uploadImage } from '@/lib/upload';
@@ -68,6 +69,7 @@ export function PostDialog({
 }: PostDialogProps) {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
+  const [urlInput, setUrlInput] = useState('');
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
@@ -91,6 +93,7 @@ export function PostDialog({
         thumbnail: post.thumbnail || '',
       });
       setThumbnailPreview(post.thumbnail || '');
+      setUrlInput(post.thumbnail || '');
     } else if (mode === 'create') {
       form.reset({
         title: '',
@@ -99,6 +102,7 @@ export function PostDialog({
         thumbnail: '',
       });
       setThumbnailPreview('');
+      setUrlInput('');
     }
   }, [mode, post, form]);
 
@@ -108,10 +112,9 @@ export function PostDialog({
     try {
       setUploadingImage(true);
       const url = await uploadImage(files[0]);
-      console.log(url);
-
       form.setValue('thumbnail', url);
       setThumbnailPreview(url);
+      setUrlInput(url);
       toast.success('이미지가 업로드되었습니다.');
     } catch (error) {
       console.error(error);
@@ -121,9 +124,27 @@ export function PostDialog({
     }
   };
 
+  const handleUrlSubmit = () => {
+    if (!urlInput) {
+      toast.error('URL을 입력해주세요.');
+      return;
+    }
+
+    // URL 유효성 검사
+    try {
+      new URL(urlInput);
+      form.setValue('thumbnail', urlInput);
+      setThumbnailPreview(urlInput);
+      toast.success('썸네일 URL이 설정되었습니다.');
+    } catch {
+      toast.error('올바른 URL 형식이 아닙니다.');
+    }
+  };
+
   const removeThumbnail = () => {
     form.setValue('thumbnail', '');
     setThumbnailPreview('');
+    setUrlInput('');
   };
 
   const createMutation = trpc.post.createPost.useMutation({
@@ -131,6 +152,7 @@ export function PostDialog({
       toast.success('게시글이 생성되었습니다.');
       form.reset();
       setThumbnailPreview('');
+      setUrlInput('');
       onOpenChange(false);
       onSuccess?.();
     },
@@ -254,16 +276,54 @@ export function PostDialog({
                       </Button>
                     </div>
                   ) : (
-                    <FileUpload
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                    />
+                    <Tabs defaultValue="upload" className="w-full">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="upload">
+                          <Upload className="mr-2 h-4 w-4" />
+                          파일 업로드
+                        </TabsTrigger>
+                        <TabsTrigger value="url">
+                          <Link className="mr-2 h-4 w-4" />
+                          URL 입력
+                        </TabsTrigger>
+                      </TabsList>
+
+                      <TabsContent value="upload" className="mt-4">
+                        <FileUpload
+                          onChange={handleImageUpload}
+                          disabled={uploadingImage}
+                        />
+                        {uploadingImage && (
+                          <p className="text-muted-foreground mt-2 text-sm">
+                            이미지 업로드 중...
+                          </p>
+                        )}
+                      </TabsContent>
+                      <TabsContent value="url" className="mt-4">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="https://example.com/image.jpg"
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleUrlSubmit();
+                              }
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            onClick={handleUrlSubmit}
+                            disabled={!urlInput}
+                          >
+                            확인
+                          </Button>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
                   )}
-                  {uploadingImage && (
-                    <p className="text-muted-foreground text-sm">
-                      이미지 업로드 중...
-                    </p>
-                  )}
+
                   <FormMessage />
                 </FormItem>
               )}
