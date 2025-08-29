@@ -1,47 +1,47 @@
-import { NextRequest, NextResponse } from 'next/server';
-import {
-  signAccessToken,
-  verifyAccessToken,
-  verifyRefreshToken,
-} from '@/lib/auth/token';
+import { jwtVerify } from 'jose';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not defined');
+  }
+  return new TextEncoder().encode(secret);
+};
+
+export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  console.log('Middleware checking path:', pathname);
+
+  if (pathname === '/login') {
+    console.log('Login page - allowing access');
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith('/admin')) {
+    try {
+      const token = request.cookies.get('kyh-admin-token')?.value;
+
+      if (!token) {
+        return NextResponse.redirect(new URL('/login', request.url));
+      }
+
+      const jwtSecret = getJwtSecret();
+      await jwtVerify(token, jwtSecret, {
+        algorithms: ['HS256'],
+      });
+
+      return NextResponse.next();
+    } catch (error) {
+      console.error('Admin auth failed:', error);
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: ['/admin/:path*'],
 };
-
-export async function middleware(req: NextRequest) {
-  const access = req.cookies.get('accessToken')?.value;
-  const refresh = req.cookies.get('refreshToken')?.value;
-
-  try {
-    if (access) {
-      await verifyAccessToken(access);
-      return NextResponse.next();
-    }
-
-    if (refresh) {
-      const { userId } = await verifyRefreshToken(refresh);
-      const newAccess = await signAccessToken(userId);
-
-      const res = NextResponse.next();
-      res.cookies.set({
-        name: 'accessToken',
-        value: newAccess,
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 15,
-      });
-      return res;
-    }
-  } catch (err) {
-    console.error('[Auth Middleware]', err);
-  }
-
-  const loginUrl = req.nextUrl.clone();
-  loginUrl.pathname = '/sign-in';
-  loginUrl.searchParams.set('from', req.nextUrl.pathname);
-
-  return NextResponse.redirect(loginUrl);
-}

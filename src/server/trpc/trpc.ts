@@ -7,10 +7,10 @@ const t = initTRPC.context<Context>().create({
 });
 
 const isAuth = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.user) {
+  if (!ctx.user || !ctx.user.isAdmin) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
-      message: '로그인이 필요합니다.',
+      message: '관리자 권한이 필요합니다.',
     });
   }
 

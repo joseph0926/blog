@@ -1,48 +1,61 @@
-import { jwtVerify,SignJWT } from 'jose';
+import { errors as JoseErrors, jwtVerify, SignJWT } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET!);
+let JWT_SECRET: Uint8Array | null = null;
 
-const ACCESS_EXPIRES = '15m';
-const REFRESH_EXPIRES = 60 * 60 * 24 * 7;
+function getJwtSecret(): Uint8Array {
+  if (!JWT_SECRET) {
+    if (!process.env.JWT_SECRET) {
+      throw new Error('JWT_SECRET is not defined');
+    }
+    JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET);
+  }
+  return JWT_SECRET;
+}
 
-export async function signAccessToken(userId: string) {
-  return new SignJWT({ typ: 'access' })
+const ACCESS_EXPIRES = process.env.ACCESS_EXPIRES || '1d';
+
+export async function createAdminToken() {
+  const jwtSecret = getJwtSecret();
+
+  return await new SignJWT({ isAdmin: true })
     .setProtectedHeader({ alg: 'HS256' })
-    .setSubject(userId)
     .setExpirationTime(ACCESS_EXPIRES)
     .setIssuedAt()
-    .sign(JWT_SECRET);
+    .sign(jwtSecret);
 }
 
-export async function generateRefreshToken(userId: string) {
-  const token = await new SignJWT({ typ: 'refresh' })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setSubject(userId)
-    .setExpirationTime(REFRESH_EXPIRES)
-    .setIssuedAt()
-    .sign(JWT_SECRET);
+export async function verifyAccessToken(token: string) {
+  try {
+    if (typeof token !== 'string' || token.split('.').length !== 3) {
+      throw new Error('MALFORMED_TOKEN');
+    }
 
-  return { token, expires: REFRESH_EXPIRES };
-}
+    const jwtSecret = getJwtSecret();
+    const { payload } = await jwtVerify(token, jwtSecret, {
+      algorithms: ['HS256'],
+    });
 
-type TokenResult = { userId: string; exp: number };
+    return { isAdmin: payload.isAdmin };
+  } catch (error) {
+    if (error instanceof JoseErrors.JWTExpired) {
+      throw new Error('TOKEN_EXPIRED');
+    }
 
-export async function verifyAccessToken(token: string): Promise<TokenResult> {
-  if (typeof token !== 'string' || token.split('.').length !== 3) {
-    throw new Error('MALFORMED_TOKEN');
+    if (
+      error instanceof JoseErrors.JWSSignatureVerificationFailed ||
+      error instanceof JoseErrors.JWTInvalid
+    ) {
+      throw new Error('INVALID_TOKEN');
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === 'JWT_SECRET is not defined'
+    ) {
+      throw error;
+    }
+
+    console.error('Unexpected token verification error:', error);
+    throw new Error('TOKEN_VERIFICATION_FAILED');
   }
-
-  const { payload } = await jwtVerify(token, JWT_SECRET, {
-    algorithms: ['HS256'],
-  });
-  if (payload.typ !== 'access') throw new Error('INVALID_TOKEN_TYPE');
-  return { userId: payload.sub as string, exp: payload.exp! };
-}
-
-export async function verifyRefreshToken(token: string): Promise<TokenResult> {
-  const { payload } = await jwtVerify(token, JWT_SECRET, {
-    algorithms: ['HS256'],
-  });
-  if (payload.typ !== 'refresh') throw new Error('INVALID_TOKEN_TYPE');
-  return { userId: payload.sub as string, exp: payload.exp! };
 }
