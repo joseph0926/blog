@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ENV } from '@/lib/env';
 import { cn } from '@/lib/utils';
 import { PostResponse } from '@/types/post.type';
 import { Badge } from '../ui/badge';
@@ -29,6 +30,7 @@ export const BlogPost = ({
         width={1200}
         height={675}
         priority
+        unoptimized={ENV === 'dev'}
         alt={post.title}
         className={cn(
           'aspect-video rounded-lg object-cover',

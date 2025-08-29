@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { httpBatchLink } from '@trpc/react-query';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import superjson from 'superjson';
 import { trpc } from '@/lib/trpc';
 import { makeQueryClient } from '@/server/trpc/query-client';

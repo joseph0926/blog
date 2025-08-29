@@ -5,6 +5,7 @@ import { ArrowUpRight, Calendar, Clock, Code2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { ENV } from '@/lib/env';
 import { cn } from '@/lib/utils';
 import { PostResponse } from '@/types/post.type';
 import { Badge } from '../ui/badge';
@@ -70,6 +71,7 @@ export const BlogPostCard = ({
                 <Image
                   src={post?.thumbnail ?? '/logo/logo.webp'}
                   fill
+                  unoptimized={ENV === 'dev'}
                   alt={post.title}
                   className="object-cover transition-transform duration-500 group-hover:scale-105"
                 />

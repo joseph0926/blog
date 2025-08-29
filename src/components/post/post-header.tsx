@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { ENV } from '@/lib/env';
 import { serverTrpc } from '@/server/trpc/server';
 
 export const PostHeader = async ({ slug }: { slug: string }) => {
@@ -9,6 +10,7 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
   } catch (e) {
     console.error(`Failed to fetch post: ${slug}`, e);
   }
+  console.log(post?.thumbnail);
 
   return (
     <>
@@ -18,6 +20,7 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
           width={1200}
           height={675}
           priority
+          unoptimized={ENV === 'dev'}
           className="aspect-video w-full object-cover"
           alt={post?.title ?? ''}
         />

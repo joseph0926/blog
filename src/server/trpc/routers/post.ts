@@ -2,18 +2,8 @@ import { Prisma } from '@prisma/client';
 import { TRPCError } from '@trpc/server';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { z } from 'zod';
-import { updatePostSchema } from '@/schemas/post.schema';
 import { createPost } from '@/services/post/create-post.service';
 import { protectedProcedure, publicProcedure, router } from '../trpc';
-
-const updatePostOutput = z.object({
-  post: z.object({
-    slug: z.string(),
-    thumbnail: z.string(),
-    updatedAt: z.date(),
-  }),
-  message: z.string(),
-});
 
 export const postRouter = router({
   createPost: protectedProcedure

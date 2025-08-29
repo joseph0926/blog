@@ -1,7 +1,8 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
+import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
@@ -13,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { FileUpload } from '@/components/ui/file-upload';
 import {
   Form,
   FormControl,
@@ -25,6 +27,7 @@ import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Textarea } from '@/components/ui/textarea';
 import { trpc } from '@/lib/trpc';
+import { uploadImage } from '@/lib/upload';
 
 const postSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요').max(100),
@@ -63,6 +66,9 @@ export function PostDialog({
   post,
   onSuccess,
 }: PostDialogProps) {
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
+
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
     defaultValues: {
@@ -84,13 +90,47 @@ export function PostDialog({
         tags: post.tags.map((t) => t.name),
         thumbnail: post.thumbnail || '',
       });
+      setThumbnailPreview(post.thumbnail || '');
+    } else if (mode === 'create') {
+      form.reset({
+        title: '',
+        description: '',
+        tags: [],
+        thumbnail: '',
+      });
+      setThumbnailPreview('');
     }
   }, [mode, post, form]);
+
+  const handleImageUpload = async (files: File[]) => {
+    if (!files.length) return;
+
+    try {
+      setUploadingImage(true);
+      const url = await uploadImage(files[0]);
+      console.log(url);
+
+      form.setValue('thumbnail', url);
+      setThumbnailPreview(url);
+      toast.success('이미지가 업로드되었습니다.');
+    } catch (error) {
+      console.error(error);
+      toast.error('이미지 업로드에 실패했습니다.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const removeThumbnail = () => {
+    form.setValue('thumbnail', '');
+    setThumbnailPreview('');
+  };
 
   const createMutation = trpc.post.createPost.useMutation({
     onSuccess: () => {
       toast.success('게시글이 생성되었습니다.');
       form.reset();
+      setThumbnailPreview('');
       onOpenChange(false);
       onSuccess?.();
     },
@@ -124,11 +164,12 @@ export function PostDialog({
     }
   };
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
+  const isLoading =
+    createMutation.isPending || updateMutation.isPending || uploadingImage;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>
             {mode === 'create' ? '새 게시글 작성' : '게시글 수정'}
@@ -192,12 +233,37 @@ export function PostDialog({
             <FormField
               control={form.control}
               name="thumbnail"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
-                  <FormLabel>썸네일 URL (선택)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} />
-                  </FormControl>
+                  <FormLabel>썸네일 이미지</FormLabel>
+                  {thumbnailPreview ? (
+                    <div className="relative">
+                      <img
+                        src={thumbnailPreview}
+                        alt="썸네일 미리보기"
+                        className="h-48 w-full rounded-md object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2"
+                        onClick={removeThumbnail}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <FileUpload
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                    />
+                  )}
+                  {uploadingImage && (
+                    <p className="text-muted-foreground text-sm">
+                      이미지 업로드 중...
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

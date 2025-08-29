@@ -1,4 +1,4 @@
-import { UploadApiResponse,v2 as cloudinary } from 'cloudinary';
+import { UploadApiResponse, v2 as cloudinary } from 'cloudinary';
 import { NextRequest, NextResponse } from 'next/server';
 
 cloudinary.config({
@@ -15,7 +15,20 @@ function streamUpload(
 ): Promise<UploadApiResponse> {
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
-      { folder, resource_type: 'image' },
+      {
+        folder,
+        resource_type: 'image',
+        format: 'webp',
+        transformation: [
+          {
+            width: 1200,
+            height: 630,
+            crop: 'limit',
+            quality: 'auto:good',
+            fetch_format: 'auto',
+          },
+        ],
+      },
       (error, result) => {
         if (error || !result) return reject(error);
         resolve(result);
