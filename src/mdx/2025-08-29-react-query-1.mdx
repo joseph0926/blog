@@ -1,0 +1,385 @@
+---
+slug: '2025-08-29-2025-08-29-react-query-1'
+title: 'React Query 내부 동작 원리 1 - 선택적 리렌더링의 비밀'
+description: 'React Query가 어떻게 Query → QueryObserver → Component로 이어지는 데이터 흐름을 구성하고, Proxy를 활용해 실제 사용하는 속성만 추적하여 불필요한 리렌더링을 방지하는지 내부 코드를 통해 살펴봅니다.'
+date: '2025-08-29'
+tags: ['react-query']
+---
+
+@tanstack/react-query에 오픈소스 기여를 위해 내부 코드를 살펴보면서 내부 메커니즘에 대해서 자세히 알아보기 시작했습니다.
+
+이렇게 내부 코드를 확인하면서 react-query를 쓸 때 한번쯤은 고민해볼 만한 내용이 어느 정도 해소되었습니다.
+
+예를 들어,
+
+- 분명 isLoading, data, isError 등 많은 상태가 존재하는데 왜 내가 사용하는 값에 대해서만 리렌더링할까?
+- 왜 Query 인스턴스는 리액트 렌더링 트리 밖에서 정의해야 할까?
+- `structuralSharing`이 뭐고, 왜 `structuralSharing`이 기본값으로 켜져 있을까?
+- 한 컴포넌트에서 같은 쿼리를 여러 번 호출하면 어떻게 될까?
+- select 함수는 매 쿼리마다 재실행될까?
+
+이 질문들에 대해서 여러 포스팅 글로 하나씩 답해보려 합니다.
+
+## @tanstack/react-query 흐름
+
+먼저 @tanstack/react-query의 흐름은 크게 3개의 파트로 나뉩니다.
+
+1. Query
+2. QueryObserver
+3. Component
+
+이 관계를 간단히 문장으로만 정리하면,
+
+> 데이터 변경 → Query 인스턴스(queryKey 기준) → QueryObserver (useQuery 등을 이용한 곳의 인스턴스마다 1개씩) → listener 호출 (useBaseQuery > useSyncExternalStore > onStoreChange) → 컴포넌트에 데이터 변경 알림
+
+이 관계를 자세히 살펴보겠습니다.
+
+## 데이터의 변경을 어떻게 알아차릴까?
+
+위 흐름에서 제일 처음에 존재하는 "데이터 변경 → Query 인스턴스 → QueryObserver에게 알림" 이 부분부터 살펴보려 합니다.
+
+여기서 먼저 알아야 할 부분은 "언제 데이터가 변경되는가?"입니다. 일반적으로 아래의 경우들 중 하나일 것입니다.
+
+- 캐시가 stale 상태가 된 후 refetch 옵션 중 하나가 트리거되었을 때
+- 사용자가 refetch 버튼을 누를 때
+- 다른 mutation이 invalidate시켜서
+
+react-query는 내부적으로 당연히 이 세 경우를 모두 처리하고 있지만, 이 섹션에서는 우선 "캐시가 stale 상태이고 refetch 옵션 중 하나인 컴포넌트 마운트가 트리거되었을 때"를 확인해보겠습니다.
+
+`query-core/src/queryObserver.ts`의 코드 중에 이와 관련된 부분은 아래 코드입니다.
+
+```ts
+protected onSubscribe(): void {
+  if (this.listeners.size === 1) {
+    this.#currentQuery.addObserver(this)
+
+    if (shouldFetchOnMount(this.#currentQuery, this.options)) {
+      this.#executeFetch()
+    } else {
+      this.updateResult()
+    }
+
+    this.#updateTimers()
+  }
+}
+```
+
+이 코드에서 `listeners`는 React 컴포넌트와 QueryObserver를 연결하는 콜백 함수들입니다. `listeners.size === 1`은 첫 번째 구독자가 등록될 때를 의미합니다. 우선 이 부분은 배제하고 한 부분에 집중해보겠습니다.
+
+```ts
+if (shouldFetchOnMount(this.#currentQuery, this.options)) {
+  this.#executeFetch();
+}
+```
+
+여기서 `shouldFetchOnMount`가 자세히 뭘 하는지는 몰라도 함수명을 보면 "마운트가 되면 fetch를 해야 한다"로 해석되고 우리가 다루려던 케이스와 부합합니다.
+
+그렇다면 이 if문을 통과하면 `this.#executeFetch()`를 호출하는데 이 메서드는 어떤 역할을 할까요?
+
+```ts
+#executeFetch(
+  fetchOptions?: Omit<ObserverFetchOptions, 'initialPromise'>,
+): Promise<TQueryData | undefined> {
+  // `#executeFetch`가 호출되는 순간 또 query가 업데이트되었을 수 있으니, 그것을 방지하기 위해 #executeFetch 호출 시 한 번 더 체크함
+  this.#updateQuery()
+
+  // 현재 쿼리에서의 fetch를 통해 결과값인 promise를 얻음
+  let promise: Promise<TQueryData | undefined> = this.#currentQuery.fetch(
+    this.options as QueryOptions<TQueryFnData, TError, TQueryData, TQueryKey>,
+    fetchOptions,
+  )
+
+  return promise // fetch 결과 promise 반환
+}
+```
+
+위 주석처럼 "fetch 결과인 promise를 반환하는" 상대적으로 간단한 메서드입니다.
+
+조금 더 자세히 보면 `this.#currentQuery.fetch()`를 호출하는데 여기서의 `fetch`는 Query 인스턴스의 메서드입니다.
+
+따라서 `query-core/src/query.ts`에서 `fetch` 코드를 보면 아래처럼 성공 시 `this.setData`에 결과를 담는 부분도 존재하지만,
+
+```ts
+async fetch(
+  options?: QueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  fetchOptions?: FetchOptions<TQueryFnData>,
+): Promise<TData> {
+  // ...
+
+  this.setData(data) // 성공 시
+
+  // ...
+
+  this.#dispatch({
+    type: 'error',
+    error: error as TError,
+  }) // 에러 발생 시
+
+  // ...
+}
+```
+
+그것보다 현재 주제에 더 관련 있는 부분은 중간중간 존재하는 `#dispatch` 사용 부분입니다.
+
+```ts
+// ...
+this.#dispatch({ type: 'fetch', meta: context.fetchOptions?.meta });
+// ...
+this.#dispatch({
+  type: 'error',
+  error: error as TError,
+});
+// ...
+```
+
+각 상태가 변할 때마다 이 `#dispatch`가 호출되는 걸 보면, 이 글에서 언급한 "변화를 알리는 역할"을 `#dispatch`가 한다고 예측할 수 있고, 실제로 그런지 코드를 확인해보면,
+
+```ts
+#dispatch(action: Action<TData, TError>): void {
+  this.state = reducer(this.state)  // 1. 상태 업데이트
+
+  notifyManager.batch(() => {
+    this.observers.forEach((observer) => {
+      observer.onQueryUpdate()  // 2. 모든 Observer에게 알림
+    })
+
+    this.#cache.notify({ query: this, type: 'updated', action })  // 3. 캐시에도 알림
+  })
+}
+```
+
+실제로 `notify` 메서드를 통해 캐시에 변화를 알리고, 모든 Observer들의 `onQueryUpdate()`를 호출하는 것을 확인할 수 있습니다. 여기서 `notifyManager.batch()`는 여러 업데이트를 하나로 묶어서 처리하여 불필요한 리렌더링을 방지하는 역할을 합니다.
+
+이제 `observer.onQueryUpdate()`가 하는 역할을 확인하기 전에 지금까지 흐름을 정리해보겠습니다.
+
+1. Query의 fetch() 실행
+2. 데이터 받아옴 → setData()로 데이터를 담고 `#dispatch({ ... })`로 변화를 알림
+3. #dispatch에서 상태 변경 후 모든 cache에게 변화를 알리고 Observer들의 onQueryUpdate()도 호출
+
+그렇다면 이제 `onQueryUpdate`를 확인해보면 `this.updateResult()`를 호출하고 있고,
+
+```ts
+onQueryUpdate(): void {
+  this.updateResult()
+
+  if (this.hasListeners()) {
+    this.#updateTimers()
+  }
+}
+```
+
+`this.updateResult()`를 확인해보면,
+
+```ts
+updateResult(): void {
+  // 비교 대상인 이전 결과
+  const prevResult = this.#currentResult as
+    | QueryObserverResult<TData, TError>
+    | undefined
+
+  // 지금 쿼리를 기반으로 최신 결과를 만들고
+  const nextResult = this.createResult(this.#currentQuery, this.options)
+
+  this.#currentResultState = this.#currentQuery.state
+  this.#currentResultOptions = this.options
+
+  if (this.#currentResultState.data !== undefined) {
+    this.#lastQueryWithDefinedData = this.#currentQuery
+  }
+
+  // 이전 결과와 최신 결과를 비교하고 만약 같으면 update 하지 않고 종료
+  if (shallowEqualObjects(nextResult, prevResult)) {
+    return
+  }
+
+  // 다르면 현재 결과를 최신 결과로 할당
+  this.#currentResult = nextResult
+
+  const shouldNotifyListeners = (): boolean => {
+    // 이전 결과가 없으면 => 첫 실행이면 → 바로 알림
+    if (!prevResult) {
+      return true
+    }
+
+    const { notifyOnChangeProps } = this.options
+    const notifyOnChangePropsValue =
+      typeof notifyOnChangeProps === 'function'
+        ? notifyOnChangeProps()
+        : notifyOnChangeProps
+
+    if (
+      // notifyOnChangeProps를 명시적으로 "all"로 지정하거나
+      notifyOnChangePropsValue === 'all' ||
+      // notifyOnChangeProps를 따로 지정하지 않고 trackedProps가 비어있다면
+      // (아직 useQuery의 값을 사용하는 부분이 접근 안 되었다면)
+      (!notifyOnChangePropsValue && !this.#trackedProps.size)
+    ) {
+      // update 함
+      return true
+    }
+
+    // 추적 대상인 속성을 저장
+    const includedProps = new Set(
+      notifyOnChangePropsValue ?? this.#trackedProps,
+    )
+
+    if (this.options.throwOnError) {
+      includedProps.add('error')
+    }
+
+    return Object.keys(this.#currentResult).some((key) => {
+      // 현재 결과의 속성들 중에 이전 결과의 같은 속성과 변화가 있다면
+      const typedKey = key as keyof QueryObserverResult
+      const changed = this.#currentResult[typedKey] !== prevResult[typedKey]
+
+      // 그 변화를 감지하고, 추적 대상인지 확인
+      return changed && includedProps.has(typedKey)
+    })
+  }
+
+  // 결과적으로 알리는지(true) / 알리지 않는지(false)를 결정하여 전달
+  this.#notify({ listeners: shouldNotifyListeners() })
+}
+```
+
+최종적으로 `#notify` 메서드는 `shouldNotifyListeners()`의 결과에 따라 listener들을 호출합니다.
+
+또한 다음 문서에서 자세히 다루겠지만, 이 listener들은 React의 `useSyncExternalStore`를 통해 연결된 콜백 함수들로, 호출되면 컴포넌트의 리렌더링을 트리거합니다.
+
+이렇게 Query → QueryObserver → Component로 이어지는 데이터 변경 알림의 전체 흐름이 완성됩니다.
+
+## 분명 isLoading, data, isError 등 많은 상태가 존재하는데 왜 내가 사용하는 값에 대해서만 리렌더링할까?
+
+그렇다면 여러 질문 중 이 포스트 내용만으로 답변할 수 있는 "분명 isLoading, data, isError 등 많은 상태가 존재하는데 왜 내가 사용하는 값에 대해서만 리렌더링할까?"에 대해서 살펴보겠습니다.
+
+이 글에서 마지막에 살펴본 함수 `updateResult()`의 마지막 부분에 아래와 같은 로직이 존재합니다.
+
+```ts
+const shouldNotifyListeners = (): boolean => {
+  // 이전 결과가 없으면 => 첫 실행이면 → 바로 알림
+  if (!prevResult) {
+    return true;
+  }
+
+  const { notifyOnChangeProps } = this.options;
+  const notifyOnChangePropsValue =
+    typeof notifyOnChangeProps === 'function'
+      ? notifyOnChangeProps()
+      : notifyOnChangeProps;
+
+  if (
+    // notifyOnChangeProps를 명시적으로 "all"로 지정하거나
+    notifyOnChangePropsValue === 'all' ||
+    // notifyOnChangeProps를 따로 지정하지 않고 trackedProps가 비어있다면
+    // (아직 useQuery의 값을 사용하는 부분이 접근 안 되었다면)
+    (!notifyOnChangePropsValue && !this.#trackedProps.size)
+  ) {
+    // update 함
+    return true;
+  }
+
+  // 추적 대상인 속성을 저장
+  const includedProps = new Set(notifyOnChangePropsValue ?? this.#trackedProps);
+
+  if (this.options.throwOnError) {
+    includedProps.add('error');
+  }
+
+  return Object.keys(this.#currentResult).some((key) => {
+    // 현재 결과의 속성들 중에 이전 결과의 같은 속성과 변화가 있다면
+    const typedKey = key as keyof QueryObserverResult;
+    const changed = this.#currentResult[typedKey] !== prevResult[typedKey];
+
+    // 그 변화를 감지하고, 추적 대상인지 확인
+    return changed && includedProps.has(typedKey);
+  });
+};
+```
+
+여기서 살짝 생소한 변수, 필드가 존재합니다 => `notifyOnChangeProps`, `trackedProps`
+
+이 두개가 해당 질문의 핵심입니다.
+
+### trackResult와 Proxy를 활용한 속성 추적
+
+위에서는 다루지 않았지만 `react-query/src/useBaseQuery.ts` 에서 마지막 부분에,
+
+```ts
+// Handle result property usage tracking
+return !defaultedOptions.notifyOnChangeProps
+  ? observer.trackResult(result)
+  : result;
+```
+
+이러한 로직이 존재합니다.
+
+이 로직을 있는 그대로 읽으면 query 옵션중에 notifyOnChangeProps가 존재하지 않으면 결과를 `observer.trackResult(result)`하고, 존재하면 result를 그대로 반환합니다.
+
+여기서 궁금한건 `trackResult` 메서드의 역할인데,,
+
+```ts
+trackResult(
+  result: QueryObserverResult<TData, TError>,
+  onPropTracked?: (key: keyof QueryObserverResult) => void,
+): QueryObserverResult<TData, TError> {
+  return new Proxy(result, {
+    get: (target, key) => {
+      this.trackProp(key as keyof QueryObserverResult)
+      onPropTracked?.(key as keyof QueryObserverResult)
+      if (
+        key === 'promise' &&
+        !this.options.experimental_prefetchInRender &&
+        this.#currentThenable.status === 'pending'
+      ) {
+        this.#currentThenable.reject(
+          new Error(
+            'experimental_prefetchInRender feature flag is not enabled',
+          ),
+        )
+      }
+      return Reflect.get(target, key)
+    },
+  })
+}
+```
+
+복잡해보이지만 간단히 설명하면 Javasciprt의 `Proxy`를 활용하여 실제로 사용한 것을 추적하는 메서드입니다.
+
+간단히 예시를 들어보면,,
+
+```tsx
+const { data, isLoading } = useQuery({ queryKey: ['users'] });
+
+// ...
+return <div>{data?.name}</div>;
+```
+
+이런 컴폰넌트가 존재할 때 컴포넌트는 분명 `data`만 사용하고있지만, isLoading도 객체 구조 분해로 가져왔습니다.
+
+그러면 `data`가 변경될때만 리렌더링이 되어야할까요? 아니면 `data`, `isLoading` 모두 트리거가 될까요?
+
+결론적으로 `data`가 변경될때만 리렌더링됩니다.
+
+위 `trackResult`메서드와 연관지어 설명해보면,
+
+1. data에 접근하면 Proxy의 get 트랩이 실행되어 trackProp('data') 호출
+2. trackedProps에 'data'가 추가됨
+3. 나중에 쿼리 데이터가 변경되면 shouldNotifyListeners에서 체크
+4. isLoading만 변경되고 data는 그대로면 -> 리렌더링 안 함
+5. data가 변경되면 -> 리렌더링 함
+
+그럼 다시 `useBaseQuery`의 return 부분을 보면,,
+
+```ts
+return !defaultedOptions.notifyOnChangeProps
+  ? observer.trackResult(result)
+  : result;
+```
+
+`notifyOnChangeProps`는 개발자가 명시적으로 "xxx가 변화할때만 추적해줘"라고 말하는겁니다.
+
+즉 notifyOnChangeProps가 설정되어 있으면 그 변화만 추적하면 되기 때문에 result를 그대로 반환하고, 설정되어 있지 않으면 자동으로 사용된 걸 추적해준다는 뜻입니다
+
+반면 notifyOnChangeProps가 설정되어 있지 않다면 자동으로 사용된걸 추적해준다는 뜻입니다.
+
+정리하면 React Query는 Proxy를 활용한 자동 추적 모드(기본값)를 통해 실제로 컴포넌트에서 사용하는 속성만 감지하고, 해당 속성이 변경될 때만 리렌더링을 트리거합니다. 이는 불필요한 리렌더링을 방지하는 강력한 최적화 기법입니다.
