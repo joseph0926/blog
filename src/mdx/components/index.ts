@@ -3,6 +3,7 @@ export * from './cache/cache-description';
 export * from './cache/cache-strategy-quiz';
 export * from './cache/network-simulator';
 export * from './fiber/fiber-wrapper';
+export * from './react-query/proxy-track';
 export * from './sonner/sonner-impl';
 export * from './sonner/sonner-sample';
 export * from './stack-reconciler';

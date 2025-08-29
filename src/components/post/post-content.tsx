@@ -6,6 +6,7 @@ import {
   FiberWrapper,
   NetworkSimulator,
   PerformanceComparisonDemo,
+  ProxyTrack,
   SonnerImpl1,
   SonnerImpl2,
   SonnerImpl3,
@@ -41,6 +42,7 @@ export async function PostContent({ slug }: { slug: string }) {
       NetworkSimulator,
       AuctionSimulator,
       CacheStrategyQuiz,
+      ProxyTrack,
     },
     options: { parseFrontmatter: true },
   });

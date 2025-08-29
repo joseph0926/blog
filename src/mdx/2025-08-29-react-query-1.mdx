@@ -6,6 +6,8 @@ date: '2025-08-29'
 tags: ['react-query']
 ---
 
+import { ProxyTrack } from '@/mdx/components/proxy-track';
+
 @tanstack/react-query에 오픈소스 기여를 위해 내부 코드를 살펴보면서 내부 메커니즘에 대해서 자세히 알아보기 시작했습니다.
 
 이렇게 내부 코드를 확인하면서 react-query를 쓸 때 한번쯤은 고민해볼 만한 내용이 어느 정도 해소되었습니다.
@@ -348,15 +350,19 @@ trackResult(
 간단히 예시를 들어보면,,
 
 ```tsx
-const { data, isLoading } = useQuery({ queryKey: ['users'] });
+const result = useQuery({ queryKey: ['users'] });
 
 // ...
-return <div>{data?.name}</div>;
+return <div>{result.data?.name}</div>;
 ```
 
-이런 컴폰넌트가 존재할 때 컴포넌트는 분명 `data`만 사용하고있지만, isLoading도 객체 구조 분해로 가져왔습니다.
+이런 컴폰넌트가 존재할 때 컴포넌트는 `result.data`만 사용하지만, 리패치등이 일어나면 `isFetching`등도 변화할것입니다.
 
-그러면 `data`가 변경될때만 리렌더링이 되어야할까요? 아니면 `data`, `isLoading` 모두 트리거가 될까요?
+그러면 `data`가 변경될때만 리렌더링이 되어야할까요? 아니면 `data`, `isFetching` 모두 트리거가 될까요?
+
+아래 데모에서 직접 테스트해볼수있습니다.
+
+<ProxyTrack />
 
 결론적으로 `data`가 변경될때만 리렌더링됩니다.
 
