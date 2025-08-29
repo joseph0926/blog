@@ -7,10 +7,11 @@ import { appRouter } from './root';
 import { createCallerFactory } from './trpc';
 
 export const getQueryClient = cache(makeQueryClient);
-const ctx = await createTRPCContext({ headers: new Headers() });
 const createCaller = createCallerFactory(appRouter);
 
-const caller = createCaller(ctx);
+const caller = createCaller(async () => {
+  return createTRPCContext({ headers: new Headers() });
+});
 export const { trpc: serverTrpc, HydrateClient } = createHydrationHelpers<
   typeof appRouter
 >(caller, getQueryClient);

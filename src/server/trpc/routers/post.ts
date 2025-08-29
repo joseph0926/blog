@@ -222,41 +222,61 @@ export const postRouter = router({
     .input(
       z.object({
         slug: z.string(),
-        payload: updatePostSchema,
+        payload: z.object({
+          title: z.string().min(1).max(100),
+          description: z.string().min(1),
+          tags: z.array(z.string()),
+          thumbnail: z.string().optional(),
+        }),
       }),
     )
-    .output(updatePostOutput)
     .mutation(async ({ ctx, input }) => {
       const { slug, payload } = input;
 
       try {
+        const tagConnections = await Promise.all(
+          payload.tags.map(async (tagName) => {
+            const tag = await ctx.prisma.tag.upsert({
+              where: { name: tagName },
+              create: { name: tagName },
+              update: {},
+            });
+            return { id: tag.id };
+          }),
+        );
+
         const post = await ctx.prisma.post.update({
           where: { slug },
-          data: { thumbnail: payload.thumbnail },
-          select: { slug: true, thumbnail: true, updatedAt: true },
+          data: {
+            title: payload.title,
+            description: payload.description,
+            thumbnail: payload.thumbnail || null,
+            tags: {
+              set: [],
+              connect: tagConnections,
+            },
+          },
+          select: {
+            slug: true,
+            title: true,
+            description: true,
+            thumbnail: true,
+            updatedAt: true,
+          },
         });
-        if (!post.thumbnail) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: '썸네일 업데이트 실패',
-          });
-        }
 
         await Promise.all([
-          revalidateTag('posts'),
+          revalidateTag('all-posts'),
           revalidateTag(`post-${slug}`),
         ]);
 
         return {
-          post: {
-            ...post,
-            thumbnail: post.thumbnail,
-          },
+          post,
           message: '글을 업데이트하였습니다.',
         };
-      } catch (e) {
-        if (e instanceof Prisma.PrismaClientKnownRequestError) {
-          if (e.code === 'P2025') {
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+          if (error.code === 'P2025') {
             throw new TRPCError({
               code: 'NOT_FOUND',
               message: '해당 글이 없습니다.',
