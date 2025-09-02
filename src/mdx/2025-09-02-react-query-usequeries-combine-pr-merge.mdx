@@ -1,0 +1,285 @@
+---
+slug: '2025-09-02-2025-09-02-react-query-usequeries-combine-pr-merge'
+title: 'React Query useQueries combine 함수 버그 수정 PR부터 Merge까지'
+description: 'StoragePersister에서 deserialize된 데이터로 combine이 실행되지 않는 문제를 해결한 과정. 메인테이너 리뷰를 통해 테스트를 개선하며 v5.85.9 릴리스에 기여한 경험을 공유합니다.'
+date: '2025-09-02'
+tags: ['react-query']
+---
+
+[Issue #9586](https://github.com/TanStack/query/issues/9586)
+
+[PR #9592](https://github.com/TanStack/query/pull/9592)
+
+[Releases v5.85.9](https://github.com/TanStack/query/releases/tag/v5.85.9)
+
+## 문제 발견
+
+> [Issue #9586](https://github.com/TanStack/query/issues/9586)
+
+React Query의 `useQueries`와 `StoragePersister`를 함께 사용할 때 발생하는 버그가 보고되었습니다. 페이지를 새로고침하면 캐시된 데이터가 있음에도 `combine` 함수가 호출되지 않아 결합된 결과가 `isPending: true` 상태로 남아있는 문제였습니다.
+
+재현 조건은 다음과 같았습니다
+
+1. `useQueries`에 `combine` 함수 사용
+2. `staleTime` 설정으로 캐시 유지
+3. `StoragePersister`로 localStorage에 데이터 저장
+
+```ts
+const ids = [1, 2, 3];
+
+const combine = useCallback((results: UseQueryResult<number, Error>[]) => {
+  return results;
+}, []);
+
+const combinedQueries = useQueries({
+  queries: ids.map((id) => ({
+    queryKey: ['post', id],
+    queryFn: () => Promise.resolve(id),
+    staleTime: 30_000,
+  })),
+  combine,
+});
+```
+
+첫 로드에서는 정상 작동했지만, 새로고침 후 localStorage에서 데이터를 복원하면 `combine`이 실행되지 않았습니다.
+
+## 원인 분석
+
+재현 코드를 분석하던 중 흥미로운 점을 발견했습니다.
+
+이 버그의 핵심은 `combine` 함수가 `useCallback`으로 감싸져 있을 때만 발생한다는 것이었습니다. `useCallback`을 제거하면 정상 작동했습니다.
+
+```ts
+const combine = useCallback((results: UseQueryResult<number, Error>[]) => {
+  return results;
+}, []);
+```
+
+공식 문서를 확인해보니, [useQueries 레퍼런스](https://tanstack.com/query/latest/docs/framework/react/reference/useQueries)에서는 오히려 `combine` 함수를 `useCallback`으로 감싸는 것을 권장하고 있었습니다.
+
+> "This means that an inlined combine function, as shown above, will run on every render. To avoid this, you can wrap the combine function in useCallback, or extract it to a stable function reference if it doesn't have any dependencies."
+
+문서의 권장사항과 실제 동작이 상반되는 상황이었습니다.
+
+더 깊이 파고들어 `QueriesObserver` 클래스의 `#combineResult` 메서드에서 근본 원인을 찾았습니다
+
+```ts
+if (
+  !this.#combinedResult ||
+  this.#result !== this.#lastResult ||
+  combine !== this.#lastCombine
+) {
+  this.#lastCombine = combine;
+  this.#lastResult = this.#result;
+  this.#combinedResult = replaceEqualDeep(this.#combinedResult, combine(input));
+}
+```
+
+localStorage에서 복원한 후 첫 렌더링에서
+
+- `!this.#combinedResult`가 `true` (새 인스턴스이므로)
+- `combine`이 실행되지만, 전달되는 `input`은 `isPending: true`와 `data: undefined`를 가짐
+- 실제 캐시에는 `{ status: 'success', data: {...} }`가 존재함에도 불구하고
+
+문제는 `QueryObserver.getOptimisticResult`의 동작에서 비롯되었습니다. `_optimisticResults`가 `'isRestoring'`으로 설정되면 캐시된 데이터를 읽지 못하고 pending 결과를 생성했습니다.
+
+`useCallback`으로 감싼 `combine`은 stable reference를 가지므로 이 초기의 잘못된 결과가 지속됩니다. 반면 인라인 `combine` 함수는 매 렌더링마다 재생성되어 다시 실행되고 새로운 데이터를 가져올 수 있었습니다.
+
+그래서 저는 이러한 제 의견을 이슈 제보자에게 전달하였고, 처음에는 단순히 "문서에 StoragePersister 사용 시 combine에 useCallback을 사용하지 마세요"와 같은 문구를 추가하면 되지 않을까 생각했습니다.
+
+하지만 이슈 제보자가 중요한 점을 지적했습니다
+
+> "I believe the latter is barely an option - due to the React Compiler. With RC, code that wasn't memoized by the developer could still be memoized by the compiler. Not fixing this would require putting "use no memo" into every component."
+
+React Compiler는 개발자가 메모이제이션하지 않은 코드도 자동으로 최적화할 수 있습니다. 따라서 문서에 "useCallback을 사용하지 마세요"라고 명시하는 것은 근본적인 해결책이 될 수 없었습니다. React Compiler가 보편화되면 이 문제는 더 빈번하게 발생할 것이었습니다.
+
+## 첫 번째 PR 시도
+
+> [PR #9592](https://github.com/TanStack/query/pull/9592)
+
+문제를 해결하기 위해 `QueriesObserver` 클래스의 `setQueries` 메서드를 수정했습니다.
+
+원래 코드
+
+```ts
+if (prevObservers.length === newObservers.length && !hasIndexChange) {
+  return; // 그냥 early return
+}
+```
+
+이 코드는 옵저버 개수와 인덱스가 변경되지 않으면 아무것도 하지 않고 반환했습니다. 이것이 문제의 원인이었습니다. localStorage에서 데이터를 복원한 후 `isRestoring`이 `false`로 변경되면서 `setQueries`가 호출되지만, 옵저버는 그대로여서 이 조건에 걸려 `combine`이 재실행되지 않았습니다.
+
+수정한 코드
+
+```ts
+if (prevObservers.length === newObservers.length && !hasIndexChange) {
+  const resultChanged = newResult.some((result, index) => {
+    const prev = this.#result[index];
+    return (
+      !prev || result.data !== prev.data || result.isPending !== prev.isPending
+    );
+  });
+
+  if (resultChanged) {
+    this.#result = newResult;
+    this.#notify();
+  }
+
+  return;
+}
+```
+
+옵저버가 변경되지 않더라도 실제 결과(`data`, `isPending`)가 변경되었는지 확인하고, 변경되었다면 `#notify()`를 호출하여 `combine`이 재실행되도록 했습니다.
+
+이 접근 방식은 최소한의 변경으로 문제를 해결했습니다. 특정 속성만 비교하여 필요한 경우에만 업데이트가 발생하도록 했습니다.
+
+## 메인테이너의 피드백
+
+TkDodo는 두 가지 중요한 피드백을 주었습니다.
+
+첫 번째는 비교 방식에 대한 것이었습니다
+
+> "checking for these 3 props seems a bit random. I think we'd want to use our `shallowEqualObjects` helper from the query-core to just compare `result` with `prev`."
+
+특정 속성만 비교하는 것보다 `shallowEqualObjects`를 사용해 전체 객체를 비교하는 것이 일관성 있다는 지적이었습니다. `QueryObserver` 내부에서도 동일한 방식을 사용하고 있었습니다.
+
+처음에는 `shallowEqualObjects`가 `dataUpdatedAt` 같은 메타데이터까지 비교해서 불필요한 업데이트가 발생할까 우려했습니다. 하지만 TkDodo의 설명이 타당했습니다
+
+> "but if `dataUpdatedAt` changes, we need to inform observers about it, right? A component could render `dataUpdatedAt` on the screen so it will want that information to be correct"
+
+컴포넌트가 메타데이터를 렌더링할 수도 있으므로, 모든 속성 변경을 감지해야 한다는 것이었습니다.
+
+두 번째는 코드 구조에 대한 피드백이었습니다
+
+> "I don't really like the early returns here and the duplicated assignment to #result as well as calls to #notify, makes it kinda hard to read what is going on."
+
+early return과 중복된 코드가 가독성을 해친다는 지적이었습니다. 더 명확한 흐름을 제안했습니다
+
+1. `hasIndexChange` 체크 → 옵저버 재생성
+2. `hasResultChange` 체크 → result 업데이트
+3. 변경사항이 있으면 notify
+
+## 코드 리팩토링
+
+피드백을 반영하여 코드를 다시 정리했습니다. 먼저 `shallowEqualObjects`를 사용하도록 변경했습니다
+
+```ts
+const hasResultChange =
+  prevObservers.length === newObservers.length && !hasIndexChange
+    ? newResult.some((result, index) => {
+        const prev = this.#result[index];
+        return !prev || !shallowEqualObjects(result, prev);
+      })
+    : true;
+```
+
+이 과정에서 한 가지 고민이 있었습니다. `shallowEqualObjects`는 `replaceEqualDeep`과 달리 첫 번째 레벨만 비교합니다. 메타데이터가 변경될 때마다 `combine`이 재실행될 텐데, 이것이 성능에 영향을 줄까 우려되었습니다.
+
+하지만 React Query의 property tracking 시스템을 다시 살펴보니, `#notify()` 메서드에서 Proxy를 통해 실제 사용되는 속성만 추적하고 있었습니다
+
+```ts
+#notify(): void {
+  if (this.hasListeners()) {
+    const previousResult = this.#combinedResult
+    const newTracked = this.#trackResult(this.#result, this.#observerMatches)
+    const newResult = this.#combineResult(newTracked, this.#options?.combine)
+
+    if (previousResult !== newResult) {
+      // 실제 리렌더링은 여기서 결정됨
+    }
+  }
+}
+```
+
+즉, `combine`이 재실행되더라도 실제로 추적된 속성이 변경되지 않으면 컴포넌트는 리렌더링되지 않습니다. 이 덕분에 성능 문제는 크지 않을 것으로 판단했습니다.
+
+다음으로 코드 구조를 개선했습니다. 원래는 early return과 중복된 코드가 있었는데, 이를 정리했습니다
+
+```ts
+// 변경사항이 없으면 early return
+if (!hasIndexChange && !hasResultChange) return;
+
+// 인덱스 변경 시 옵저버 업데이트
+if (hasIndexChange) {
+  this.#observers = newObservers;
+}
+
+// 결과는 항상 업데이트 (hasResultChange가 true일 때만 여기까지 도달)
+this.#result = newResult;
+
+if (!this.hasListeners()) return;
+
+// 인덱스 변경 시 옵저버 재구독
+if (hasIndexChange) {
+  difference(prevObservers, newObservers).forEach((observer) => {
+    observer.destroy();
+  });
+  difference(newObservers, prevObservers).forEach((observer) => {
+    observer.subscribe((result) => {
+      this.#onUpdate(observer, result);
+    });
+  });
+}
+
+this.#notify();
+```
+
+이렇게 정리하니 각 조건에 따른 처리가 명확해졌습니다. `hasIndexChange`일 때만 옵저버 관련 처리를 하고, `hasResultChange`일 때는 결과만 업데이트합니다.
+
+## 테스트 수정
+
+`shallowEqualObjects`를 사용하면서 기존 테스트가 실패하기 시작했습니다. 특히 "should optimize combine if it is a stable reference" 테스트에서 문제가 발생했습니다.
+
+테스트를 분석해보니, `refetchQueries()`를 호출하면 데이터는 동일하지만 `dataUpdatedAt` 같은 메타데이터가 변경됩니다. `shallowEqualObjects`는 이 변경을 감지하여 `combine`을 재실행하게 됩니다.
+
+TkDodo는 이것이 올바른 동작이라고 설명했습니다
+
+> "yeah that test seems slightly off, and actually shows the bug: we get new metadata (dataUpdatedAt), which is part of results passed to combine, but we don't run it"
+
+`combine`은 `select`와 달리 모든 결과 객체를 받기 때문에 메타데이터 변경 시에도 재실행되어야 한다는 것이었습니다. 테스트의 기대값을 수정했습니다
+
+```ts
+// 기존
+expect(spy).toHaveBeenCalledTimes(3);
+
+// 수정 - 메타데이터 변경으로 인한 추가 호출
+expect(spy).toHaveBeenCalledTimes(4);
+```
+
+그리고 TkDodo의 제안에 따라 관련 없는 리렌더링을 테스트하는 새로운 케이스를 추가했습니다
+
+```ts
+it('should not re-run stable combine on unrelated re-render', async () => {
+  // ...
+  const [unrelatedState, setUnrelatedState] = React.useState(0);
+
+  const queries = useQueries({
+    // ...
+    combine: React.useCallback((results) => {
+      // ...
+    }, []), // stable reference
+  });
+
+  // 관련 없는 상태 변경으로 리렌더링
+  fireEvent.click(rendered.getByRole('button', { name: /increment/i }));
+
+  // combine이 재실행되지 않음을 확인
+  expect(spy).toHaveBeenCalledTimes(3); // 여전히 3번
+});
+```
+
+이 테스트는 메타데이터가 변경되지 않고 단순히 컴포넌트가 리렌더링될 때 stable combine이 재실행되지 않음을 검증합니다.
+
+## 최종 머지
+
+> [Releases v5.85.9](https://github.com/TanStack/query/releases/tag/v5.85.9)
+
+모든 테스트가 통과하고, 메인테이너의 승인을 받아 PR이 머지되었습니다. 이 수정은 v5.85.9 릴리스에 포함되었습니다.
+
+## 마무리
+
+이번 PR은 단순 리뷰 코멘트로만 약 20개가 달릴 정도로 까다로웠습니다.
+
+다만 이러한 PR을 진행하면서 본인의 초기 접근이 완벽하지 않더라도, 문제를 명확히 설명하고 피드백을 수용하는 자세를 유지하면 더 나은 해결책에 도달할 수 있다는 것을 배웠습니다. 메인테이너의 관점은 라이브러리 전체의 일관성과 장기적인 방향성을 고려하므로, 그들의 피드백은 단순한 피드백이 아니라 학습의 기회였습니다.
+
+또한 테스트의 중요성도 깊이 이해했습니다. 때로는 테스트 자체가 잘못된 가정을 하고 있을 수 있습니다. 구현을 수정하면서 테스트의 의도도 재검토해야 합니다. 이번 경우처럼 메타데이터 변경을 무시하도록 작성된 테스트가 실제로는 버그를 숨기고 있었던 것처럼, 기존 테스트를 맹신하지 않고 검토하는 자세가 필요한 경우도 있다는 걸 느꼈습니다.
