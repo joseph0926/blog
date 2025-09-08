@@ -10,7 +10,6 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
   } catch (e) {
     console.error(`Failed to fetch post: ${slug}`, e);
   }
-  console.log(post?.thumbnail);
 
   return (
     <>

@@ -71,6 +71,7 @@ export const BlogPostCard = ({
                 <Image
                   src={post?.thumbnail ?? '/logo/logo.webp'}
                   fill
+                  priority
                   unoptimized={ENV === 'dev'}
                   alt={post.title}
                   className="object-cover transition-transform duration-500 group-hover:scale-105"

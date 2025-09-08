@@ -24,12 +24,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { post } = await appRouter
       .createCaller(ctx)
       .post.getPostBySlug({ slug });
+    const keywords = post.tags.map((tag) => tag.name);
 
     return {
       title: post.title,
       description: post.description,
       openGraph: {
         ...commonOpenGraph,
+        title: post.title,
+        description: post.description,
+        url: `https://www.joseph0926.com/post/${slug}`,
+        type: 'article',
         images: post?.thumbnail
           ? [
               {
@@ -41,6 +46,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             ]
           : commonOpenGraph?.images,
       },
+      keywords,
       robots: pageRobots.blogPost,
     };
   } catch (e) {

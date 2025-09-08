@@ -162,6 +162,9 @@ export const postRouter = router({
 
           const post = await ctx.prisma.post.findUnique({
             where: { slug },
+            include: {
+              tags: true,
+            },
           });
 
           if (!post) {
