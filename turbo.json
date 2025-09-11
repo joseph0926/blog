@@ -1,0 +1,19 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "type-check": {
+      "dependsOn": ["^type-check"]
+    },
+    "db:gen": {
+      "dependsOn": ["^db:gen"]
+    },
+    "dev": {
+      "persistent": true,
+      "cache": false
+    }
+  }
+}
