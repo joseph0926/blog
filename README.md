@@ -133,6 +133,11 @@ JWT_SECRET=
 VERCEL_ENV=
 ```
 
+## 이후 변경 예정
+
+- 모노레포 구조로 변경
+  - [PR #11](https://github.com/joseph0926/blog/pull/11)
+
 ## 연락
 
 Email: joseph0926.dev@gmail.com
