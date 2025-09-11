@@ -5,6 +5,7 @@
   "author": "joseph0926",
   "description": "프론트엔드 개발자 김영훈의 블로그입니다.",
   "scripts": {
+    "clean": "rimraf ./node_modules",
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
@@ -21,8 +22,7 @@
     "db:re": "prisma migrate reset",
     "db:stu": "prisma studio",
     "db:test:push": "dotenv -e .env.test -- prisma db push",
-    "prepare": "husky",
-    "new-mdx": "node scripts/new-post.mjs"
+    "prepare": "husky"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -120,6 +120,7 @@
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "prisma": "^6.8.2",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4",

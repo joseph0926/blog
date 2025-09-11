@@ -54,11 +54,3 @@ jobs:
           gzip=$(find .next/static/chunks -type f -name "*.js" -exec gzip -c {} \; | wc -c)
           echo "raw_kb=$(echo "scale=2; $raw/1024" | bc)"  >> $GITHUB_OUTPUT
           echo "gzip_kb=$(echo "scale=2; $gzip/1024" | bc)" >> $GITHUB_OUTPUT
-      - name: Save BuildArtifact
-        run: node scripts/save-build.mjs
-        env:
-          GIT_SHA: ${{ github.sha }}
-          GIT_BRANCH: ${{ github.ref_name }}
-          BUNDLE_RAW_KB: ${{ steps.bundle.outputs.raw_kb }}
-          BUNDLE_GZIP_KB: ${{ steps.bundle.outputs.gzip_kb }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
