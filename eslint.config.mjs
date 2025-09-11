@@ -2,6 +2,7 @@ import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { FlatCompat } from '@eslint/eslintrc';
 import pluginImportSort from 'eslint-plugin-simple-import-sort';
+import { globalIgnores } from 'eslint/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -11,6 +12,7 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  globalIgnores(['src/generated/**']),
   {
     plugins: {
       'simple-import-sort': pluginImportSort,
