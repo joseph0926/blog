@@ -1,10 +1,10 @@
 'use client';
 
-import { Tag } from '@prisma/client';
 import { Search, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
+import { Tag } from '@/generated/prisma';
 import { cn } from '@/lib/utils';
 import { Input } from '../ui/input';
 

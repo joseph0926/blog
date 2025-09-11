@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
 import fs from 'node:fs';
 import path from 'node:path';
+import { PrismaClient } from '@/generated/prisma';
 import { generatePostContent, generateSlug } from '@/lib/generate-post';
 
 export const createPost = async (

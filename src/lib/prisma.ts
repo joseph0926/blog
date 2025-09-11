@@ -1,5 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { PrismaClient } from '@/generated/prisma';
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 

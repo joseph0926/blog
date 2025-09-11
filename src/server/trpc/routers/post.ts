@@ -1,7 +1,7 @@
-import { Prisma } from '@prisma/client';
 import { TRPCError } from '@trpc/server';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { z } from 'zod';
+import { Prisma } from '@/generated/prisma';
 import { createPost } from '@/services/post/create-post.service';
 import { protectedProcedure, publicProcedure, router } from '../trpc';
 

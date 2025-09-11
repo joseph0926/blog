@@ -1,5 +1,5 @@
-import { Prisma } from '@prisma/client';
 import { TRPCError } from '@trpc/server';
+import { Prisma } from '@/generated/prisma';
 import { prisma } from '@/lib/prisma';
 import { postRouter } from '@/server/trpc/routers/post';
 import { createCallerFactory } from '@/server/trpc/trpc';
