@@ -1,8 +1,8 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { Loader2 } from 'lucide-react';
 import { Suspense, use, useState, useTransition } from 'react';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,

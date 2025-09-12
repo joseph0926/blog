@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import {
   QueryClient,
   QueryClientProvider,
@@ -9,7 +10,6 @@ import { Activity, Eye, RefreshCw } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,

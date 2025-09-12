@@ -1,7 +1,7 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 

@@ -1,8 +1,8 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { trpc } from '@/lib/trpc';
 
 export function LogoutButton() {

@@ -1,11 +1,11 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { Filter } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { TagResponse } from '@/types/post.type';
-import { Button } from './button';
 
 export const Floating = ({
   items,

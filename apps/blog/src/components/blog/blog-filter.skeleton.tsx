@@ -1,4 +1,4 @@
-import { Button } from '../ui/button';
+import { Button } from '@joseph0926/ui/components/button';
 import { Label } from '../ui/label';
 import { Skeleton } from '../ui/skeleton';
 

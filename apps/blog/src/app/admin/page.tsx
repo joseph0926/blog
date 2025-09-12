@@ -1,10 +1,10 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import { PostDialog } from '@/components/admin/post-dialog';
 import { PostsTable } from '@/components/admin/posts-table';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 export default function AdminPage() {

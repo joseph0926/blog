@@ -1,8 +1,8 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,

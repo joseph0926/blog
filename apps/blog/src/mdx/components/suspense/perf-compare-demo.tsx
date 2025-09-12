@@ -1,8 +1,8 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { AlertCircle, BarChart, Loader2, Zap } from 'lucide-react';
 import { Suspense, use, useCallback, useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,

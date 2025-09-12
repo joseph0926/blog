@@ -1,7 +1,7 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,

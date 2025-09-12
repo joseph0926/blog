@@ -1,12 +1,12 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Button } from '@joseph0926/ui/components/button';
 import { Link, Upload, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
