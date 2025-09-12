@@ -8,6 +8,9 @@
     "type-check": {
       "dependsOn": ["^type-check"]
     },
+    "lint:fix": {
+      "dependsOn": ["^lint:fix"]
+    },
     "db:gen": {
       "dependsOn": ["^db:gen"]
     },

@@ -7,7 +7,8 @@
     "build": "turbo build",
     "prepare": "husky",
     "type-check": "turbo type-check",
-    "db:gen": "turbo db:gen"
+    "db:gen": "turbo db:gen",
+    "lint:fix": "turbo lint:fix"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
