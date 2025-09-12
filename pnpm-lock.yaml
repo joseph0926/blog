@@ -247,6 +247,9 @@ importers:
         specifier: ^5.0.5
         version: 5.0.8(@types/react@19.1.12)(react@19.1.1)
     devDependencies:
+      '@joseph0926/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@lhci/cli':
         specifier: ^0.15.0
         version: 0.15.1
@@ -280,6 +283,12 @@ importers:
       wait-on:
         specifier: ^8.0.3
         version: 8.0.4
+
+  packages/ui:
+    dependencies:
+      '@radix-ui/react-slot':
+        specifier: ^1.2.3
+        version: 1.2.3(@types/react@19.1.12)(react@19.1.1)
 
 packages:
 
