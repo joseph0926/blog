@@ -1,9 +1,9 @@
 'use client';
 
+import { cn } from '@joseph0926/ui/lib/utils';
 import { HardDriveDownload, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
 
 export function NetworkSimulator() {
   const [refreshType, setRefreshType] = useState<'normal' | 'force'>('normal');

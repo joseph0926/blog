@@ -2,18 +2,18 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@joseph0926/ui/components/button';
-import { Link, Upload, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@joseph0926/ui/components/dialog';
+import { Link, Upload, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
 import { FileUpload } from '@/components/ui/file-upload';
 import {
   Form,

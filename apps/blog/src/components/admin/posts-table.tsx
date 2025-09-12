@@ -2,17 +2,17 @@
 
 import { Badge } from '@joseph0926/ui/components/badge';
 import { Button } from '@joseph0926/ui/components/button';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
-import { Edit, Eye, MoreHorizontal } from 'lucide-react';
-import Link from 'next/link';
-import { useState } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+} from '@joseph0926/ui/components/dropdown-menu';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { Edit, Eye, MoreHorizontal } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,

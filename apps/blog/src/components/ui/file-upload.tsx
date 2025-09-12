@@ -1,8 +1,8 @@
+import { cn } from '@joseph0926/ui/lib/utils';
 import { Upload } from 'lucide-react';
 import { motion } from 'motion/react';
 import React, { useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { cn } from '@/lib/utils';
 
 const mainVariant = {
   initial: {

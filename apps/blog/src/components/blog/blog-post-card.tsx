@@ -1,13 +1,13 @@
 'use client';
 
 import { Badge } from '@joseph0926/ui/components/badge';
+import { cn } from '@joseph0926/ui/lib/utils';
 import { format } from 'date-fns';
 import { ArrowUpRight, Calendar, Clock, Code2 } from 'lucide-react';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ENV } from '@/lib/env';
-import { cn } from '@/lib/utils';
 import { PostResponse } from '@/types/post.type';
 
 type BlogPostCardProps = {

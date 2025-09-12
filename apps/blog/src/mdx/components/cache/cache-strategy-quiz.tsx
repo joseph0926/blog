@@ -1,9 +1,9 @@
 'use client';
 
+import { cn } from '@joseph0926/ui/lib/utils';
 import { CheckCircle, ChevronRight, XCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
-import { cn } from '@/lib/utils';
 
 const scenarios = [
   {

@@ -1,9 +1,9 @@
 'use client';
 
+import { cn } from '@joseph0926/ui/lib/utils';
 import { Clock, TrendingUp, Users } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { cn } from '@/lib/utils';
 
 export function AuctionSimulator() {
   const [currentBid, setCurrentBid] = useState(100000);

@@ -1,10 +1,10 @@
 import './globals.css';
+import { cn } from '@joseph0926/ui/lib/utils';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from 'sonner';
-import { cn } from '@/lib/utils';
 import { commonOpenGraph } from '@/meta/open-graph';
 import { getRobotsByEnvironment } from '@/meta/robots';
 import ReactQueryProvider from '@/providers/react-query-provider';

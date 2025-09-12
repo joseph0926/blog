@@ -1,12 +1,12 @@
 'use client';
 
-import { Check, ChevronsUpDown } from 'lucide-react';
 import {
   Command,
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command';
+} from '@joseph0926/ui/components/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
