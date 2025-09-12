@@ -76,6 +76,7 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@joseph0926/ui": "workspace:*",
     "@lhci/cli": "^0.15.0",
     "@next/bundle-analyzer": "^15.5.3",
     "@types/bcrypt": "^5.0.2",

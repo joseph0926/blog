@@ -11,7 +11,9 @@ const nextConfig: NextConfig = {
   },
   pageExtensions: ['js', 'jsx', 'md', 'mdx', 'ts', 'tsx'],
   transpilePackages:
-    process.env.NODE_ENV !== 'production' ? ['next-mdx-remote'] : undefined,
+    process.env.NODE_ENV !== 'production'
+      ? ['next-mdx-remote', '@joseph0926/ui']
+      : ['@joseph0926/ui'],
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.APP_VERSION ?? 'dev',
     NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV ?? 'dev',
