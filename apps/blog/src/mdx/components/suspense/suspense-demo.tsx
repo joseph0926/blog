@@ -1,15 +1,15 @@
 'use client';
 
 import { Button } from '@joseph0926/ui/components/button';
-import { Loader2, RefreshCw } from 'lucide-react';
-import { Suspense, use, useState } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '@joseph0926/ui/components/card';
+import { Loader2, RefreshCw } from 'lucide-react';
+import { Suspense, use, useState } from 'react';
 
 let userDataPromise: Promise<{
   name: string;

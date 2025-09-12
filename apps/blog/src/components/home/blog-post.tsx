@@ -1,10 +1,10 @@
+import { Badge } from '@joseph0926/ui/components/badge';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ENV } from '@/lib/env';
 import { cn } from '@/lib/utils';
 import { PostResponse } from '@/types/post.type';
-import { Badge } from '../ui/badge';
 
 type BlogPostProps = {
   post: PostResponse;

@@ -1,16 +1,16 @@
 'use client';
 
 import { Button } from '@joseph0926/ui/components/button';
-import { Loader2 } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '@joseph0926/ui/components/card';
+import { Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 export function SyncVsAsyncDemo() {
   const [syncCounter, setSyncCounter] = useState(0);

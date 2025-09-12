@@ -1,5 +1,5 @@
+import { Badge } from '@joseph0926/ui/components/badge';
 import { motion } from 'motion/react';
-import { Badge } from '@/components/ui/badge';
 import { FiberNodeType } from '@/types/fiber.type';
 
 interface FiberNodeProps {

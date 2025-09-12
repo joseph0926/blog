@@ -1,15 +1,15 @@
 'use client';
 
 import { Button } from '@joseph0926/ui/components/button';
-import { Loader2 } from 'lucide-react';
-import { Suspense, use, useState, useTransition } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '@joseph0926/ui/components/card';
+import { Loader2 } from 'lucide-react';
+import { Suspense, use, useState, useTransition } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const promiseCache = new Map<

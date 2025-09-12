@@ -1,7 +1,6 @@
 'use client';
 
 import { Button } from '@joseph0926/ui/components/button';
-import { toast } from 'sonner';
 import {
   Card,
   CardContent,
@@ -9,7 +8,8 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '@joseph0926/ui/components/card';
+import { toast } from 'sonner';
 
 export const SonnerSample = () => {
   const addToastHandler = () => {

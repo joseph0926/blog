@@ -1,8 +1,8 @@
 'use client';
 
 import { Button } from '@joseph0926/ui/components/button';
+import { Card, CardDescription } from '@joseph0926/ui/components/card';
 import { useEffect, useRef, useState } from 'react';
-import { Card, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
 export const StackReconciler = () => {

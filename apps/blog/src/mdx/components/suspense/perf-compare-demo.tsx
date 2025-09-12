@@ -1,15 +1,15 @@
 'use client';
 
 import { Button } from '@joseph0926/ui/components/button';
-import { AlertCircle, BarChart, Loader2, Zap } from 'lucide-react';
-import { Suspense, use, useCallback, useEffect, useRef, useState } from 'react';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '@/components/ui/card';
+} from '@joseph0926/ui/components/card';
+import { AlertCircle, BarChart, Loader2, Zap } from 'lucide-react';
+import { Suspense, use, useCallback, useEffect, useRef, useState } from 'react';
 
 const fetchSlowData = (id: number): Promise<string> => {
   return new Promise((resolve) => {
