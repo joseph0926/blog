@@ -1,12 +1,12 @@
 'use client';
 
+import { Input } from '@joseph0926/ui/components/input';
 import { cn } from '@joseph0926/ui/lib/utils';
 import { Search, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { Tag } from '@/generated/prisma';
-import { Input } from '../ui/input';
 
 type BlogFilterHorizontalProps = {
   tags: Tag[];

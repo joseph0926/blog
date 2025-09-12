@@ -8,12 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@joseph0926/ui/components/dropdown-menu';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
-import { Edit, Eye, MoreHorizontal } from 'lucide-react';
-import Link from 'next/link';
-import { useState } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@joseph0926/ui/components/skeleton';
 import {
   Table,
   TableBody,
@@ -21,7 +16,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '@joseph0926/ui/components/table';
+import { format } from 'date-fns';
+import { ko } from 'date-fns/locale';
+import { Edit, Eye, MoreHorizontal } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { PostDialog } from './post-dialog';
 

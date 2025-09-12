@@ -10,11 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@joseph0926/ui/components/card';
-import { Lock } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 import {
   Form,
   FormControl,
@@ -22,8 +17,13 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+} from '@joseph0926/ui/components/form';
+import { Input } from '@joseph0926/ui/components/input';
+import { Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { trpc } from '@/lib/trpc';
 
 const loginSchema = z.object({

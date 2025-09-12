@@ -9,12 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@joseph0926/ui/components/dialog';
-import { Link, Upload, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
-import { z } from 'zod';
-import { FileUpload } from '@/components/ui/file-upload';
 import {
   Form,
   FormControl,
@@ -22,11 +16,22 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+} from '@joseph0926/ui/components/form';
+import { Input } from '@joseph0926/ui/components/input';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@joseph0926/ui/components/tabs';
+import { Textarea } from '@joseph0926/ui/components/textarea';
+import { Link, Upload, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
+import { z } from 'zod';
+import { FileUpload } from '@/components/ui/file-upload';
 import { MultiSelect } from '@/components/ui/multi-select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import { trpc } from '@/lib/trpc';
 import { uploadImage } from '@/lib/upload';
 

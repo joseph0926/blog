@@ -8,9 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@joseph0926/ui/components/card';
+import { Tabs, TabsList, TabsTrigger } from '@joseph0926/ui/components/tabs';
 import { Loader2 } from 'lucide-react';
 import { Suspense, use, useState, useTransition } from 'react';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const promiseCache = new Map<
   string,

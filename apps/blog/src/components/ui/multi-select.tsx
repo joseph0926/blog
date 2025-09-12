@@ -6,12 +6,12 @@ import {
   CommandItem,
   CommandList,
 } from '@joseph0926/ui/components/command';
-import { Check, ChevronsUpDown } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from '@/components/ui/popover';
+} from '@joseph0926/ui/components/popover';
+import { Check, ChevronsUpDown } from 'lucide-react';
 
 export function MultiSelect({
   values,

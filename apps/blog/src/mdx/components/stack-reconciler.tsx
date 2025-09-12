@@ -2,8 +2,8 @@
 
 import { Button } from '@joseph0926/ui/components/button';
 import { Card, CardDescription } from '@joseph0926/ui/components/card';
+import { Input } from '@joseph0926/ui/components/input';
 import { useEffect, useRef, useState } from 'react';
-import { Input } from '@/components/ui/input';
 
 export const StackReconciler = () => {
   const [text, setText] = useState('');

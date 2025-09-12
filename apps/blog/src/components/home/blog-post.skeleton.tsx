@@ -1,7 +1,7 @@
 'use client';
 
+import { Skeleton } from '@joseph0926/ui/components/skeleton';
 import { cn } from '@joseph0926/ui/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
 
 type BlogPostSkeletonProps = {
   type?: 'row' | 'col';

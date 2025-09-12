@@ -11,13 +11,18 @@ import {
   CardTitle,
 } from '@joseph0926/ui/components/card';
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@joseph0926/ui/components/tabs';
+import {
   QueryClient,
   QueryClientProvider,
   useQuery,
 } from '@tanstack/react-query';
 import { Activity, Eye, RefreshCw } from 'lucide-react';
 import { memo, useCallback, useEffect, useRef } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type UserData = {
   name: string;

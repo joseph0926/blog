@@ -1,6 +1,6 @@
 import { Button } from '@joseph0926/ui/components/button';
-import { Label } from '../ui/label';
-import { Skeleton } from '../ui/skeleton';
+import { Label } from '@joseph0926/ui/components/label';
+import { Skeleton } from '@joseph0926/ui/components/skeleton';
 
 export const BlogFilterSkeleton = () => {
   return (
