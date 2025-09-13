@@ -12,6 +12,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -30,10 +31,10 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { FileUpload } from '@/components/ui/file-upload';
-import { MultiSelect } from '@/components/ui/multi-select';
 import { trpc } from '@/lib/trpc';
 import { uploadImage } from '@/lib/upload';
+import { FileUpload } from '../ui/file-upload';
+import { MultiSelect } from '../ui/multi-select';
 
 const postSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요').max(100),
@@ -86,7 +87,7 @@ export function PostDialog({
     },
   });
 
-  const { data: tagsData } = trpc.post.getTags.useQuery();
+  const { data: tagsData, refetch: refetchTags } = trpc.post.getTags.useQuery();
   const tagOptions = tagsData?.tags.map((tag) => tag.name) || [];
 
   useEffect(() => {
@@ -135,7 +136,6 @@ export function PostDialog({
       return;
     }
 
-    // URL 유효성 검사
     try {
       new URL(urlInput);
       form.setValue('thumbnail', urlInput);
@@ -160,6 +160,7 @@ export function PostDialog({
       setUrlInput('');
       onOpenChange(false);
       onSuccess?.();
+      refetchTags();
     },
     onError: (error) => {
       toast.error(error.message);
@@ -171,6 +172,7 @@ export function PostDialog({
       toast.success('게시글이 수정되었습니다.');
       onOpenChange(false);
       onSuccess?.();
+      refetchTags();
     },
     onError: (error) => {
       toast.error(error.message);
@@ -250,9 +252,15 @@ export function PostDialog({
                       options={tagOptions}
                       values={field.value}
                       onChange={field.onChange}
-                      placeholder="태그 선택"
+                      placeholder="태그 선택 또는 생성"
+                      creatable={true}
+                      createLabel="새 태그 생성"
                     />
                   </FormControl>
+                  <FormDescription>
+                    기존 태그를 선택하거나 새로운 태그를 입력하여 생성할 수
+                    있습니다.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -328,7 +336,6 @@ export function PostDialog({
                       </TabsContent>
                     </Tabs>
                   )}
-
                   <FormMessage />
                 </FormItem>
               )}
