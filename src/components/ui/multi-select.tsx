@@ -36,21 +36,15 @@ export function MultiSelect({
   const [inputValue, setInputValue] = useState('');
   const [open, setOpen] = useState(false);
 
-  const isNewOption =
-    inputValue.trim() &&
-    !options.some((opt) => opt.toLowerCase() === inputValue.toLowerCase());
-
   const handleSelect = (value: string) => {
     const selected = values.includes(value);
     onChange(selected ? values.filter((v) => v !== value) : [...values, value]);
   };
 
   const handleCreate = () => {
-    if (isNewOption) {
-      const newValue = inputValue.trim();
-      onChange([...values, newValue]);
-      setInputValue('');
-    }
+    const newValue = inputValue.trim();
+    onChange([...values, newValue]);
+    setInputValue('');
   };
 
   return (
@@ -86,7 +80,7 @@ export function MultiSelect({
                 '검색 결과가 없습니다'
               )}
             </CommandEmpty>
-            {creatable && isNewOption && (
+            {creatable && (
               <CommandGroup>
                 <CommandItem onSelect={handleCreate} className="cursor-pointer">
                   <Plus className="mr-2 h-4 w-4" />
