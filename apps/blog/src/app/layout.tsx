@@ -1,4 +1,4 @@
-import './globals.css';
+import '@joseph0926/ui/globals.css';
 import { cn } from '@joseph0926/ui/lib/utils';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';

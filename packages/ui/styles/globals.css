@@ -4,6 +4,9 @@
 
 @plugin "@tailwindcss/typography";
 
+@source "../../../packages/ui/**/*.{js,ts,jsx,tsx}";
+@source "../../../../packages/ui/**/*.{js,ts,jsx,tsx}";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

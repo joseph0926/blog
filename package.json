@@ -24,9 +24,7 @@
   },
   "dependencies": {
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "tailwindcss-animate": "^1.0.7",
-    "@tailwindcss/typography": "^0.5.16"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
