@@ -73,6 +73,7 @@
     "@types/mdx": "^2.0.13",
     "@types/react-sparklines": "^1.7.5",
     "@vitejs/plugin-react": "^5.0.0",
+    "@tailwindcss/postcss": "^4",
     "eslint-config-next": "15.5.3",
     "happy-dom": "^18.0.1",
     "prisma": "^6.8.2",
