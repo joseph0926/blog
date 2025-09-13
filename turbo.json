@@ -14,6 +14,9 @@
     "db:gen": {
       "dependsOn": ["^db:gen"]
     },
+    "clean": {
+      "cache": false
+    },
     "dev": {
       "persistent": true,
       "cache": false

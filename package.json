@@ -8,7 +8,10 @@
     "prepare": "husky",
     "type-check": "turbo type-check",
     "db:gen": "turbo db:gen",
-    "lint:fix": "turbo lint:fix"
+    "lint:fix": "turbo lint:fix",
+    "clean": "turbo clean",
+    "clean:all": "turbo clean && rimraf node_modules **/node_modules",
+    "clean:cache": "turbo clean && rimraf node_modules **/node_modules **/.turbo **/.next **/dist **/build"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -20,33 +23,27 @@
     ]
   },
   "dependencies": {
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.482.0",
-    "next": "15.5.3",
-    "next-themes": "^0.4.6",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "tailwind-merge": "^3.0.2",
-    "tailwindcss-animate": "^1.0.7"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.8",
     "dotenv": "^17.2.1",
     "dotenv-cli": "^10.0.0",
     "eslint": "^9",
-    "eslint-config-next": "15.5.3",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.5",
+    "lucide-react": "^0.482.0",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^4",
+    "class-variance-authority": "^0.7.1",
     "turbo": "^2.5.6",
     "typescript": "^5"
   },

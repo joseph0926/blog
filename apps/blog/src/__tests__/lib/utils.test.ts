@@ -1,4 +1,5 @@
-import { cn, delay } from '@/lib/utils';
+import { cn } from '@joseph0926/ui/lib/utils';
+import { delay } from '@/lib/utils';
 
 describe('lib/utils를 테스트합니다.', () => {
   describe('cn 함수를 테스트합니다.', () => {
