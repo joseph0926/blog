@@ -7,7 +7,7 @@
     "dev": "react-router dev",
     "start": "react-router-serve ./build/server/index.js",
     "type-check": "react-router typegen && tsc",
-    "clean": "rimraf build .turbo node_modules dist",
+    "clean": "rimraf build .turbo node_modules dist .react-router",
     "db:gen": "prisma generate",
     "db:push": "prisma db push"
   },
