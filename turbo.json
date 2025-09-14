@@ -3,7 +3,18 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", ".react-router", "build"]
+      "outputs": [".next/**", "!.next/cache/**", ".react-router", "build"],
+      "env": [
+        "DATABASE_URL",
+        "CLOUDINARY_API_KEY",
+        "CLOUDINARY_API_SECRET",
+        "CLOUDINARY_CLOUD_NAME",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "UPSTASH_REDIS_REST_URL",
+        "ADMIN_PASSWORD",
+        "ACCESS_EXPIRES",
+        "JWT_SECRET"
+      ]
     },
     "type-check": {
       "dependsOn": ["^type-check"]
@@ -12,7 +23,9 @@
       "dependsOn": ["^lint:fix"]
     },
     "db:gen": {
-      "dependsOn": ["^db:gen"]
+      "cache": false,
+      "dependsOn": ["^db:gen"],
+      "env": ["DATABASE_URL"]
     },
     "db:push": {
       "dependsOn": ["^db:push"]
