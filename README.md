@@ -12,77 +12,105 @@
 
 ```sh
 .
-├── components.json
-├── docker-compose.test.yml
+├── apps
+│   ├── blog
+│   │   ├── components.json
+│   │   ├── docker-compose.test.yml
+│   │   ├── package.json
+│   │   ├── postcss.config.mjs
+│   │   ├── prisma
+│   │   │   └── schema.prisma
+│   │   ├── public
+│   │   │   ├── content
+│   │   │   │   ├── query-1.png
+│   │   │   │   └── query-2.png
+│   │   │   └── logo
+│   │   │       ├── logo.svg
+│   │   │       └── logo.webp
+│   │   ├── src
+│   │   │   ├── __tests__
+│   │   │   │   ├── lib
+│   │   │   │   ├── server
+│   │   │   │   │   └── trpc
+│   │   │   │   │       └── routers
+│   │   │   │   └── services
+│   │   │   │       └── post
+│   │   │   ├── app
+│   │   │   │   ├── (auth)
+│   │   │   │   │   └── login
+│   │   │   │   ├── (root)
+│   │   │   │   │   └── about
+│   │   │   │   ├── admin
+│   │   │   │   ├── api
+│   │   │   │   │   ├── revalidate
+│   │   │   │   │   ├── trpc
+│   │   │   │   │   │   └── [trpc]
+│   │   │   │   │   └── upload
+│   │   │   │   ├── blog
+│   │   │   │   └── post
+│   │   │   │       └── [slug]
+│   │   │   ├── components
+│   │   │   │   ├── about
+│   │   │   │   ├── admin
+│   │   │   │   ├── blog
+│   │   │   │   ├── home
+│   │   │   │   ├── layouts
+│   │   │   │   ├── loading
+│   │   │   │   ├── post
+│   │   │   │   └── ui
+│   │   │   ├── constants
+│   │   │   ├── hooks
+│   │   │   ├── lib
+│   │   │   │   └── auth
+│   │   │   ├── mdx
+│   │   │   │   └── components
+│   │   │   │       ├── cache
+│   │   │   │       ├── fiber
+│   │   │   │       ├── react-query
+│   │   │   │       ├── sonner
+│   │   │   │       └── suspense
+│   │   │   ├── meta
+│   │   │   ├── providers
+│   │   │   ├── schemas
+│   │   │   ├── server
+│   │   │   │   └── trpc
+│   │   │   │       └── routers
+│   │   │   ├── services
+│   │   │   │   └── post
+│   │   │   ├── test
+│   │   │   └── types
+│   │   ├── tsconfig.json
+│   │   └── tsconfig.tsbuildinfo
+│   └── planner
+│       ├── app
+│       │   ├── components
+│       │   │   └── layout
+│       │   ├── constants
+│       │   ├── lib
+│       │   └── routes
+│       ├── components.json
+│       ├── package.json
+│       ├── prisma
+│       │   └── schema.prisma
+│       ├── public
+│       ├── README.md
+│       └── tsconfig.json
+├── eslint.config.mjs
 ├── package.json
+├── packages
+│   └── ui
+│       ├── components
+│       ├── components.json
+│       ├── lib
+│       ├── package.json
+│       ├── styles
+│       │   └── globals.css
+│       └── tsconfig.json
 ├── pnpm-lock.yaml
 ├── pnpm-workspace.yaml
-├── prisma
-│   └── schema.prisma
-├── public
-│   ├── content
-│   │   ├── query-1.png
-│   │   └── query-2.png
-│   └── logo
-│       ├── logo.svg
-│       └── logo.webp
+├── prettier.config.mjs
 ├── README.md
-├── scripts
-├── src
-│   ├── __tests__
-│   │   ├── lib
-│   │   ├── server
-│   │   │   └── trpc
-│   │   │       └── routers
-│   │   └── services
-│   │       └── post
-│   ├── app
-│   │   ├── (auth)
-│   │   │   └── login
-│   │   ├── (root)
-│   │   │   └── about
-│   │   ├── admin
-│   │   ├── api
-│   │   │   ├── revalidate
-│   │   │   ├── trpc
-│   │   │   │   └── [trpc]
-│   │   │   └── upload
-│   │   ├── blog
-│   │   ├── globals.css
-│   │   └── post
-│   │       └── [slug]
-│   ├── components
-│   │   ├── about
-│   │   ├── admin
-│   │   ├── blog
-│   │   ├── home
-│   │   ├── layouts
-│   │   ├── loading
-│   │   ├── post
-│   │   └── ui
-│   ├── constants
-│   ├── hooks
-│   ├── lib
-│   │   └── auth
-│   ├── mdx
-│   │   └── components
-│   │       ├── cache
-│   │       ├── fiber
-│   │       ├── react-query
-│   │       ├── sonner
-│   │       └── suspense
-│   ├── meta
-│   ├── providers
-│   ├── schemas
-│   ├── server
-│   │   └── trpc
-│   │       └── routers
-│   ├── services
-│   │   └── post
-│   ├── test
-│   └── types
-├── tsconfig.json
-└── tsconfig.tsbuildinfo
+└── turbo.json
 ```
 
 ## 실행
@@ -91,25 +119,17 @@
 # 빌드
 pnpm build
 # 실행
-pnpm dev # localhost:3000
+pnpm dev
+# blog(next.js): localhost:3000
+# planner(react-router): localhost:5173
 
 # 체크
-pnpm lint
+pnpm lint:fix
 pnpm format
 pnpm type-check
 
-# 테스트
-pnpm test
-pnpm test:ci
-pnpm test:ui
-pnpm test:coverage
-
 # DB
 pnpm db:gen
-pnpm db:push
-pnpm db:re # reset
-pnpm db:stu # studio
-pnpm db:test:push
 ```
 
 ## env
@@ -132,11 +152,6 @@ DATABASE_URL=
 JWT_SECRET=
 VERCEL_ENV=
 ```
-
-## 이후 변경 예정
-
-- 모노레포 구조로 변경
-  - [PR #11](https://github.com/joseph0926/blog/pull/11)
 
 ## 연락
 
