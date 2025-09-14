@@ -4,6 +4,7 @@ import { formatDateHeader, groupCapturesByDate } from '@/lib/capture.util';
 import {
   deleteCapture,
   getAllCaptures,
+  updateCapture,
   updateCaptureStatus,
 } from '@/services/capture.service.server';
 import type { CaptureWithRelations } from '@/types/capture.type';
@@ -23,13 +24,33 @@ export async function action({ request }: { request: Request }) {
     return { success: true };
   }
 
-  const status = formData.get('status') as
-    | 'PENDING'
-    | 'IN_PROGRESS'
-    | 'COMPLETED';
+  if (action === 'update') {
+    const content = formData.get('content') as string;
+    const context = formData.get('context') as string | null;
+    const tags = formData.get('tags') as string;
+    const dueDate = formData.get('dueDate') as string | null;
+    const parsedTags = tags ? JSON.parse(tags) : [];
 
-  await updateCaptureStatus(captureId, status);
-  return { success: true };
+    await updateCapture(captureId, {
+      content,
+      context: context || undefined,
+      tags: parsedTags,
+      dueDate: dueDate || undefined,
+    });
+    return { success: true };
+  }
+
+  if (action === 'updateStatus') {
+    const status = formData.get('status') as
+      | 'PENDING'
+      | 'IN_PROGRESS'
+      | 'COMPLETED';
+
+    await updateCaptureStatus(captureId, status);
+    return { success: true };
+  }
+
+  return { success: false };
 }
 
 export default function TimelinePage() {
