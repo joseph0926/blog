@@ -4,7 +4,11 @@ import { Plus } from 'lucide-react';
 import { NavLink } from 'react-router';
 import { navItems } from '@/constants/nav';
 
-export const Navbar = () => {
+type NavbarProps = {
+  onQuickCapture?: () => void;
+};
+
+export const Navbar = ({ onQuickCapture }: NavbarProps) => {
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 hidden border-b backdrop-blur md:block">
       <nav className="container mx-auto flex h-14 items-center justify-between px-4">
@@ -29,7 +33,7 @@ export const Navbar = () => {
             ))}
           </div>
         </div>
-        <Button size="sm" className="gap-2">
+        <Button size="sm" className="gap-2" onClick={onQuickCapture}>
           <Plus className="h-4 w-4" />
           Quick Capture
           <kbd className="bg-muted hidden h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium select-none lg:inline-flex">

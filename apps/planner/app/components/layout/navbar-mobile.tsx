@@ -17,7 +17,7 @@ export const NavbarMobile = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   return (
-    <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 border-b backdrop-blur">
+    <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 border-b backdrop-blur md:hidden">
       <nav className="container mx-auto flex h-14 items-center justify-between px-4">
         <h1 className="font-semibold">Planner</h1>
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -28,13 +28,10 @@ export const NavbarMobile = () => {
           </SheetTrigger>
           <SheetContent>
             <SheetHeader hidden>
-              <SheetTitle>Edit profile</SheetTitle>
-              <SheetDescription>
-                Make changes to your profile here. Click save when you&apos;re
-                done.
-              </SheetDescription>
+              <SheetTitle>Planner</SheetTitle>
+              <SheetDescription>Planner Navbar</SheetDescription>
             </SheetHeader>
-            <nav className="mt-6 flex flex-col gap-2">
+            <nav className="mx-4 mt-20 flex flex-col gap-2">
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}

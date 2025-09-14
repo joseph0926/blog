@@ -7,6 +7,7 @@ import {
   Scripts,
   ScrollRestoration,
 } from 'react-router';
+import { Toaster } from 'sonner';
 import type { Route } from './+types/root';
 
 export const links: Route.LinksFunction = () => [
@@ -35,6 +36,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {children}
         <ScrollRestoration />
         <Scripts />
+        <Toaster richColors closeButton position="top-center" />
       </body>
     </html>
   );
