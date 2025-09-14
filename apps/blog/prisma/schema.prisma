@@ -67,16 +67,3 @@ model RefreshToken {
 
   @@index([token])
 }
-
-model BuildArtifact {
-  id           BigInt      @id @default(autoincrement())
-  ts           DateTime    @default(now())
-  commitHash   String      @db.Char(40)
-  branch       String
-  bundleKb     Float
-  bundleGzipKb Float?
-  reportUrl    String?
-  environment  Environment @default(prod)
-
-  @@index([branch, ts])
-}

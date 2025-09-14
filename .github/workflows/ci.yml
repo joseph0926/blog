@@ -37,7 +37,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:gen
-      - run: pnpm lint
+      - run: pnpm lint:fix
       - name: Build Next.js
         run: pnpm build
         env:
@@ -47,10 +47,3 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           APP_VERSION: ${{ env.APP_VERSION }}
-      - name: Bundle size (gzip & raw)
-        id: bundle
-        run: |
-          raw=$(find .next/static/chunks -type f -name "*.js" -printf "%s\n" | awk '{s+=$1} END{print s}')
-          gzip=$(find .next/static/chunks -type f -name "*.js" -exec gzip -c {} \; | wc -c)
-          echo "raw_kb=$(echo "scale=2; $raw/1024" | bc)"  >> $GITHUB_OUTPUT
-          echo "gzip_kb=$(echo "scale=2; $gzip/1024" | bc)" >> $GITHUB_OUTPUT
