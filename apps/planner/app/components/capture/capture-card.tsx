@@ -1,9 +1,10 @@
 import { cn } from '@joseph0926/ui/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
   Activity,
   AlertTriangle,
+  Calendar,
   CheckCircle2,
   ChevronRight,
   Circle,
@@ -227,6 +228,19 @@ export const CaptureCard = ({
                     <span className="font-mono text-[10px] text-neutral-500 uppercase dark:text-neutral-400">
                       Intel: {capture._count.notes}
                     </span>
+                  </>
+                )}
+                {capture.dueDate && (
+                  <>
+                    <div className="h-3 w-px bg-neutral-300 dark:bg-neutral-700" />
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-neutral-400 dark:text-neutral-500" />
+                      <span className="font-mono text-[10px] text-neutral-500 uppercase dark:text-neutral-400">
+                        {format(new Date(capture.dueDate), 'MM/dd', {
+                          locale: ko,
+                        })}
+                      </span>
+                    </div>
                   </>
                 )}
                 <div className="ml-auto flex items-center gap-2">

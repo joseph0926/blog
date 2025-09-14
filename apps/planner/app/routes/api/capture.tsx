@@ -10,6 +10,7 @@ export async function action({ request }: Route.ActionArgs) {
     const type = formData.get('type') as CreateCaptureInput['type'];
     const context = formData.get('context') as string | null;
     const tagsJson = formData.get('tags') as string | null;
+    const dueDate = formData.get('dueDate') as string | null;
 
     if (!content || !content.trim()) {
       return Response.json({ error: 'Content is required' }, { status: 400 });
@@ -22,6 +23,7 @@ export async function action({ request }: Route.ActionArgs) {
       type: type || 'LEARNING_NEED',
       context: context || undefined,
       tags,
+      dueDate: dueDate || undefined,
     });
 
     return Response.json({ success: true, capture });

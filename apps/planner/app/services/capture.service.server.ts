@@ -30,11 +30,12 @@ export async function getCaptureById(id: string) {
 }
 
 export async function createCapture(input: CreateCaptureInput) {
-  const { tags, ...data } = input;
+  const { tags, dueDate, ...data } = input;
 
   return prisma.capture.create({
     data: {
       ...data,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
       tags: tags?.length
         ? {
             connectOrCreate: tags.map((name) => ({
@@ -49,12 +50,13 @@ export async function createCapture(input: CreateCaptureInput) {
 }
 
 export async function updateCapture(id: string, input: UpdateCaptureInput) {
-  const { tags, ...data } = input;
+  const { tags, dueDate, ...data } = input;
 
   return prisma.capture.update({
     where: { id },
     data: {
       ...data,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
       tags: tags
         ? {
             set: [],

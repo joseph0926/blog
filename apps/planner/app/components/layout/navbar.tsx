@@ -36,7 +36,7 @@ export const Navbar = ({ onQuickCapture }: NavbarProps) => {
         <Button size="sm" className="gap-2" onClick={onQuickCapture}>
           <Plus className="h-4 w-4" />
           Quick Capture
-          <kbd className="bg-muted hidden h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium select-none lg:inline-flex">
+          <kbd className="hidden h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium select-none lg:inline-flex">
             <span className="text-xs">⌘</span>K
           </kbd>
         </Button>

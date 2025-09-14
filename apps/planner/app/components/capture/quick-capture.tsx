@@ -2,6 +2,7 @@
 
 import { Badge } from '@joseph0926/ui/components/badge';
 import { Button } from '@joseph0926/ui/components/button';
+import { Calendar } from '@joseph0926/ui/components/calendar';
 import {
   Drawer,
   DrawerContent,
@@ -12,10 +13,16 @@ import {
   DrawerTrigger,
 } from '@joseph0926/ui/components/drawer';
 import { Label } from '@joseph0926/ui/components/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@joseph0926/ui/components/popover';
 import { Textarea } from '@joseph0926/ui/components/textarea';
 import { cn } from '@joseph0926/ui/lib/utils';
 import {
   AlertCircle,
+  CalendarIcon,
   CheckCircle,
   FileCode2,
   Hash,
@@ -85,6 +92,8 @@ export function QuickCapture({
   const [type, setType] = useState<CaptureType>('LEARNING_NEED');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  const [dueDate, setDueDate] = useState<Date | undefined>();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
   const fetcher = useFetcher();
@@ -142,6 +151,7 @@ export function QuickCapture({
         type,
         context: context || undefined,
         tags: tags.length > 0 ? tags : undefined,
+        dueDate: dueDate ? dueDate.toISOString() : undefined,
       };
 
       CreateCaptureSchema.parse(formData);
@@ -178,12 +188,15 @@ export function QuickCapture({
     formData.append('type', type);
     if (context?.trim()) formData.append('context', context.trim());
     if (tags.length > 0) formData.append('tags', JSON.stringify(tags));
+    if (dueDate) formData.append('dueDate', dueDate.toISOString());
 
     fetcher.submit(formData, {
       method: 'post',
       action: '/api/capture',
     });
-  }, [content, type, context, tags, fetcher]);
+
+    setIsOpen(false);
+  }, [content, type, context, tags, dueDate, fetcher]);
 
   const handleReset = () => {
     setContent('');
@@ -191,6 +204,7 @@ export function QuickCapture({
     setType('LEARNING_NEED');
     setTags([]);
     setTagInput('');
+    setDueDate(undefined);
     setErrors({});
   };
 
@@ -243,16 +257,9 @@ export function QuickCapture({
   };
 
   return (
-    <Drawer
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!isSubmitting) {
-          setIsOpen(open);
-        }
-      }}
-    >
+    <Drawer open={isOpen} onOpenChange={setIsOpen}>
       {trigger && <DrawerTrigger asChild>{trigger}</DrawerTrigger>}
-      <DrawerContent className="mx-auto max-w-2xl">
+      <DrawerContent className="mx-auto !max-h-[90vh] max-w-2xl">
         <DrawerHeader>
           <DrawerTitle>Quick Capture</DrawerTitle>
           <DrawerDescription>
@@ -425,6 +432,63 @@ export function QuickCapture({
                 ))}
               </div>
             )}
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="dueDate">언제 할 일인가요? (선택)</Label>
+              {dueDate && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDueDate(undefined)}
+                  disabled={isSubmitting}
+                  className="h-8 text-xs"
+                >
+                  날짜 초기화
+                </Button>
+              )}
+            </div>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="dueDate"
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    'w-full justify-start text-left font-normal',
+                    !dueDate && 'text-muted-foreground',
+                    isSubmitting && 'cursor-not-allowed opacity-50',
+                  )}
+                  disabled={isSubmitting}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dueDate ? (
+                    dueDate.toLocaleDateString('ko-KR', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                  ) : (
+                    <span>날짜 선택</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dueDate}
+                  onSelect={(date) => {
+                    setDueDate(date);
+                    setCalendarOpen(false);
+                  }}
+                  initialFocus
+                  disabled={(date) =>
+                    date < new Date(new Date().setHours(0, 0, 0, 0))
+                  }
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </form>
         <DrawerFooter>

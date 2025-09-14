@@ -11,6 +11,7 @@ export type CreateCaptureInput = {
   context?: string;
   type?: CaptureType;
   tags?: string[];
+  dueDate?: string;
 };
 
 export type UpdateCaptureInput = {
@@ -19,6 +20,7 @@ export type UpdateCaptureInput = {
   type?: CaptureType;
   status?: Status;
   tags?: string[];
+  dueDate?: string;
 };
 
 export type CaptureWithRelations = Capture & {

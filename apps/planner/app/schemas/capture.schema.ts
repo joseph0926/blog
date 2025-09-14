@@ -42,6 +42,8 @@ export const CreateCaptureSchema = z.object({
     )
     .max(5, '태그는 최대 5개까지 추가할 수 있습니다')
     .optional(),
+
+  dueDate: z.string().datetime().optional(),
 });
 
 export const UpdateCaptureSchema = z.object({
@@ -67,6 +69,8 @@ export const UpdateCaptureSchema = z.object({
     .array(z.string())
     .max(5, '태그는 최대 5개까지 추가할 수 있습니다')
     .optional(),
+
+  dueDate: z.string().datetime().optional(),
 });
 
 export type CreateCaptureInput = z.infer<typeof CreateCaptureSchema>;
