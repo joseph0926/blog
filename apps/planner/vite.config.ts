@@ -5,4 +5,11 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
+  ssr: {
+    noExternal: ['@joseph0926/ui'],
+    external: ['@prisma/client'],
+  },
+  optimizeDeps: {
+    exclude: ['@prisma/client', '@/generated/prisma'],
+  },
 });
