@@ -23,14 +23,19 @@
     ]
   },
   "dependencies": {
+    "date-fns": "^4.1.0",
+    "date-fns-tz": "^3.2.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "sonner": "^2.0.7",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.8",
+    "class-variance-authority": "^0.7.1",
     "dotenv": "^17.2.1",
     "dotenv-cli": "^10.0.0",
     "eslint": "^9",
@@ -42,7 +47,6 @@
     "prettier-plugin-tailwindcss": "^0.6.11",
     "rimraf": "^6.0.1",
     "tailwindcss": "^4",
-    "class-variance-authority": "^0.7.1",
     "turbo": "^2.5.6",
     "typescript": "^5"
   },

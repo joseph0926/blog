@@ -8,12 +8,24 @@ importers:
 
   .:
     dependencies:
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
+      date-fns-tz:
+        specifier: ^3.2.0
+        version: 3.2.0(date-fns@4.1.0)
       react:
         specifier: ^19.1.1
         version: 19.1.1
       react-dom:
         specifier: ^19.1.1
         version: 19.1.1(react@19.1.1)
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3
@@ -129,12 +141,6 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
-      date-fns:
-        specifier: ^4.1.0
-        version: 4.1.0
-      date-fns-tz:
-        specifier: ^3.2.0
-        version: 3.2.0(date-fns@4.1.0)
       gray-matter:
         specifier: ^4.0.3
         version: 4.0.3
@@ -174,9 +180,6 @@ importers:
       remark-gfm:
         specifier: ^4.0.1
         version: 4.0.1
-      sonner:
-        specifier: ^2.0.3
-        version: 2.0.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       superjson:
         specifier: ^2.2.2
         version: 2.2.2
@@ -186,9 +189,6 @@ importers:
       web-vitals:
         specifier: ^5.0.3
         version: 5.1.0
-      zod:
-        specifier: ^3.24.2
-        version: 3.25.76
       zustand:
         specifier: ^5.0.5
         version: 5.0.8(@types/react@19.1.13)(react@19.1.1)
@@ -311,6 +311,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.1.13)
+      vaul:
+        specifier: ^1.1.2
+        version: 1.1.2(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -5894,6 +5897,12 @@ packages:
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
     engines: {node: '>= 0.8'}
+
+  vaul@1.1.2:
+    resolution: {integrity: sha512-ZFkClGpWyI2WUQjdLJ/BaGuV6AVQiJ3uELGk3OYtP+B6yCO7Cmn9vPFXVJkRaGkOJu3m8bQMgtyzNHixULceQA==}
+    peerDependencies:
+      react: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0.0 || ^19.0.0-rc
 
   vfile-matter@5.0.1:
     resolution: {integrity: sha512-o6roP82AiX0XfkyTHyRCMXgHfltUNlXSEqCIS80f+mbAyiQBE2fxtDVMtseyytGx75sihiJFo/zR6r/4LTs2Cw==}
@@ -12472,6 +12481,15 @@ snapshots:
   validate-npm-package-name@5.0.1: {}
 
   vary@1.1.2: {}
+
+  vaul@1.1.2(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+    dependencies:
+      '@radix-ui/react-dialog': 1.1.15(@types/react-dom@19.1.9(@types/react@19.1.13))(@types/react@19.1.13)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
 
   vfile-matter@5.0.1:
     dependencies:
