@@ -1,0 +1,41 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", ".react-router", "build"],
+      "env": [
+        "DATABASE_URL",
+        "CLOUDINARY_API_KEY",
+        "CLOUDINARY_API_SECRET",
+        "CLOUDINARY_CLOUD_NAME",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "UPSTASH_REDIS_REST_URL",
+        "ADMIN_PASSWORD",
+        "ACCESS_EXPIRES",
+        "JWT_SECRET"
+      ]
+    },
+    "type-check": {
+      "dependsOn": ["^type-check"]
+    },
+    "lint:fix": {
+      "dependsOn": ["^lint:fix"]
+    },
+    "db:gen": {
+      "cache": false,
+      "dependsOn": ["^db:gen"],
+      "env": ["DATABASE_URL"]
+    },
+    "db:push": {
+      "dependsOn": ["^db:push"]
+    },
+    "clean": {
+      "cache": false
+    },
+    "dev": {
+      "persistent": true,
+      "cache": false
+    }
+  }
+}
