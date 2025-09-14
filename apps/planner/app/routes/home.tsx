@@ -32,7 +32,7 @@ export default function TimelinePage() {
     .filter(
       (f) =>
         f.formAction === '/api/capture' &&
-        f.state === 'submitting' &&
+        (f.state === 'submitting' || f.state === 'loading') &&
         f.formData,
     )
     .map((f) => {
