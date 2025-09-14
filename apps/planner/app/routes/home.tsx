@@ -2,6 +2,7 @@ import { useFetchers, useLoaderData } from 'react-router';
 import { CaptureCard } from '@/components/capture/capture-card';
 import { formatDateHeader, groupCapturesByDate } from '@/lib/capture.util';
 import {
+  deleteCapture,
   getAllCaptures,
   updateCaptureStatus,
 } from '@/services/capture.service.server';
@@ -14,7 +15,14 @@ export async function loader() {
 
 export async function action({ request }: { request: Request }) {
   const formData = await request.formData();
+  const action = formData.get('action');
   const captureId = formData.get('captureId') as string;
+
+  if (action === 'delete') {
+    await deleteCapture(captureId);
+    return { success: true };
+  }
+
   const status = formData.get('status') as
     | 'PENDING'
     | 'IN_PROGRESS'
@@ -53,7 +61,20 @@ export default function TimelinePage() {
       } as CaptureWithRelations;
     });
 
-  const allCaptures = [...optimisticCaptures, ...captures];
+  const deletingIds = fetchers
+    .filter(
+      (f) =>
+        !f.formAction &&
+        f.formData?.get('action') === 'delete' &&
+        (f.state === 'submitting' || f.state === 'loading'),
+    )
+    .map((f) => f.formData!.get('captureId') as string);
+
+  const filteredCaptures = captures.filter(
+    (capture) => !deletingIds.includes(capture.id),
+  );
+
+  const allCaptures = [...optimisticCaptures, ...filteredCaptures];
 
   const groupedCaptures = groupCapturesByDate(allCaptures);
 

@@ -10,9 +10,11 @@ import {
   Circle,
   Clock,
   Target,
+  Trash2,
   Zap,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useFetcher } from 'react-router';
 import type { CaptureWithRelations } from '@/types/capture.type';
 
 type CaptureCardProps = {
@@ -25,6 +27,22 @@ export const CaptureCard = ({
   isOptimistic = false,
 }: CaptureCardProps) => {
   const [isHovered, setIsHovered] = useState(false);
+  const fetcher = useFetcher();
+
+  const isDeleting =
+    fetcher.state !== 'idle' && fetcher.formData?.get('action') === 'delete';
+
+  const handleDelete = () => {
+    fetcher.submit(
+      {
+        action: 'delete',
+        captureId: capture.id,
+      },
+      {
+        method: 'POST',
+      },
+    );
+  };
 
   const StatusIcon = {
     PENDING: Circle,
@@ -97,6 +115,7 @@ export const CaptureCard = ({
         'transition-all duration-300',
         isHovered && 'border-l-cyan-400 dark:border-l-cyan-300',
         isOptimistic && 'animate-pulse opacity-70',
+        isDeleting && 'scale-95 opacity-50',
       )}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -251,6 +270,24 @@ export const CaptureCard = ({
                       locale: ko,
                     })}
                   </time>
+                  {isHovered && !isOptimistic && (
+                    <button
+                      onClick={handleDelete}
+                      disabled={isDeleting}
+                      className={cn(
+                        'group/delete flex cursor-pointer items-center gap-1 rounded px-2 py-1',
+                        'bg-red-500/10 hover:bg-red-500/20',
+                        'transition-all duration-200',
+                        'disabled:cursor-not-allowed disabled:opacity-50',
+                      )}
+                      aria-label="캡처 삭제"
+                    >
+                      <Trash2 className="h-3 w-3 text-red-500 transition-transform group-hover/delete:scale-110" />
+                      <span className="font-mono text-[10px] text-red-500 uppercase">
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </span>
+                    </button>
+                  )}
                   <ChevronRight
                     className={cn(
                       'h-3 w-3 transition-all duration-300',
