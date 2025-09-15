@@ -1,16 +1,11 @@
 import { useFetchers, useLoaderData } from 'react-router';
 import { CaptureCard } from '@/components/capture/capture-card';
 import { formatDateHeader, groupCapturesByDate } from '@/lib/capture.util';
-import {
-  deleteCapture,
-  getAllCaptures,
-  updateCapture,
-  updateCaptureStatus,
-} from '@/services/capture.service.server';
+import { CaptureService } from '@/services/capture.service.server';
 import type { CaptureWithRelations } from '@/types/capture.type';
 
 export async function loader() {
-  const captures = await getAllCaptures();
+  const captures = await CaptureService.findAll();
   return { captures };
 }
 
@@ -20,7 +15,7 @@ export async function action({ request }: { request: Request }) {
   const captureId = formData.get('captureId') as string;
 
   if (action === 'delete') {
-    await deleteCapture(captureId);
+    await CaptureService.delete(captureId);
     return { success: true };
   }
 
@@ -31,7 +26,7 @@ export async function action({ request }: { request: Request }) {
     const dueDate = formData.get('dueDate') as string | null;
     const parsedTags = tags ? JSON.parse(tags) : [];
 
-    await updateCapture(captureId, {
+    await CaptureService.update(captureId, {
       content,
       context: context || undefined,
       tags: parsedTags,
@@ -46,7 +41,7 @@ export async function action({ request }: { request: Request }) {
       | 'IN_PROGRESS'
       | 'COMPLETED';
 
-    await updateCaptureStatus(captureId, status);
+    await CaptureService.updateStatus(captureId, status);
     return { success: true };
   }
 
@@ -102,9 +97,9 @@ export default function TimelinePage() {
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Timeline</h1>
+        <h1 className="text-2xl font-bold">타임라인</h1>
         <div className="text-muted-foreground text-sm">
-          {allCaptures.length} captures
+          {allCaptures.length}개 캡처
         </div>
       </div>
       {Object.entries(groupedCaptures).map(([date, dateCaptures]) => (
@@ -125,10 +120,10 @@ export default function TimelinePage() {
       ))}
       {allCaptures.length === 0 && (
         <div className="py-12 text-center">
-          <p className="text-muted-foreground mb-4">No captures yet</p>
+          <p className="text-muted-foreground mb-4">아직 캡처가 없습니다</p>
           <p className="text-muted-foreground text-sm">
-            Press <kbd className="rounded border px-2 py-1 text-xs">⌘K</kbd> to
-            create your first capture
+            <kbd className="rounded border px-2 py-1 text-xs">⌘K</kbd>를 눌러 첫
+            캡처를 만들어보세요
           </p>
         </div>
       )}

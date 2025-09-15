@@ -16,7 +16,16 @@
     "@prisma/client": "^6.16.1",
     "@react-router/node": "^7.7.1",
     "@react-router/serve": "^7.7.1",
+    "@tiptap/extension-code-block-lowlight": "^3.4.2",
+    "@tiptap/extension-highlight": "^3.4.2",
+    "@tiptap/extension-link": "^3.4.2",
+    "@tiptap/extension-placeholder": "^3.4.2",
+    "@tiptap/react": "^3.4.2",
+    "@tiptap/starter-kit": "^3.4.2",
+    "date-fns": "^4.1.0",
     "isbot": "^5.1.27",
+    "lowlight": "^3.3.0",
+    "lucide-react": "^0.482.0",
     "react-router": "^7.7.1"
   },
   "devDependencies": {

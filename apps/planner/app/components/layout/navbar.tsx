@@ -1,7 +1,7 @@
 import { Button } from '@joseph0926/ui/components/button';
 import { cn } from '@joseph0926/ui/lib/utils';
 import { Plus } from 'lucide-react';
-import { NavLink } from 'react-router';
+import { Link, NavLink } from 'react-router';
 import { navItems } from '@/constants/nav';
 
 type NavbarProps = {
@@ -13,7 +13,9 @@ export const Navbar = ({ onQuickCapture }: NavbarProps) => {
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 hidden border-b backdrop-blur md:block">
       <nav className="container mx-auto flex h-14 items-center justify-between px-4">
         <div className="flex items-center gap-6">
-          <h1 className="font-semibold">Planner</h1>
+          <Link to="/">
+            <h1 className="font-semibold">Planner</h1>
+          </Link>
           <div className="flex gap-1">
             {navItems.map((item) => (
               <NavLink
@@ -35,7 +37,7 @@ export const Navbar = ({ onQuickCapture }: NavbarProps) => {
         </div>
         <Button size="sm" className="gap-2" onClick={onQuickCapture}>
           <Plus className="h-4 w-4" />
-          Quick Capture
+          빠른 캡쳐
           <kbd className="hidden h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium select-none lg:inline-flex">
             <span className="text-xs">⌘</span>K
           </kbd>

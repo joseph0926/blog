@@ -103,3 +103,25 @@ export async function searchCaptures(query: string) {
     orderBy: { createdAt: 'desc' },
   });
 }
+
+export const CaptureService = {
+  findAll: getAllCaptures,
+  findById: getCaptureById,
+  findByStatus: async (status: Status) => {
+    return prisma.capture.findMany({
+      where: { status },
+      include: {
+        tags: true,
+        _count: {
+          select: { notes: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+  create: createCapture,
+  update: updateCapture,
+  updateStatus: updateCaptureStatus,
+  delete: deleteCapture,
+  search: searchCaptures,
+};

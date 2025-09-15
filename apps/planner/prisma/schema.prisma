@@ -28,11 +28,14 @@ model LearningNote {
   captureId String
   capture   Capture @relation(fields: [captureId], references: [id], onDelete: Cascade)
 
-  title     String?
-  content   String
+  title     String
+  content   String  @db.Text
+  summary   String?
   resources String[]
+  isPublic  Boolean @default(false)
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Tag {

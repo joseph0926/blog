@@ -1,4 +1,4 @@
-import { createCapture } from '@/services/capture.service.server';
+import { CaptureService } from '@/services/capture.service.server';
 import type { CreateCaptureInput } from '@/types/capture.type';
 import type { Route } from '../+types/home';
 
@@ -18,7 +18,7 @@ export async function action({ request }: Route.ActionArgs) {
 
     const tags = tagsJson ? JSON.parse(tagsJson) : undefined;
 
-    const capture = await createCapture({
+    const capture = await CaptureService.create({
       content: content.trim(),
       type: type || 'LEARNING_NEED',
       context: context || undefined,

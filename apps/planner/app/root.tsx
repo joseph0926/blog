@@ -1,4 +1,5 @@
 import '@joseph0926/ui/globals.css';
+import './styles/editor.css';
 import {
   isRouteErrorResponse,
   Links,

@@ -85,19 +85,19 @@ export const CaptureCard = ({
 
   const statusConfig = {
     PENDING: {
-      label: 'STANDBY',
+      label: '대기',
       color: 'text-neutral-500 dark:text-neutral-400',
       bg: 'bg-neutral-500/10',
       pulse: false,
     },
     IN_PROGRESS: {
-      label: 'ACTIVE',
+      label: '활성',
       color: 'text-cyan-500 dark:text-cyan-400',
       bg: 'bg-cyan-500/10',
       pulse: true,
     },
     COMPLETED: {
-      label: 'COMPLETE',
+      label: '완료',
       color: 'text-green-500 dark:text-green-400',
       bg: 'bg-green-500/10',
       pulse: false,
@@ -249,7 +249,7 @@ export const CaptureCard = ({
                     <>
                       <div className="h-3 w-px bg-neutral-300 dark:bg-neutral-700" />
                       <span className="font-mono text-[10px] text-neutral-500 uppercase dark:text-neutral-400">
-                        Intel: {capture._count.notes}
+                        정보: {capture._count.notes}
                       </span>
                     </>
                   )}
@@ -291,7 +291,7 @@ export const CaptureCard = ({
                       >
                         <Trash2 className="h-3 w-3 text-red-500 transition-transform group-hover/delete:scale-110" />
                         <span className="font-mono text-[10px] text-red-500 uppercase">
-                          {isDeleting ? 'Deleting...' : 'Delete'}
+                          {isDeleting ? '삭제 중...' : '삭제'}
                         </span>
                       </button>
                     )}
