@@ -344,7 +344,7 @@ const Test = () => {
         <TabsContent value="proxy">
           <Card>
             <CardContent className="pt-6">
-              <pre className="bg-muted overflow-x-auto rounded-lg p-4 text-xs">
+              <pre className="overflow-x-auto rounded-lg p-4 text-xs">
                 <code>{`// React Query 내부의 trackResult 메서드
 trackResult(result) {
   return new Proxy(result, {
@@ -367,7 +367,7 @@ return !options.notifyOnChangeProps
         <TabsContent value="tracking">
           <Card>
             <CardContent className="pt-6">
-              <pre className="bg-muted overflow-x-auto rounded-lg p-4 text-xs">
+              <pre className="overflow-x-auto rounded-lg p-4 text-xs">
                 <code>{`// 리렌더링 결정 로직
 shouldNotifyListeners() {
   // 추적 대상 속성 결정

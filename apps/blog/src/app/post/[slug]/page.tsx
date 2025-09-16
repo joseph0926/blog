@@ -19,11 +19,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
 
   const ctx = await createTRPCContext({ headers: new Headers() });
+  const { post } = await appRouter
+    .createCaller(ctx)
+    .post.getPostBySlug({ slug });
 
   try {
-    const { post } = await appRouter
-      .createCaller(ctx)
-      .post.getPostBySlug({ slug });
     const keywords = post.tags.map((tag) => tag.name);
 
     return {
