@@ -1,13 +1,13 @@
 export const POST_COMPONENT_MAP: Record<string, string[]> = {
   '2025-06-25-react-react-fiber': ['StackReconciler', 'FiberWrapper'],
-  '2025-06-28-css-sonner-toast': [
+  '2025-06-28-css-sonner-toast-': [
     'SonnerSample',
     'SonnerImpl1',
     'SonnerImpl2',
     'SonnerImpl3',
     'SonnerImpl4',
   ],
-  '2025-07-13-learn-react-02-suspense': [
+  '2025-07-13-learn-react-02-suspense-': [
     'SyncVsAsyncDemo',
     'TraditionalLoadingDemo',
     'SuspenseDemo',
