@@ -6,6 +6,7 @@
   "description": "프론트엔드 개발자 김영훈의 블로그입니다.",
   "scripts": {
     "dev": "next dev --turbopack",
+    "prebuild": "pnpm run gen:posts && pnpm run lint:fix",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -21,7 +22,8 @@
     "db:re": "prisma migrate reset",
     "db:stu": "prisma studio",
     "db:test:push": "dotenv -e .env.test -- prisma db push",
-    "clean": "rimraf .next .turbo node_modules dist"
+    "clean": "rimraf .next .turbo node_modules dist",
+    "gen:posts": "node scripts/generate-post-components.mjs"
   },
   "dependencies": {
     "@joseph0926/ui": "workspace:*",
