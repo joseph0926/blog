@@ -34,7 +34,7 @@ const POST_COMPONENT_MAP = {
   '2025-08-15-trpc-01-rest-api-api-': [],
   '2025-09-02-react-query-usequeries-combine-pr-merge': [],
   '2025-09-13-react-router-unstablemiddleware-shouldrevalidate': [],
-  '2025-10-03-react-usestate': [],
+  '2025-10-03-react-usestate': ['Counter', 'CounterFn'],
 };
 
 const COMPONENT_IMPORT_MAP = {
