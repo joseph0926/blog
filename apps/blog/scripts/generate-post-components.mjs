@@ -59,6 +59,9 @@ const COMPONENT_IMPORT_MAP = {
   CacheStrategyQuiz: '@/mdx/components/cache/cache-strategy-quiz',
 
   ProxyTrack: '@/mdx/components/react-query/proxy-track',
+
+  Counter: '@/mdx/components/use-state/counter',
+  CounterFn: '@/mdx/components/use-state/counter',
 };
 
 function slugToFunctionName(slug) {
