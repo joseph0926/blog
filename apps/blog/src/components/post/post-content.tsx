@@ -122,7 +122,7 @@ const postComponents = {
   '2025-10-03-react-usestate': dynamic(
     () =>
       import('./mdx-posts/2025-10-03-react-usestate').then(
-        (m) => m.Post_2025_10_03_React_useState,
+        (m) => m.Post_2025_10_03_React_Usestate,
       ),
     {
       loading: () => (
