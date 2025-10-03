@@ -1,0 +1,346 @@
+---
+slug: '2025-10-03-react-usestate'
+title: 'React useState 내부 구조: 함수형 업데이트와 링크드 리스트의 비밀'
+description: 'Vanilla JS로 useState를 직접 구현하며 함수형 업데이트가 필요한 이유와 React가 링크드 리스트를 선택한 이유를 파헤칩니다.'
+date: '2025-10-03'
+tags: ['react']
+---
+
+## 왜 React는 **자동으로** 화면을 업데이트할까?
+
+만약에 Vanilla JavaScript로 카운터를 만든다면 이렇게 작성할 것입니다.
+
+```js
+let count = 0;
+
+const addButton = document.getElementById('button');
+const countSpan = document.getElementById('count');
+
+addButton.addEventListener('click', () => {
+  count++;
+  // DOM을 직접 업데이트해야 합니다
+  countSpan.textContent = count;
+});
+```
+
+count++ 만으로는 화면이 바뀌지 않습니다. 반드시 countSpan.textContent = count를 명시적으로 호출해야 하죠.
+
+하지만 React에서는 이렇게 작성합니다.
+
+```jsx
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>+</button>
+    </div>
+  );
+}
+```
+
+setCount를 호출하기만 하면 화면이 **자동으로** 업데이트됩니다. DOM을 직접 조작하는 코드는 어디에도 없는데 말이죠.
+
+어떻게 이게 가능할까요?
+
+이 글에서는 useState를 직접 구현해보면서 다음 두 가지 핵심 질문에 답해보겠습니다.
+
+1. 왜 setCount(count + 1)을 여러 번 호출해도 1만 증가할까? (함수형 업데이트의 필요성)
+2. React는 왜 배열 대신 링크드 리스트를 사용할까? (컴포넌트 격리)
+
+## useState를 직접 구현해보기
+
+JavaScript로 useState를 구현하려면 가장 먼저 답해야하는게 존재합니다.
+
+### 상태는 어디에 저장되어야 할까?
+
+실제로 컴포넌트 함수는 렌더링될 때마다 실행되는데, 상태는 어떻게 유지될까요?
+
+```js
+function Counter() {
+  let count = 0;
+
+  const increment = () => {
+    count++;
+    render();
+  };
+}
+```
+
+예를들어 위처럼 작성하면 매번 함수가 실행될 때마다 count는 0으로 초기화됩니다.
+
+즉 상태를 함수 내부에 둘 수 없다는 뜻이죠.
+
+그렇다면 상태를 함수 밖에 두면 어떨까요?
+
+```js
+const MyReact = (function () {
+  let state; // 함수 외부에 저장
+
+  function useState(initialValue) {
+    if (state === undefined) {
+      state = initialValue;
+    }
+
+    const setState = (newValue) => {
+      state = newValue;
+      render();
+    };
+
+    return [state, setState];
+  }
+
+  // ... render 함수
+})();
+```
+
+이제 상태가 유지됩니다. 하지만 새로운 문제가 생깁니다.
+
+### 여러 개의 useState는 어떻게 구분할까?
+
+```jsx
+function Counter() {
+  const [count, setCount] = useState(0);
+  const [name, setName] = useState('React');
+  const [age, setAge] = useState(20);
+}
+```
+
+한 컴포넌트에서 useState를 여러 번 호출하면 어떻게 될까요? 위 코드처럼 state 변수 하나만 있다면 모든 상태가 덮어씌워집니다.
+
+그렇다면 각 useState를 구분할 방법이 필요한데, 아마도 그걸 구현하는 방법은 크게 2개일것입니다.
+
+1. 각 상태마다 변수를 만든다 => (state1, state2, state3...) => 문제는 상태 개수를 미리 알 수 없습니다.
+2. 상태들을 어딘가에 **모아서** 저장한다 => 배열로 저장하고 index로 찾기
+
+1번의 경우 작은 앱에서는 문제가 안되겠지만, 컴포넌트가 늘고 훅이 많아지면 너무 많은 변수가 사용됩니다.
+
+따라서 저는 2번 배열을 이용하였습니다.
+
+```js
+const MyReact = (function () {
+  let hooks = []; // 상태들을 배열에 저장
+  let currentIndex = 0; // 현재 몇 번째 useState인지
+
+  function useState(initialValue) {
+    const hookIndex = currentIndex; // 클로저로 캡처
+
+    if (hooks[hookIndex] === undefined) {
+      hooks[hookIndex] = initialValue;
+    }
+
+    const setState = (newValue) => {
+      hooks[hookIndex] = newValue;
+      render();
+    };
+
+    currentIndex++; // 다음 useState를 위해
+    return [hooks[hookIndex], setState];
+  }
+
+  function render() {
+    currentIndex = 0; // 렌더링마다 초기화
+    // ...
+  }
+})();
+```
+
+1. 첫 번째 useState(0) 호출 → hooks[0]에 저장, currentIndex는 1로
+2. 두 번째 useState('React') 호출 → hooks[1]에 저장, currentIndex는 2로
+3. 세 번째 useState(20) 호출 → hooks[2]에 저장
+
+## 함수형 업데이트가 필요한 이유
+
+이제 데모를 테스트해보면 약간의 문제가 있다는것을 알게됩니다.
+
+> 데모는 아래와 같은 형태입니다.
+
+```js
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  const incrementThree = () => {
+    setCount(count + 1);
+    setCount(count + 1);
+    setCount(count + 1);
+  };
+
+  return `
+    <div>
+      <p>Count: ${count}</p>
+      <button onclick="incrementThree()">+3</button>
+    </div>
+  `;
+}
+```
+
+<Counter />
+
+- 예상: count가 3 증가
+- 실제: count가 1만 증가
+
+사실 코드를 보면 왜 이렇게 동작하는지 명확합니다.
+
+```js
+const incrementThree = () => {
+  setCount(count + 1);
+  setCount(count + 1);
+  setCount(count + 1);
+};
+```
+
+incrementThree 함수가 실행되는 시점에 count는 0으로 고정되어 있습니다.(클로저)
+
+즉 각 setCount 호출이 render()를 트리거하지만, 이미 실행 중인 incrementThree 함수 내부의 count 변수는 바뀌지 않습니다.
+
+리액트 공식문서에는 이러한 문제의 해결책으로 아래처럼 상태를 업데이트하라고 말합니다.
+
+```js
+const incrementThree = () => {
+  setCount((prev) => prev + 1);
+  setCount((prev) => prev + 1);
+  setCount((prev) => prev + 1);
+};
+```
+
+<CounterFn />
+
+### 근데 왜 함수를 전달하면 최신값을 참조할까요?
+
+값을 전달할 때는 count + 1이 함수 실행 시점에 즉시 계산됩니다.
+
+하지만 함수를 전달하면 prev => prev + 1은 setState 내부에서 실행되면서 그 시점의 최신값을 받습니다.
+
+위에서 구현한 코드를 보면,
+
+```js
+const setState = (newValue) => {
+  // 함수인지 확인
+  if (typeof newValue === 'function') {
+    hooks[hookIndex] = newValue(hooks[hookIndex]); // 최신값 전달
+  } else {
+    hooks[hookIndex] = newValue;
+  }
+  render();
+};
+```
+
+실제로 리액트 내부 코드도 같은 패턴입니다.
+
+```js
+// ReactFiberHooks.js
+function basicStateReducer<S>(state: S, action: BasicStateAction<S>): S {
+  return typeof action === 'function' ? action(state) : action;
+}
+
+// action이 우리 코드 기준 newValue
+// state가 우리 코드 기준 hooks[hookIndex]
+```
+
+## 왜 배열이 아닌 링크드 리스트인가?
+
+지금 구현이 잘 작동하는 것 같지만, 실제 프로덕션에서 사용하기엔 치명적인 문제가 있습니다.
+
+### 많은 컴포넌트가 존재한다면?
+
+```js
+function App() {
+  const [count, setCount] = useState(0);
+  const [name, setName] = useState('');
+  return <Child />;
+}
+
+function Child() {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  return <GrandChild />;
+}
+
+function GrandChild() {
+  const [age, setAge] = useState(20);
+}
+```
+
+지금 구현한대로라면 아래처럼 저장될것입니다.
+
+```
+hooks[0] = count      // App
+hooks[1] = name       // App
+hooks[2] = title      // Child
+hooks[3] = description // Child
+hooks[4] = age        // GrandChild
+```
+
+즉 모든 컴포넌트의 상태가 하나의 배열에 섞여 있습니다.
+
+근데 만약 이 상황에서 Child 컴포넌트를 언마운트하면 어떻게 될까요?
+
+```
+// Child 언마운트 후
+hooks[0] = count      // App
+hooks[1] = name       // App
+hooks[2] = ???        // 빈 공간?
+hooks[3] = ???        // 빈 공간?
+hooks[4] = age        // GrandChild - 여전히 [4]에?
+```
+
+- 빈 공간을 그대로 둔다 -> 메모리 낭비
+- GrandChild를 앞으로 당긴다 -> 인덱스 재조정 필요, 복잡함
+- 어느 훅이 어느 컴포넌트 것인지 추적하기 어려움
+
+### 각 컴포넌트가 독립적인 훅 체인을 소유 => 링크드 리스트
+
+React는 각 컴포넌트(정확히는 Fiber)가 자신만의 훅 링크드 리스트를 가지도록 설계했습니다.
+
+> ReactFiberHooks.js의 type Hook 확인하면 next가 존재합니다.
+
+```
+Fiber(App) {
+  memoizedState: Hook(count) -> Hook(name) -> null
+}
+
+Fiber(Child) {
+  memoizedState: Hook(title) -> Hook(description) -> null
+}
+
+Fiber(GrandChild) {
+  memoizedState: Hook(age) -> null
+}
+```
+
+즉 Child가 언마운트되어도 해당 Fiber와 훅 체인만 메모리에서 제거하면 끝입니다. 다른 컴포넌트는 전혀 영향을 받지 않습니다.
+
+## 정리
+
+저는 useState를 직접 구현하며 두 가지 중요한 설계 결정을 발견했습니다.
+
+1. 함수형 업데이트
+
+- 문제: 클로저 때문에 여러 번 호출해도 이전 값을 참조
+- 해결: 함수를 전달하여 실행 시점의 최신값 사용
+
+```js
+// X setCount(count + 1)
+// O setCount(prev => prev + 1)
+```
+
+2. 링크드 리스트
+
+- 문제: 전역 배열은 컴포넌트 간 간섭 발생
+- 해결: 각 컴포넌트가 독립적인 훅 체인 소유
+
+---
+
+혹시 더 탐구하고 싶다면
+React 소스코드 중에,
+
+`packages/react-reconciler/src/ReactFiberHooks.js`
+
+```
+basicStateReducer - 함수형 업데이트 로직
+updateWorkInProgressHook - 링크드 리스트 순회
+mountState vs updateState - 단계별 처리
+```
+
+여길 참고하시면 됩니다.

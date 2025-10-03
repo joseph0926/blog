@@ -119,6 +119,17 @@ const postComponents = {
       ),
     },
   ),
+  '2025-10-03-react-usestate': dynamic(
+    () =>
+      import('./mdx-posts/2025-10-03-react-usestate').then(
+        (m) => m.Post_2025_10_03_React_useState,
+      ),
+    {
+      loading: () => (
+        <div className="h-[67vh] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      ),
+    },
+  ),
 } as const;
 
 interface PostContentProps {
