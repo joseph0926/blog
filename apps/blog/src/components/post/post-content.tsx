@@ -130,6 +130,17 @@ const postComponents = {
       ),
     },
   ),
+  '2025-10-11-csr-ssr': dynamic(
+    () =>
+      import('./mdx-posts/default-post').then((m) => ({
+        default: () => m.DefaultPost({ slug: '2025-10-11-csr-ssr' }),
+      })),
+    {
+      loading: () => (
+        <div className="h-[67vh] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      ),
+    },
+  ),
 } as const;
 
 interface PostContentProps {
