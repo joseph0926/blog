@@ -1,0 +1,534 @@
+---
+slug: '2025-10-12-local-first-usesyncexternalstore-indexeddb-react'
+title: 'Local-First 라이브러리의 서버 동기화: useSyncExternalStore와 메모리 캐시로 IndexedDB와 React 연결하기'
+description: 'IndexedDB는 비동기지만 React는 동기 상태를 요구합니다.  useSyncExternalStore와 메모리 캐시 패턴으로 이 간극을 메우고,  서버 동기화 보일러플레이트를 90% 줄인 과정을 공유합니다.'
+date: '2025-10-12'
+tags: ['react', 'opensource', 'firsttx']
+---
+
+## 들어가며
+
+[이전 글](/post/2025-10-11-csr-ssr)에서 FirstTx의 기획 변천사를 공유했습니다. 타깃을 재방문 앱으로 좁히고, Prepaint를 Phase 2로 미루고, Local-First와 Tx에 집중하기로 한 결정까지 다뤘습니다. 이번 글에서는 그 중 Local-First 계층의 구현 과정을 다룹니다. 특히 IndexedDB(비동기)와 React(동기)를 연결하는 문제와, useSyncedModel로 서버 동기화를 단순화한 과정을 중심으로 설명합니다.
+
+<br />
+
+Local-First의 핵심 과제는 명확했습니다. IndexedDB는 본질적으로 비동기 API입니다. 데이터를 읽거나 쓸 때 Promise를 반환하고, 메인 스레드를 차단하지 않습니다. 반면 React는 동기 상태를 요구합니다. `useState`든 외부 스토어든, getSnapshot 함수는 즉시 값을 반환해야 합니다. 이 간극을 어떻게 메울 것인가가 첫 번째 기술적 도전이었습니다.
+
+<br />
+
+두 번째 도전은 서버 동기화였습니다. Local-First는 로컬 데이터가 "진실의 원천"이지만, 그렇다고 서버와 완전히 격리될 수는 없습니다. 사용자가 다른 기기에서 변경한 데이터나, 백엔드에서 업데이트된 정보를 동기화해야 합니다. 하지만 전통적인 서버 동기화 코드는 보일러플레이트가 많습니다. isSyncing 상태, error 처리, 수동 refetch... React Query 없이는 감당하기 어려운 복잡도입니다.
+
+<br />
+
+이 글에서는 세 가지 핵심 설계 결정을 다룹니다. 첫째, useSyncExternalStore를 선택한 이유와 메모리 캐시 패턴의 구현입니다. 둘째, useSyncedModel로 서버 동기화 보일러플레이트를 90% 줄인 과정입니다. 셋째, autoSync 기본값을 false로 선택한 근거입니다. 각 결정의 배경과 트레이드오프를 코드와 함께 공유합니다.
+
+## IndexedDB와 React 연결하기: 3가지 접근법
+
+Local-First의 첫 번째 과제는 IndexedDB와 React를 연결하는 것이었습니다. 문제는 명확했습니다. IndexedDB는 비동기 API를 제공하고, React는 동기 getSnapshot을 요구합니다. 이 간극을 메우기 위해 세 가지 접근법을 검토했습니다.
+
+### 접근법 1: useState + useEffect (초기안)
+
+가장 직관적인 방법은 useState와 useEffect를 조합하는 것입니다. 컴포넌트가 마운트되면 IndexedDB를 읽고, 데이터가 도착하면 setState로 업데이트합니다.
+
+```typescript
+function useModel(model) {
+  const [state, setState] = useState(null);
+  const [history, setHistory] = useState({ updatedAt: 0, isStale: true });
+
+  useEffect(() => {
+    model.getSnapshot().then(setState);
+    model.getHistory().then(setHistory);
+  }, [model]);
+
+  const patch = async (mutator) => {
+    await model.patch(mutator);
+    const newState = await model.getSnapshot();
+    setState(newState);
+  };
+
+  return [state, patch, history];
+}
+```
+
+이 접근의 문제는 명확했습니다. 첫째, 다른 컴포넌트나 탭에서 데이터를 변경해도 현재 컴포넌트는 알 수 없습니다. 구독 메커니즘이 없기 때문입니다. 둘째, patch 후 수동으로 getSnapshot을 다시 호출해야 합니다. 비효율적이고 휴먼 에러에 취약합니다. 셋째, React 18의 동시성 렌더링과 호환되지 않습니다. useState는 외부 스토어의 변경을 감지할 방법이 없습니다.
+
+### 접근법 2: React 19의 use 훅
+
+React 19는 use 훅으로 Promise를 직접 처리할 수 있습니다. IndexedDB의 비동기 특성을 그대로 활용할 수 있다는 점에서 매력적이었습니다.
+
+```typescript
+function useModel(model) {
+  const data = use(model.getSnapshot());
+  const history = use(model.getHistory());
+  return [data, model.patch, history];
+}
+```
+
+하지만 이 접근에는 두 가지 제약이 있었습니다. 첫째, React 19가 필수입니다. React 18 사용자를 배제하는 셈입니다. 둘째, Suspense 경계가 필요합니다. 모든 컴포넌트를 Suspense로 감싸야 하는데, 이는 기존 코드베이스에 큰 변경을 요구합니다. "기존 앱에 추가하기 쉬운 라이브러리"라는 목표와 맞지 않았습니다.
+
+### 접근법 3: useSyncExternalStore + 메모리 캐시 (선택)
+
+최종적으로 선택한 방법은 React 18의 useSyncExternalStore와 메모리 캐시를 조합하는 것입니다. 이 패턴은 Zustand, Redux, React Query 같은 주요 상태 관리 라이브러리에서 검증된 접근입니다.
+
+```typescript
+useSyncExternalStore(
+  subscribe: (onStoreChange) => unsubscribe,
+  getSnapshot: () => State  // 동기 함수!
+)
+```
+
+핵심 아이디어는 간단합니다. IndexedDB에서 읽은 데이터를 메모리에 캐시하고, 이 캐시를 동기로 읽습니다. 데이터가 변경되면 구독자들에게 알려서 React가 리렌더하도록 합니다.
+
+<br />
+
+이 접근을 선택한 이유는 세 가지였습니다. 첫째, React 18 표준입니다. 별도의 라이브러리나 최신 React 버전이 필요 없습니다. 둘째, 동시성 렌더링과 안전하게 호환됩니다. useSyncExternalStore는 concurrent rendering을 고려해서 설계되었습니다. 셋째, 검증된 패턴입니다. 수많은 라이브러리가 이미 사용하고 있고, React 팀도 권장하는 방식입니다.
+
+<SyncExternalStoreDemo />
+
+## 메모리 캐시 패턴 구현하기
+
+useSyncExternalStore를 사용하기로 결정했으니, 이제 메모리 캐시를 구현해야 했습니다. 핵심은 IndexedDB의 비동기 데이터를 메모리에 동기로 읽을 수 있는 형태로 변환하는 것입니다.
+
+### CacheState 타입 설계
+
+첫 번째 결정은 캐시 상태를 어떻게 표현할지였습니다. 단순히 `cache: T | null`로는 부족했습니다. 로딩 중인지, 에러가 발생했는지 구분할 수 없기 때문입니다. React Query의 상태 모델을 참고해서 3가지 상태로 구분했습니다.
+
+```typescript
+type CacheState<T> =
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: FirstTxError };
+```
+
+loading은 초기 상태이거나 IndexedDB를 읽는 중입니다. success는 데이터가 캐시에 로드된 상태이고, error는 읽기 실패입니다. 이렇게 구분하면 각 상태에서 어떤 UI를 보여줄지 명확해집니다. loading일 때는 Skeleton, success는 실제 데이터, error는 에러 메시지나 재시도 버튼입니다.
+
+<MemoryCachePatternDemo />
+
+### subscribe와 notifySubscribers
+
+두 번째 핵심은 구독 메커니즘입니다. 데이터가 변경되면 모든 구독자에게 알려야 React가 리렌더할 수 있습니다. Set을 사용해서 구독자를 관리했습니다.
+
+```typescript
+const subscribers = new Set<() => void>();
+
+const notifySubscribers = () => {
+  subscribers.forEach((fn) => fn());
+};
+
+const subscribe = (callback: () => void) => {
+  subscribers.add(callback);
+
+  if (subscribers.size === 1 && cacheState.status === 'loading') {
+    model
+      .getSnapshot()
+      .then((data) => {
+        if (data) {
+          cacheState = { status: 'success', data };
+        }
+        notifySubscribers();
+      })
+      .catch((error) => {
+        cacheState = { status: 'error', error };
+        notifySubscribers();
+      });
+  }
+
+  return () => subscribers.delete(callback);
+};
+```
+
+첫 번째 구독자가 등록될 때 IndexedDB 읽기를 시작합니다. 데이터가 도착하면 cacheState를 업데이트하고 notifySubscribers를 호출합니다. 그러면 useSyncExternalStore가 getCachedSnapshot을 다시 호출하고, React가 리렌더합니다.
+
+<br />
+
+Set을 선택한 이유는 간단합니다. 중복 구독을 자동으로 제거하고, O(1) 추가/삭제가 가능합니다. Zustand, React Query도 동일한 패턴을 사용합니다.
+
+### getCachedSnapshot: 동기 스냅샷 반환
+
+세 번째는 동기 스냅샷 함수입니다. useSyncExternalStore는 getSnapshot이 즉시 값을 반환하기를 기대합니다. 메모리 캐시가 있으니 이는 간단합니다.
+
+```typescript
+const getCachedSnapshot = (): T | null => {
+  return cacheState.status === 'success' ? cacheState.data : null;
+};
+```
+
+loading이나 error 상태에서는 null을 반환합니다. 그러면 React 컴포넌트는 `if (!data) return <Skeleton />`로 처리할 수 있습니다. success 상태에서만 실제 데이터를 반환합니다.
+
+<br />
+
+여기서 중요한 점은 **참조 안정성**입니다. getCachedSnapshot이 매번 새로운 객체를 반환하면 무한 루프가 발생합니다. useSyncExternalStore는 Object.is로 이전 값과 비교하고, 다르면 리렌더를 트리거하기 때문입니다. 이 문제는 나중에 v0.2.2에서 해결했습니다(뒤에서 다룹니다).
+
+### patch와 replace: 데이터 변경
+
+마지막은 데이터 변경 메서드입니다. patch는 부분 업데이트, replace는 전체 교체입니다. 두 메서드 모두 IndexedDB에 쓰고, 캐시를 업데이트하고, 구독자에게 알립니다.
+
+```typescript
+const patch = async (mutator: (draft: T) => void) => {
+  let current = await getSnapshot();
+  if (!current) {
+    current = options.initialData;
+  }
+
+  const next = structuredClone(current);
+  mutator(next);
+
+  const parseResult = options.schema.safeParse(next);
+  if (!parseResult.success) {
+    throw new ValidationError('Invalid data', name, parseResult.error);
+  }
+
+  await storage.set(name, {
+    _v: options.version ?? 1,
+    updatedAt: Date.now(),
+    data: parseResult.data,
+  });
+
+  cacheState = { status: 'success', data: parseResult.data };
+  notifySubscribers();
+};
+```
+
+structuredClone으로 깊은 복사를 하고, mutator 함수로 변경합니다. Zod 스키마로 검증한 후 IndexedDB에 저장하고, 캐시를 업데이트합니다. 마지막으로 notifySubscribers를 호출해서 React에게 알립니다.
+
+<br />
+
+이 패턴의 핵심은 **캐시가 항상 최신 상태**라는 것입니다. IndexedDB 쓰기가 완료되면 즉시 캐시도 업데이트되므로, 다음 getCachedSnapshot 호출에서는 새 데이터를 반환합니다. React는 자동으로 리렌더하고, UI는 즉시 업데이트됩니다.
+
+## useModel 훅 구현하기
+
+메모리 캐시 패턴을 구현했으니, 이제 React 훅으로 감싸야 합니다. useModel은 Model을 받아서 state, patch, history를 반환합니다. useSyncExternalStore를 사용하면 간단합니다.
+
+```typescript
+export function useModel<T>(model: Model<T>) {
+  const state = useSyncExternalStore(
+    model.subscribe,
+    model.getCachedSnapshot,
+    model.getCachedSnapshot,
+  );
+
+  const [history, setHistory] = useState<ModelHistory>({
+    updatedAt: 0,
+    age: Infinity,
+    isStale: true,
+    isConflicted: false,
+  });
+
+  useEffect(() => {
+    model.getHistory().then(setHistory);
+  }, [model]);
+
+  const patch = async (mutator: (draft: T) => void) => {
+    await model.patch(mutator);
+  };
+
+  return [state, patch, history] as const;
+}
+```
+
+state는 useSyncExternalStore로 관리합니다. subscribe와 getCachedSnapshot을 전달하면, React가 알아서 구독하고 리렌더합니다. history는 별도로 useState로 관리합니다. TTL이나 신선도는 렌더마다 계산할 필요가 없으니 비동기로 한 번만 읽으면 됩니다.
+
+<br />
+
+patch는 단순한 래퍼입니다. model.patch를 호출하면 내부에서 notifySubscribers가 호출되고, useSyncExternalStore가 자동으로 리렌더를 트리거합니다. history는 수동으로 업데이트할 수 있지만, 대부분의 경우 필요 없습니다. 데이터가 바뀌었다는 사실만 알면 충분하기 때문입니다.
+
+<br />
+
+이제 사용자는 이렇게 쓸 수 있습니다.
+
+```typescript
+function CartPage() {
+  const [cart, patch, history] = useModel(CartModel);
+
+  if (!cart) return <Skeleton />;
+
+  return (
+    <div>
+      {history.isStale && <Badge>오래된 데이터</Badge>}
+      {cart.items.map(item => <CartItem key={item.id} {...item} />)}
+    </div>
+  );
+}
+```
+
+IndexedDB의 비동기 특성은 완전히 숨겨졌습니다. 사용자는 그냥 동기 상태처럼 사용하면 됩니다. patch를 호출하면 즉시 UI가 업데이트되고, history.isStale로 신선도를 체크할 수 있습니다.
+
+## 서버 동기화: useSyncedModel 설계하기
+
+useModel로 로컬 데이터 관리는 해결했지만, 서버 동기화는 여전히 보일러플레이트가 많았습니다. 전통적인 패턴은 이렇습니다.
+
+```typescript
+function CartPage() {
+  const [cart, patch] = useModel(CartModel);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const sync = async () => {
+    setIsSyncing(true);
+    try {
+      const data = await fetchCart();
+      await CartModel.replace(data);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    sync();
+  }, []);
+
+  if (error) return <ErrorBanner error={error} onRetry={sync} />;
+  if (isSyncing && !cart) return <Skeleton />;
+
+  return (
+    <div>
+      {isSyncing && <SyncIndicator />}
+      {/* ... */}
+    </div>
+  );
+}
+```
+
+15줄이 넘는 코드입니다. isSyncing 상태, error 처리, try-catch, useEffect... 모든 컴포넌트에서 반복해야 합니다. React Query를 쓰면 간단해지지만, "React Query 없이도 쓸 수 있는 라이브러리"가 목표였습니다.
+
+<br />
+
+해결책은 useSyncedModel이라는 별도 훅을 만드는 것이었습니다. useModel을 내부에서 호출하고, 추가로 서버 동기화 로직을 제공합니다.
+
+```typescript
+export function useSyncedModel<T>(
+  model: Model<T>,
+  fetcher: Fetcher<T>,
+  options?: SyncOptions<T>,
+): SyncedModelResult<T> {
+  const [state, patch, history] = useModel(model);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<Error | null>(null);
+
+  const sync = useCallback(async () => {
+    setIsSyncing(true);
+    setSyncError(null);
+
+    try {
+      const currentData = model.getCachedSnapshot();
+      const data = await fetcher(currentData);
+
+      if ('startViewTransition' in document) {
+        await document.startViewTransition(() => model.replace(data)).finished;
+      } else {
+        await model.replace(data);
+      }
+
+      options?.onSuccess?.(data);
+    } catch (e) {
+      const error = e as Error;
+      setSyncError(error);
+      options?.onError?.(error);
+      throw error;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [model, fetcher, options]);
+
+  return {
+    data: state,
+    patch,
+    sync,
+    isSyncing,
+    error: syncError,
+    history,
+  };
+}
+```
+
+이제 사용자는 이렇게 쓸 수 있습니다.
+
+```typescript
+function CartPage() {
+  const {
+    data: cart,
+    sync,
+    isSyncing,
+    error,
+    history
+  } = useSyncedModel(CartModel, fetchCart, {
+    autoSync: true,
+    onSuccess: (data) => console.log('Synced:', data),
+    onError: (err) => toast.error(err.message)
+  });
+
+  if (!cart) return <Skeleton />;
+  if (error) return <ErrorBanner error={error} onRetry={sync} />;
+
+  return (
+    <div>
+      {isSyncing && <SyncIndicator />}
+      {history.isStale && <Badge>업데이트 중...</Badge>}
+      {cart.items.map(item => <CartItem key={item.id} {...item} />)}
+    </div>
+  );
+}
+```
+
+15줄의 보일러플레이트가 3줄로 줄었습니다. isSyncing, error, sync 함수가 자동으로 제공됩니다. onSuccess/onError 콜백으로 추가 로직을 주입할 수 있고, autoSync 옵션으로 자동 동기화도 가능합니다.
+
+<br />
+
+ViewTransition 통합도 주목할 부분입니다. model.replace를 ViewTransition으로 감싸면, 스냅샷 데이터에서 최신 서버 데이터로 전환할 때 부드러운 애니메이션이 적용됩니다. 사용자는 데이터가 바뀌는 걸 자연스럽게 인지할 수 있습니다.
+
+## autoSync 논쟁: true vs false
+
+useSyncedModel을 설계하면서 가장 오래 고민한 부분은 autoSync 기본값이었습니다. 두 가지 선택지가 있었습니다.
+
+### true (적극적 동기화)
+
+autoSync: true는 데이터가 stale해질 때마다 자동으로 sync를 호출합니다. TTL이 5분이라면, 5분마다 서버와 동기화해서 항상 최신 데이터를 유지합니다.
+
+<br />
+
+장점은 명확합니다. 오래된 데이터의 위험을 최소화합니다. 주식 앱처럼 실시간성이 중요한 경우 유용합니다. 사용자가 신경 쓸 필요 없이 자동으로 동기화됩니다.
+
+<br />
+
+하지만 단점도 있었습니다. 첫째, 불필요한 API 호출이 증가할 수 있습니다. 사용자가 페이지를 30분 열어두면, 5분마다 6번 호출됩니다. 둘째, Local-First 철학과 맞지 않습니다. "로컬이 진실의 원천"인데, 계속 서버를 보는 건 모순입니다. 셋째, 예측 불가능합니다. 사용자가 명시하지 않았는데 백그라운드에서 API를 호출하는 건 놀람을 줄 수 있습니다.
+
+### false (보수적 동기화, 선택)
+
+최종적으로 false를 선택했습니다. autoSync는 기본적으로 꺼져있고, 사용자가 명시적으로 켜거나 수동으로 sync()를 호출해야 합니다.
+
+<br />
+
+이 결정의 근거는 세 가지였습니다. 첫째, **Local-First 정체성**입니다. FirstTx의 핵심은 "로컬 데이터를 먼저 보여주고, 서버 동기화는 선택"입니다. 자동 동기화가 기본이면 이 정체성이 흐려집니다. 둘째, **최소 놀람의 원칙**입니다. 사용자가 명시하지 않은 동작은 하지 않는 게 안전합니다. 셋째, **명시적 제어**입니다. autoSync: true로 바꾸거나, 필요할 때 sync()를 호출하는 건 사용자의 선택입니다.
+
+<AutoSyncComparison />
+
+위 데모를 보면 차이가 명확합니다. autoSync: true는 5초마다 자동으로 동기화하지만, false는 사용자가 버튼을 눌러야 합니다. API 호출 횟수도 그만큼 차이 납니다. 실시간 데이터가 중요한 앱이라면 true가 맞지만, 대부분의 경우 false로 시작해서 필요할 때만 켜는 게 합리적입니다.
+
+<br />
+
+문서에는 이렇게 안내했습니다.
+
+```markdown
+⚠️ Critical Data Warning
+
+데이터가 시간에 민감한 경우(주식 가격, 재고 등):
+
+- 짧은 TTL (1-5분)
+- autoSync: true로 적극적 갱신
+- 사용자 인터랙션 시 수동 sync() 호출
+```
+
+기본값은 보수적으로, 필요하면 공격적으로 변경할 수 있게 한 것입니다.
+
+## history 자동 갱신 이슈 해결하기
+
+useSyncedModel을 구현하고 테스트하던 중 문제를 발견했습니다. sync()를 호출해도 history가 업데이트되지 않는 것입니다.
+
+```typescript
+const { history, sync } = useSyncedModel(CartModel, fetchCart);
+
+await sync();
+console.log(history.updatedAt); // 여전히 옛날 값!
+```
+
+원인은 간단했습니다. useModel에서 history는 초기 useEffect에서만 로드됩니다. 이후 model.replace가 호출되어도 history는 갱신되지 않습니다. sync가 성공해도 history.isStale은 여전히 true입니다.
+
+<br />
+
+해결책은 model.subscribe를 활용하는 것이었습니다. model.replace() → notifySubscribers() → history 자동 갱신.
+
+```typescript
+useEffect(() => {
+  const unsubscribe = model.subscribe(() => {
+    model
+      .getHistory()
+      .then(setHistory)
+      .catch(() => {});
+  });
+  return unsubscribe;
+}, [model]);
+```
+
+subscribe 콜백에서 history를 다시 읽으면, 데이터가 변경될 때마다 history도 자동으로 업데이트됩니다. useSyncedModel에서 따로 처리할 필요가 없어졌습니다. 일관성도 개선되었습니다. 어디서든 model.replace를 호출하면 history가 갱신됩니다.
+
+## 무한 루프 버그: 참조 안정성 문제
+
+v0.2.1을 배포하고 얼마 지나지 않아 심각한 버그 리포트가 들어왔습니다. 특정 조건에서 React가 무한 리렌더에 빠진다는 것입니다. 프로파일러를 돌려보니 useSyncExternalStore가 계속 리렌더를 트리거하고 있었습니다.
+
+<br />
+
+원인은 getCachedSnapshot의 참조 불안정성이었습니다. 초기 구현은 이랬습니다.
+
+```typescript
+const getCachedSnapshot = () => ({
+  data: cacheState.status === 'success' ? cacheState.data : null,
+  error: cacheState.status === 'error' ? cacheState.error : null,
+  history: cachedHistory,
+});
+```
+
+매번 새로운 객체를 생성합니다. useSyncExternalStore는 Object.is로 이전 값과 비교하는데, 새 객체는 항상 다릅니다. 그래서 무한 리렌더가 발생하는 것입니다.
+
+<br />
+
+해결책은 TanStack Query의 패턴을 참고했습니다. 스냅샷을 캐시하고, 실제로 변경되었을 때만 새 객체를 생성하는 것입니다.
+
+```typescript
+let cachedSnapshot = {
+  data: null,
+  error: null,
+  history: { updatedAt: 0, age: Infinity, isStale: true, isConflicted: false },
+};
+
+const updateSnapshot = () => {
+  const newData = cacheState.status === 'success' ? cacheState.data : null;
+  const newError = cacheState.status === 'error' ? cacheState.error : null;
+
+  if (
+    cachedSnapshot.data === newData &&
+    cachedSnapshot.error === newError &&
+    cachedSnapshot.history === cachedHistory
+  ) {
+    return;
+  }
+
+  cachedSnapshot = {
+    data: newData,
+    error: newError,
+    history: cachedHistory,
+  };
+};
+
+const getCachedSnapshot = () => cachedSnapshot;
+```
+
+Shallow compare로 이전 값과 비교하고, 실제로 바뀌었을 때만 새 객체를 만듭니다. 그러면 useSyncExternalStore는 값이 바뀌지 않았다고 판단하고 리렌더를 건너뜁니다.
+
+<br />
+
+추가로 useModel의 patch 함수도 useCallback으로 감쌌습니다. patch 함수가 매 렌더마다 재생성되는 것도 불필요한 구독 해제/재구독을 유발했기 때문입니다.
+
+```typescript
+const patch = useCallback(
+  async (mutator: (draft: T) => void) => {
+    await model.patch(mutator);
+  },
+  [model],
+);
+```
+
+이 두 가지 개선으로 무한 루프가 완전히 해결되었고, 구독자 수도 3개에서 1개로 줄었습니다(TanStack Query 패턴). v0.2.2 패치를 배포하고 28/28 테스트가 모두 통과했습니다.
+
+## 마무리
+
+IndexedDB와 React를 연결하는 문제는 결국 "동기와 비동기의 간극"을 메우는 문제였습니다. useSyncExternalStore와 메모리 캐시 패턴으로 이 간극을 해결했고, useSyncedModel로 서버 동기화 보일러플레이트를 90% 줄였습니다. autoSync 기본값은 Local-First 철학을 지키기 위해 false로 선택했습니다.
+
+<br />
+
+현재 v0.2.2는 28개의 테스트를 모두 통과했고, ReactSyncLatency는 42ms로 목표(50ms 이하)를 달성했습니다. 무한 루프 이슈도 TanStack Query의 참조 안정성 패턴으로 해결했습니다. 다음 단계는 BroadcastChannel을 통한 멀티탭 동기화와, Prepaint의 안정화입니다.
+
+<br />
+
+기술적 결정은 항상 트레이드오프를 수반합니다. useState 대신 useSyncExternalStore를 선택한 것, React 19의 use 훅을 포기한 것, autoSync 기본값을 false로 정한 것. 각 결정의 근거를 명확히 하고, 그 근거를 코드와 문서에 반영하는 게 중요했습니다. 이 글이 비슷한 문제를 마주한 개발자들에게 도움이 되길 바랍니다.

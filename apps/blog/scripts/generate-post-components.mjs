@@ -36,6 +36,11 @@ const POST_COMPONENT_MAP = {
   '2025-09-13-react-router-unstablemiddleware-shouldrevalidate': [],
   '2025-10-03-react-usestate': ['Counter', 'CounterFn'],
   '2025-10-11-csr-ssr': [],
+  '2025-10-12-local-first-usesyncexternalstore-indexeddb-react': [
+    'SyncExternalStoreDemo',
+    'MemoryCachePatternDemo',
+    'AutoSyncComparison',
+  ],
 };
 
 const COMPONENT_IMPORT_MAP = {
@@ -63,6 +68,12 @@ const COMPONENT_IMPORT_MAP = {
 
   Counter: '@/mdx/components/use-state/counter',
   CounterFn: '@/mdx/components/use-state/counter',
+
+  SyncExternalStoreDemo:
+    '@/mdx/components/local-first/sync-external-store-demo',
+  MemoryCachePatternDemo:
+    '@/mdx/components/local-first/memory-cache-pattern-demo',
+  AutoSyncComparison: '@/mdx/components/local-first/auto-sync-comparison',
 };
 
 function slugToFunctionName(slug) {
