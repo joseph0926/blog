@@ -141,6 +141,20 @@ const postComponents = {
       ),
     },
   ),
+  '2025-10-12-local-first-usesyncexternalstore-indexeddb-react': dynamic(
+    () =>
+      import(
+        './mdx-posts/2025-10-12-local-first-usesyncexternalstore-indexeddb-react'
+      ).then(
+        (m) =>
+          m.Post_2025_10_12_Local_First_Usesyncexternalstore_Indexeddb_React,
+      ),
+    {
+      loading: () => (
+        <div className="h-[67vh] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      ),
+    },
+  ),
 } as const;
 
 interface PostContentProps {
