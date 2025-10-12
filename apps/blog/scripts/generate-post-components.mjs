@@ -41,6 +41,7 @@ const POST_COMPONENT_MAP = {
     'MemoryCachePatternDemo',
     'AutoSyncComparison',
   ],
+  '2025-10-12-csr-prepaint': [],
 };
 
 const COMPONENT_IMPORT_MAP = {

@@ -20,7 +20,7 @@ Local-First의 핵심 과제는 명확했습니다. IndexedDB는 본질적으로
 
 <br />
 
-이 글에서는 세 가지 핵심 설계 결정을 다룹니다. 첫째, useSyncExternalStore를 선택한 이유와 메모리 캐시 패턴의 구현입니다. 둘째, useSyncedModel로 서버 동기화 보일러플레이트를 90% 줄인 과정입니다. 셋째, autoSync 기본값을 false로 선택한 근거입니다. 각 결정의 배경과 트레이드오프를 코드와 함께 공유합니다.
+이 글에서는 네 가지 핵심 설계 결정을 다룹니다. 첫째, useSyncExternalStore를 선택한 이유와 메모리 캐시 패턴의 구현입니다. 둘째, useSyncedModel로 서버 동기화 보일러플레이트를 90% 줄인 과정입니다. 셋째, autoSync에서 syncOnMount로의 리팩토링입니다. 넷째, 기본값을 'stale'로 선택한 근거입니다. 각 결정의 배경과 트레이드오프를 코드와 함께 공유합니다.
 
 ## IndexedDB와 React 연결하기: 3가지 접근법
 
@@ -83,8 +83,6 @@ useSyncExternalStore(
 
 이 접근을 선택한 이유는 세 가지였습니다. 첫째, React 18 표준입니다. 별도의 라이브러리나 최신 React 버전이 필요 없습니다. 둘째, 동시성 렌더링과 안전하게 호환됩니다. useSyncExternalStore는 concurrent rendering을 고려해서 설계되었습니다. 셋째, 검증된 패턴입니다. 수많은 라이브러리가 이미 사용하고 있고, React 팀도 권장하는 방식입니다.
 
-<SyncExternalStoreDemo />
-
 ## 메모리 캐시 패턴 구현하기
 
 useSyncExternalStore를 사용하기로 결정했으니, 이제 메모리 캐시를 구현해야 했습니다. 핵심은 IndexedDB의 비동기 데이터를 메모리에 동기로 읽을 수 있는 형태로 변환하는 것입니다.
@@ -101,8 +99,6 @@ type CacheState<T> =
 ```
 
 loading은 초기 상태이거나 IndexedDB를 읽는 중입니다. success는 데이터가 캐시에 로드된 상태이고, error는 읽기 실패입니다. 이렇게 구분하면 각 상태에서 어떤 UI를 보여줄지 명확해집니다. loading일 때는 Skeleton, success는 실제 데이터, error는 에러 메시지나 재시도 버튼입니다.
-
-<MemoryCachePatternDemo />
 
 ### subscribe와 notifySubscribers
 
@@ -354,7 +350,6 @@ function CartPage() {
     error,
     history
   } = useSyncedModel(CartModel, fetchCart, {
-    autoSync: true,
     onSuccess: (data) => console.log('Synced:', data),
     onError: (err) => toast.error(err.message)
   });
@@ -372,55 +367,191 @@ function CartPage() {
 }
 ```
 
-15줄의 보일러플레이트가 3줄로 줄었습니다. isSyncing, error, sync 함수가 자동으로 제공됩니다. onSuccess/onError 콜백으로 추가 로직을 주입할 수 있고, autoSync 옵션으로 자동 동기화도 가능합니다.
+15줄의 보일러플레이트가 3줄로 줄었습니다. isSyncing, error, sync 함수가 자동으로 제공됩니다. onSuccess/onError 콜백으로 추가 로직을 주입할 수 있습니다.
 
 <br />
 
 ViewTransition 통합도 주목할 부분입니다. model.replace를 ViewTransition으로 감싸면, 스냅샷 데이터에서 최신 서버 데이터로 전환할 때 부드러운 애니메이션이 적용됩니다. 사용자는 데이터가 바뀌는 걸 자연스럽게 인지할 수 있습니다.
 
-## autoSync 논쟁: true vs false
+## autoSync에서 syncOnMount로: API 명확화 여정
 
-useSyncedModel을 설계하면서 가장 오래 고민한 부분은 autoSync 기본값이었습니다. 두 가지 선택지가 있었습니다.
+useSyncedModel의 초기 버전(v0.2.x)에는 `autoSync` 옵션이 있었습니다.
 
-### true (적극적 동기화)
-
-autoSync: true는 데이터가 stale해질 때마다 자동으로 sync를 호출합니다. TTL이 5분이라면, 5분마다 서버와 동기화해서 항상 최신 데이터를 유지합니다.
-
-<br />
-
-장점은 명확합니다. 오래된 데이터의 위험을 최소화합니다. 주식 앱처럼 실시간성이 중요한 경우 유용합니다. 사용자가 신경 쓸 필요 없이 자동으로 동기화됩니다.
-
-<br />
-
-하지만 단점도 있었습니다. 첫째, 불필요한 API 호출이 증가할 수 있습니다. 사용자가 페이지를 30분 열어두면, 5분마다 6번 호출됩니다. 둘째, Local-First 철학과 맞지 않습니다. "로컬이 진실의 원천"인데, 계속 서버를 보는 건 모순입니다. 셋째, 예측 불가능합니다. 사용자가 명시하지 않았는데 백그라운드에서 API를 호출하는 건 놀람을 줄 수 있습니다.
-
-### false (보수적 동기화, 선택)
-
-최종적으로 false를 선택했습니다. autoSync는 기본적으로 꺼져있고, 사용자가 명시적으로 켜거나 수동으로 sync()를 호출해야 합니다.
-
-<br />
-
-이 결정의 근거는 세 가지였습니다. 첫째, **Local-First 정체성**입니다. FirstTx의 핵심은 "로컬 데이터를 먼저 보여주고, 서버 동기화는 선택"입니다. 자동 동기화가 기본이면 이 정체성이 흐려집니다. 둘째, **최소 놀람의 원칙**입니다. 사용자가 명시하지 않은 동작은 하지 않는 게 안전합니다. 셋째, **명시적 제어**입니다. autoSync: true로 바꾸거나, 필요할 때 sync()를 호출하는 건 사용자의 선택입니다.
-
-<AutoSyncComparison />
-
-위 데모를 보면 차이가 명확합니다. autoSync: true는 5초마다 자동으로 동기화하지만, false는 사용자가 버튼을 눌러야 합니다. API 호출 횟수도 그만큼 차이 납니다. 실시간 데이터가 중요한 앱이라면 true가 맞지만, 대부분의 경우 false로 시작해서 필요할 때만 켜는 게 합리적입니다.
-
-<br />
-
-문서에는 이렇게 안내했습니다.
-
-```markdown
-⚠️ Critical Data Warning
-
-데이터가 시간에 민감한 경우(주식 가격, 재고 등):
-
-- 짧은 TTL (1-5분)
-- autoSync: true로 적극적 갱신
-- 사용자 인터랙션 시 수동 sync() 호출
+```typescript
+// v0.2.x - 초기 설계
+useSyncedModel(CartModel, fetchCart, {
+  autoSync: true, // 자동으로 sync... 언제?
+});
 ```
 
-기본값은 보수적으로, 필요하면 공격적으로 변경할 수 있게 한 것입니다.
+하지만 이 API는 세 가지 문제가 있었습니다.
+
+### 문제 1: 모호한 의미
+
+`autoSync: true`가 정확히 "언제" sync를 실행하는지 명확하지 않았습니다. 마운트 시? 데이터가 stale해질 때? 5분마다? 사용자도, 코드 리뷰어도, 심지어 라이브러리 작성자인 저도 헷갈렸습니다.
+
+```typescript
+// 이 코드를 보면 언제 sync가 일어나는지 알 수 있나요?
+const { data } = useSyncedModel(Model, fetcher, { autoSync: true });
+```
+
+### 문제 2: React Query와의 차이
+
+React Query는 명확한 refetch 트리거를 제공합니다.
+
+```typescript
+// React Query - 명확함
+useQuery(key, fetcher, {
+  refetchOnMount: true, // 마운트 시
+  refetchOnWindowFocus: true, // 포커스 시
+  refetchInterval: 5000, // 인터벌
+});
+```
+
+반면 FirstTx의 `autoSync`는 이런 명확성이 없었습니다. 초기 구현은 `history.isStale`이 변경될 때마다 sync를 실행했는데, 이는 예측 불가능했습니다.
+
+```typescript
+// v0.2.x 구현 - 예측하기 어려움
+useEffect(() => {
+  if (options?.autoSync && history.isStale && !isSyncing) {
+    sync();
+  }
+}, [history.isStale, history.updatedAt, isSyncing, sync]);
+```
+
+### 문제 3: 테스트와 디버깅의 어려움
+
+`autoSync`의 동작을 테스트하려면 TTL이 만료될 때까지 기다려야 했습니다. 또한 "왜 sync가 실행되지 않았지?"라는 질문에 답하기 어려웠습니다. 의존성 배열의 여러 변수가 복잡하게 얽혀있었기 때문입니다.
+
+### 해결: syncOnMount로 리팩토링
+
+v0.3.1에서 `autoSync`를 `syncOnMount`로 리팩토링했습니다. 핵심 아이디어는 **"언제"를 명시하기**였습니다.
+
+```typescript
+// v0.3.1 - 명확한 의미
+export type SyncOptions<T> = {
+  /**
+   * When to sync on component mount
+   * @default 'stale'
+   */
+  syncOnMount?: 'always' | 'stale' | 'never';
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
+};
+```
+
+세 가지 전략으로 명확히 구분했습니다.
+
+| 전략             | 의미                     | 사용 사례                        |
+| ---------------- | ------------------------ | -------------------------------- |
+| `'always'`       | 마운트 시 항상 sync      | 주식 가격, 실시간 데이터         |
+| `'stale'` (기본) | 마운트 시 stale이면 sync | 대부분의 경우, Prepaint와 시너지 |
+| `'never'`        | 마운트 시 sync 안 함     | 완전 수동 제어, 드래프트         |
+
+구현도 명확해졌습니다.
+
+```typescript
+// v0.3.1 구현 - 예측 가능
+useEffect(() => {
+  const syncOnMount = optionsRef.current?.syncOnMount ?? 'stale';
+
+  if (syncOnMount === 'never') return;
+
+  if (
+    syncOnMount === 'always' ||
+    (syncOnMount === 'stale' && history.isStale)
+  ) {
+    sync().catch(() => {});
+  }
+}, []); // 마운트 시에만 실행!
+```
+
+의존성 배열이 `[]`입니다. 이름 그대로 **"on Mount"** - 마운트 시에만 체크합니다. 이후 `history.isStale`이 변경되어도 다시 sync를 실행하지 않습니다. 이는 의도된 동작입니다.
+
+### 예측 가능한 동작
+
+이제 각 시나리오의 동작이 명확합니다.
+
+```typescript
+// 시나리오 1: 첫 방문 (IndexedDB 비어있음)
+// → history.isStale = true
+// → syncOnMount: 'stale' (기본값)
+// → sync() 호출 ✅
+
+// 시나리오 2: 새로고침 (5분 이내, fresh)
+// → history.isStale = false
+// → syncOnMount: 'stale'
+// → sync() 호출 안 됨 ❌
+
+// 시나리오 3: 새로고침 (TTL 지남, stale)
+// → history.isStale = true
+// → syncOnMount: 'stale'
+// → sync() 호출 ✅
+
+// 시나리오 4: 주식 앱 (항상 최신 필요)
+// → syncOnMount: 'always'
+// → 항상 sync() 호출 ✅
+```
+
+### Prepaint와의 시너지
+
+`syncOnMount: 'stale'` 기본값은 Prepaint와 완벽한 시너지를 만듭니다.
+
+```
+[재방문 시나리오]
+1. Prepaint 복원: 어제 스냅샷 (24시간 전)
+2. React 마운트
+3. history.isStale 체크:
+   - age: 86400000ms (24시간)
+   - isStale: true (TTL 5분 초과)
+4. syncOnMount: 'stale' (기본값)
+5. 조건 충족 → sync() 자동 실행 ✅
+6. ViewTransition으로 부드러운 갱신
+```
+
+사용자는 즉시 뭔가를 보고(Prepaint), 자동으로 최신 데이터로 업데이트됩니다. 개발자는 아무것도 할 필요가 없습니다.
+
+### Breaking Change 결정
+
+이 리팩토링은 Breaking Change였습니다. 하지만 다음 이유로 즉시 변경하기로 결정했습니다.
+
+1. **아직 v1.0.0 이전**: Breaking Change 부담이 적음
+2. **사용자 수 적음**: 얼리어답터만 사용 중
+3. **API 모호성**: `autoSync`의 모호함이 장기적으로 더 큰 문제
+4. **Deprecated 비용**: 두 API를 동시에 유지하는 비용이 아까움
+
+마이그레이션 가이드를 작성하고 v0.3.1로 배포했습니다.
+
+```typescript
+// Before (v0.3.0)
+useSyncedModel(Model, fetcher, { autoSync: true });
+useSyncedModel(Model, fetcher, { autoSync: false });
+useSyncedModel(Model, fetcher); // autoSync: false (기본값)
+
+// After (v0.3.1)
+useSyncedModel(Model, fetcher); // syncOnMount: 'stale' (새 기본값!)
+useSyncedModel(Model, fetcher, { syncOnMount: 'always' });
+useSyncedModel(Model, fetcher, { syncOnMount: 'never' });
+```
+
+### 결과: DX 개선
+
+리팩토링 결과, 코드의 가독성과 예측 가능성이 크게 개선되었습니다.
+
+```typescript
+// 이제 이 코드의 동작이 명확합니다
+const { data } = useSyncedModel(Model, fetcher);
+// "마운트 시 stale이면 sync" - 명확함!
+
+const { data } = useSyncedModel(Model, fetcher, { syncOnMount: 'always' });
+// "마운트 시 항상 sync" - 명확함!
+```
+
+테스트도 간단해졌습니다. 마운트 시에만 체크하므로 시간 기반 테스트가 필요 없습니다. 28개의 모든 테스트가 통과했고, 새로운 엣지 케이스도 명확히 커버할 수 있었습니다.
+
+<br />
+
+이 과정은 **"명확성이 유연성보다 중요하다"**는 교훈을 주었습니다. `autoSync`는 유연했지만 모호했고, `syncOnMount`는 제약적이지만 명확합니다. 대부분의 경우, 명확성이 더 나은 선택입니다.
 
 ## history 자동 갱신 이슈 해결하기
 
@@ -523,12 +654,12 @@ const patch = useCallback(
 
 ## 마무리
 
-IndexedDB와 React를 연결하는 문제는 결국 "동기와 비동기의 간극"을 메우는 문제였습니다. useSyncExternalStore와 메모리 캐시 패턴으로 이 간극을 해결했고, useSyncedModel로 서버 동기화 보일러플레이트를 90% 줄였습니다. autoSync 기본값은 Local-First 철학을 지키기 위해 false로 선택했습니다.
+IndexedDB와 React를 연결하는 문제는 결국 "동기와 비동기의 간극"을 메우는 문제였습니다. useSyncExternalStore와 메모리 캐시 패턴으로 이 간극을 해결했고, useSyncedModel로 서버 동기화 보일러플레이트를 90% 줄였습니다. autoSync에서 syncOnMount로의 리팩토링은 API의 명확성을 크게 개선했고, 기본값 'stale'은 Local-First 철학과 Prepaint 시너지를 모두 만족시켰습니다.
 
 <br />
 
-현재 v0.2.2는 28개의 테스트를 모두 통과했고, ReactSyncLatency는 42ms로 목표(50ms 이하)를 달성했습니다. 무한 루프 이슈도 TanStack Query의 참조 안정성 패턴으로 해결했습니다. 다음 단계는 BroadcastChannel을 통한 멀티탭 동기화와, Prepaint의 안정화입니다.
+현재 v0.3.1은 28개의 테스트를 모두 통과했고, ReactSyncLatency는 42ms로 목표(50ms 이하)를 달성했습니다. 무한 루프 이슈도 TanStack Query의 참조 안정성 패턴으로 해결했습니다. 다음 단계는 BroadcastChannel을 통한 멀티탭 동기화와, Prepaint의 안정화입니다.
 
 <br />
 
-기술적 결정은 항상 트레이드오프를 수반합니다. useState 대신 useSyncExternalStore를 선택한 것, React 19의 use 훅을 포기한 것, autoSync 기본값을 false로 정한 것. 각 결정의 근거를 명확히 하고, 그 근거를 코드와 문서에 반영하는 게 중요했습니다. 이 글이 비슷한 문제를 마주한 개발자들에게 도움이 되길 바랍니다.
+기술적 결정은 항상 트레이드오프를 수반합니다. useState 대신 useSyncExternalStore를 선택한 것, React 19의 use 훅을 포기한 것, autoSync를 syncOnMount로 바꾼 것, 기본값을 'stale'로 정한 것. 각 결정의 근거를 명확히 하고, 그 근거를 코드와 문서에 반영하는 게 중요했습니다. 이 글이 비슷한 문제를 마주한 개발자들에게 도움이 되길 바랍니다.

@@ -1,0 +1,1017 @@
+---
+slug: '2025-10-12-csr-prepaint'
+title: 'CSR 재방문 빈 화면 해결하기: Prepaint의 스냅샷 복원과 안정화 여정'
+description: 'CSR 앱의 재방문 빈 화면 문제를 스냅샷 복원으로 해결하는 과정. 중복 렌더링 버그부터 오버레이 모드 도입까지, Prepaint가 ~0ms 복원을 달성한 여정을 공유합니다.'
+date: '2025-10-12'
+tags: ['react', 'opensource', 'firsttx']
+---
+
+## 들어가며
+
+[이전 글](/post/2025-10-12-local-first-usesyncexternalstore-indexeddb-react)에서 Local-First의 구현 과정을 다뤘습니다. IndexedDB와 React를 연결하고, useSyncedModel로 서버 동기화를 단순화한 이야기였습니다. 이번 글에서는 FirstTx의 첫 번째 레이어, Prepaint의 여정을 다룹니다. 특히 CSR 앱의 고질적인 문제인 "재방문 빈 화면"을 해결하는 과정과, 그 과정에서 마주한 중복 렌더링 위기를 오버레이 모드로 극복한 이야기를 중심으로 설명합니다.
+
+<br />
+
+CSR(Client-Side Rendering) 앱의 가장 큰 약점은 재방문 경험입니다. 사용자가 어제 작업하던 장바구니 페이지를 다시 열면, 빈 화면이 1~2초간 보입니다. JavaScript 번들이 로드되고, React가 마운트되고, API를 호출하고, 데이터가 도착해야 비로소 화면이 그려집니다. 반면 SSR/RSC는 서버에서 HTML을 생성해 보내므로 이런 문제가 없습니다. 하지만 모든 팀이 SSR을 도입할 수 있는 건 아닙니다. SEO가 불필요한 내부 도구, 서버 인프라가 부담스러운 소규모 팀, 복잡한 클라이언트 상태를 다루는 앱... 이런 경우 CSR이 더 합리적인 선택입니다.
+
+<br />
+
+Prepaint의 목표는 명확했습니다. **"CSR을 유지하면서, 재방문 경험만 SSR 수준으로 만들기"**. 사용자가 마지막으로 본 화면을 스냅샷으로 저장하고, 다음 방문 시 즉시 복원하는 것입니다. 첫 방문은 느려도 괜찮습니다. 어차피 CSR이니까요. 하지만 두 번째 방문부터는 다릅니다. 어제 본 장바구니를 즉시 보여주고, 백그라운드에서 최신 데이터를 가져와 업데이트하면 됩니다. 이 글에서는 이 아이디어를 구현하면서 마주한 세 가지 위기와 해결 과정을 공유합니다.
+
+## CSR 재방문 빈 화면: 문제의 본질
+
+문제를 정확히 이해하는 것부터 시작했습니다. CSR 앱에서 재방문 시 빈 화면이 나타나는 이유는 무엇일까요?
+
+### 전형적인 CSR 로딩 시퀀스
+
+```
+[사용자가 /cart 재방문]
+1. HTML 로드 (~100ms)
+   → <div id="root"></div> (빈 컨테이너)
+
+2. JavaScript 번들 로드 (~300ms)
+   → React 코드 파싱/실행
+
+3. React 마운트 (~50ms)
+   → createRoot(root).render(<App />)
+
+4. API 호출 (~500ms)
+   → await fetch('/api/cart')
+
+5. 데이터 렌더링 (~50ms)
+   → 사용자가 드디어 화면을 봄
+
+총 ~1000ms의 빈 화면
+```
+
+이 1초 동안 사용자는 빈 화면이나 스켈레톤만 봅니다. 어제 작업하던 장바구니는 온데간데없습니다. 내부 도구에서 하루에 수십 번 페이지를 새로고침한다면, 이 1초는 엄청난 생산성 손실로 누적됩니다.
+
+### 기존 해결책들의 한계
+
+이 문제를 해결하는 전통적인 방법은 두 가지입니다.
+
+**1. SSR/RSC로 전환**
+
+서버에서 HTML을 미리 렌더링해서 보내면 1단계에서 이미 완성된 화면이 보입니다. 하지만 트레이드오프가 있습니다.
+
+```typescript
+// SSR 전환 시 필요한 것들
+- Node.js 서버 인프라
+- 서버 컴포넌트 마이그레이션
+- 하이드레이션 보일러플레이트
+- 서버/클라이언트 상태 분리
+- 배포 복잡도 증가
+```
+
+SEO가 필요 없는 내부 도구나, 이미 CSR로 잘 동작하는 앱에게는 과한 선택입니다.
+
+**2. Service Worker 캐싱**
+
+Service Worker로 HTML/JS를 캐싱하면 2단계를 빠르게 만들 수 있습니다. 하지만 여전히 4-5단계(API 호출, 렌더링)는 피할 수 없습니다. 게다가 Service Worker는 복잡하고, 디버깅이 어렵고, 캐시 무효화 전략이 까다롭습니다.
+
+### Prepaint의 접근: 클라이언트 스냅샷
+
+Prepaint는 다른 접근을 택했습니다. **"서버가 아니라 클라이언트에서 스냅샷을 저장하고 복원하자"**.
+
+핵심 아이디어는 간단합니다.
+
+```
+[첫 방문]
+1. 사용자가 /cart에서 작업
+2. 페이지를 떠나기 직전 (beforeunload)
+3. 현재 DOM + 스타일을 IndexedDB에 저장
+
+[재방문]
+1. HTML이 로드되는 즉시
+2. 부트 스크립트가 IndexedDB에서 스냅샷 읽기
+3. DOM에 즉시 주입 (~15ms)
+4. 사용자는 어제 본 화면을 즉시 봄
+5. 백그라운드에서 React 마운트 + API 호출
+6. 최신 데이터로 부드럽게 업데이트
+```
+
+이 방식의 장점은 명확했습니다. 첫째, 서버가 필요 없습니다. 모든 것이 클라이언트에서 일어납니다. 둘째, 기존 CSR 코드를 거의 바꾸지 않아도 됩니다. 셋째, 재방문에만 집중하므로 복잡도가 낮습니다. 넷째, IndexedDB는 모든 모던 브라우저에서 지원됩니다.
+
+<br />
+
+하지만 막상 구현을 시작하니, 예상치 못한 문제들이 나타났습니다. 그 중 가장 심각했던 것이 "중복 렌더링 버그"였습니다.
+
+## 첫 번째 구현: 순수한 DOM 주입
+
+초기 구현(v0.1.0)은 단순했습니다. beforeunload 시 document.body.innerHTML을 통째로 저장하고, 다음 방문 시 그대로 복원하는 것입니다.
+
+### 캡처 로직
+
+```typescript
+// capture.ts (초기 버전)
+export function setupCapture() {
+  window.addEventListener('beforeunload', async () => {
+    const snapshot = {
+      route: window.location.pathname,
+      html: document.body.innerHTML, // 전체 body
+      styles: Array.from(document.styleSheets)
+        .map((sheet) => {
+          try {
+            return Array.from(sheet.cssRules)
+              .map((rule) => rule.cssText)
+              .join('\n');
+          } catch {
+            return '';
+          }
+        })
+        .join('\n'),
+      timestamp: Date.now(),
+    };
+
+    await storage.set(`snapshot:${snapshot.route}`, snapshot);
+  });
+}
+```
+
+beforeunload 이벤트에서 body.innerHTML을 통째로 가져오고, 모든 스타일시트를 순회하며 CSS 규칙을 수집합니다. 그리고 현재 라우트를 키로 해서 IndexedDB에 저장합니다.
+
+### 복원 로직
+
+```typescript
+// boot.ts (초기 버전)
+(async function boot() {
+  const route = window.location.pathname;
+  const snapshot = await storage.get(`snapshot:${route}`);
+
+  if (!snapshot) return;
+  if (Date.now() - snapshot.timestamp > 7 * 24 * 60 * 60 * 1000) {
+    return; // TTL 7일
+  }
+
+  // DOM 주입
+  document.body.innerHTML = snapshot.html;
+
+  // 스타일 주입
+  const style = document.createElement('style');
+  style.textContent = snapshot.styles;
+  document.head.appendChild(style);
+
+  // 마킹
+  document.documentElement.setAttribute('data-prepaint', '');
+})();
+```
+
+부트 스크립트는 HTML의 `<head>` 안에 인라인으로 주입됩니다. 페이지가 로드되면 즉시 실행되어 스냅샷을 복원합니다. 이 스크립트는 메인 React 번들이 도착하기 전에 실행되므로, 사용자는 빈 화면 대신 어제 본 화면을 즉시 봅니다.
+
+### React 통합
+
+```typescript
+// main.tsx (초기 버전)
+import { createFirstTxRoot } from '@firsttx/prepaint';
+
+createFirstTxRoot(
+  document.getElementById('root')!,
+  <App />
+);
+```
+
+createFirstTxRoot는 내부적으로 handoff()를 호출해서 prepaint 스냅샷이 있는지 확인합니다. 있으면 hydrateRoot로 수화하고, 없으면 createRoot로 일반 렌더링을 합니다.
+
+```typescript
+// helpers.ts (초기 버전)
+export function createFirstTxRoot(
+  container: Element,
+  element: ReactElement,
+): void {
+  setupCapture(); // 캡처 설정
+
+  const strategy = handoff();
+
+  if (strategy === 'has-prepaint') {
+    hydrateRoot(container, element);
+  } else {
+    createRoot(container).render(element);
+  }
+}
+```
+
+간단하고 명확한 구조였습니다. 이론상으로는 완벽했습니다. 하지만 실제로 돌려보니, 화면이 이상하게 그려졌습니다.
+
+## 첫 번째 위기: 중복 렌더링 버그
+
+초기 구현을 Playground에서 테스트하던 중 심각한 문제를 발견했습니다. 새로고침하면 같은 화면이 두 번 나타나는 것입니다.
+
+### 문제 재현
+
+```
+[시나리오]
+1. /cart 페이지 방문
+2. 장바구니에 상품 3개 추가
+3. 새로고침 (F5)
+
+[예상 동작]
+- 장바구니 3개 상품 즉시 표시
+
+[실제 동작]
+- 장바구니 3개 상품이 두 번 나타남 (총 6개)
+- 뒤로가기 시 이전 페이지 UI가 잔존
+- 연속 캡처하면 스타일이 기하급수적으로 누적
+```
+
+개발자 도구로 확인해보니, DOM 구조가 이상했습니다.
+
+```html
+<div id="root">
+  <!-- Prepaint가 복원한 것 -->
+  <div class="cart">
+    <div class="item">상품 1</div>
+    <div class="item">상품 2</div>
+    <div class="item">상품 3</div>
+  </div>
+
+  <!-- React가 추가로 렌더링한 것 -->
+  <div class="cart">
+    <div class="item">상품 1</div>
+    <div class="item">상품 2</div>
+    <div class="item">상품 3</div>
+  </div>
+</div>
+```
+
+Prepaint가 복원한 화면 위에 React가 또 렌더링한 것입니다. 왜 이런 일이 생긴 걸까요?
+
+### 원인 분석
+
+문제의 원인은 React의 수화(hydration) 메커니즘에 있었습니다. React 18의 hydrateRoot는 특정 전제를 가지고 있습니다. **"컨테이너의 첫 번째 자식 노드가 수화 대상이다"**.
+
+```typescript
+// React의 기대
+<div id="root">
+  <div class="app">...</div> // 이것만 수화 대상
+</div>
+
+// 우리가 만든 것
+<div id="root">
+  <!-- body.innerHTML 전체 -->
+  <div class="header">...</div>
+  <div id="app">...</div>
+  <div class="footer">...</div>
+  <!-- 여러 개의 형제 노드 -->
+</div>
+```
+
+body.innerHTML을 통째로 복원했으니, #root 안에 여러 개의 자식 노드가 들어간 것입니다. React는 당황했습니다. "어? 첫 번째 자식만 수화해야 하는데, 여러 개네?" 그리고 수화에 실패하면서 클라이언트 렌더링으로 폴백했습니다. 그 결과 기존 DOM 위에 새 DOM이 추가로 렌더링되었습니다.
+
+### 추가 문제들
+
+중복 렌더링 외에도 다른 문제들이 발견되었습니다.
+
+**1. 스타일 누적**
+
+```typescript
+// 첫 번째 캡처
+<style data-firsttx-prepaint>/* 100줄 */</style>
+
+// 두 번째 캡처 (첫 번째 캡처가 DOM에 남아있음)
+<style data-firsttx-prepaint>/* 100줄 */</style>
+<style data-firsttx-prepaint>/* 100줄 */</style>
+
+// 세 번째 캡처
+<style data-firsttx-prepaint>/* 100줄 */</style>
+<style data-firsttx-prepaint>/* 100줄 */</style>
+<style data-firsttx-prepaint>/* 100줄 */</style>
+```
+
+Prepaint가 주입한 스타일을 다음 캡처 시 다시 포함시키면서 기하급수적으로 늘어났습니다. 스냅샷 크기가 커지고, 복원 속도가 느려지고, 메모리 사용량이 증가했습니다.
+
+**2. 라우팅 간 UI 잔존**
+
+```
+/products → /cart 이동 시
+- products 페이지의 DOM이 남아있음
+- cart 페이지 UI가 그 위에 추가됨
+- 스크롤 위치가 이상해짐
+```
+
+SPA에서 라우팅 전환 시 이전 페이지의 스냅샷이 완전히 제거되지 않았습니다.
+
+<br />
+
+이 문제들은 근본적으로 같은 원인에서 비롯되었습니다. **"body.innerHTML 전체를 저장하고 복원하는 접근이 React의 수화 모델과 맞지 않는다"**. 처음부터 다시 설계해야 했습니다.
+
+## 해결 1: 단일 루트 인젝션
+
+첫 번째 해결책은 캡처/복원 범위를 좁히는 것이었습니다. body 전체가 아니라 #root의 첫 번째 자식만 저장하고 복원하면, React의 수화 전제를 만족시킬 수 있습니다.
+
+### 개선된 캡처 로직
+
+```typescript
+// capture.ts (v0.2.0)
+function serializeRoot(): string | null {
+  const root = document.getElementById('root');
+  if (!root || !root.firstElementChild) return null;
+
+  // 첫 번째 자식만 직렬화
+  return root.firstElementChild.outerHTML;
+}
+
+export function setupCapture() {
+  window.addEventListener('beforeunload', async () => {
+    const html = serializeRoot();
+    if (!html) return;
+
+    // Prepaint 스타일만 제외하고 수집
+    const styles = Array.from(document.styleSheets)
+      .map((sheet) => {
+        try {
+          return Array.from(sheet.cssRules)
+            .filter((rule) => {
+              const element = rule.parentStyleSheet?.ownerNode;
+              return !element?.hasAttribute('data-firsttx-prepaint');
+            })
+            .map((rule) => rule.cssText)
+            .join('\n');
+        } catch {
+          return '';
+        }
+      })
+      .join('\n');
+
+    const snapshot = {
+      route: window.location.pathname,
+      html, // 단일 루트만
+      styles, // Prepaint 스타일 제외
+      timestamp: Date.now(),
+    };
+
+    await storage.set(`snapshot:${snapshot.route}`, snapshot);
+  });
+}
+```
+
+핵심 변경사항은 두 가지입니다.
+
+**1. serializeRoot()** - #root의 첫 번째 자식만 가져옵니다. `firstElementChild.outerHTML`을 사용하면 단일 노드의 전체 마크업을 얻을 수 있습니다.
+
+**2. 스타일 필터링** - `data-firsttx-prepaint` 속성이 있는 스타일 태그는 제외합니다. 이렇게 하면 Prepaint가 주입한 스타일이 다시 캡처되지 않습니다.
+
+### 개선된 복원 로직
+
+```typescript
+// boot.ts (v0.2.0)
+(async function boot() {
+  const route = window.location.pathname;
+  const snapshot = await storage.get(`snapshot:${route}`);
+
+  if (!snapshot) return;
+  if (Date.now() - snapshot.timestamp > 7 * 24 * 60 * 60 * 1000) {
+    return;
+  }
+
+  const root = document.getElementById('root');
+  if (!root) return;
+
+  // 단일 루트만 주입
+  root.innerHTML = snapshot.html;
+
+  // 스타일 주입 (마킹 추가)
+  const style = document.createElement('style');
+  style.setAttribute('data-firsttx-prepaint', '');
+  style.textContent = snapshot.styles;
+  document.head.appendChild(style);
+
+  document.documentElement.setAttribute('data-prepaint', '');
+})();
+```
+
+`root.innerHTML = snapshot.html`로 단일 자식만 주입합니다. 이제 #root 안에는 정확히 하나의 자식 노드만 있습니다. React의 hydrateRoot가 기대하는 구조입니다.
+
+### 결과
+
+단일 루트 인젝션으로 중복 렌더링 문제가 상당 부분 해결되었습니다.
+
+```html
+<!-- Before: 여러 자식 -->
+<div id="root">
+  <div class="header">...</div>
+  <div class="app">...</div>
+  <div class="footer">...</div>
+</div>
+
+<!-- After: 단일 자식 -->
+<div id="root">
+  <div class="app">
+    <div class="header">...</div>
+    <div class="content">...</div>
+    <div class="footer">...</div>
+  </div>
+</div>
+```
+
+React는 이제 단일 자식을 수화할 수 있습니다. 스타일 누적 문제도 해결되었습니다. `data-firsttx-prepaint` 필터링으로 Prepaint 스타일이 다시 캡처되지 않습니다.
+
+<br />
+
+하지만 여전히 문제가 남아있었습니다. **CSS-in-JS나 동적 스타일로 인한 수화 불일치**입니다. 특히 Tailwind, styled-components, Emotion 같은 라이브러리를 쓰는 앱에서 문제가 발생했습니다.
+
+## 두 번째 위기: 수화 불일치와 CSS-in-JS
+
+단일 루트 인젝션으로 구조적 문제는 해결했지만, 새로운 문제가 나타났습니다. CSS-in-JS를 사용하는 앱에서 수화가 실패하는 것입니다.
+
+### 문제 재현
+
+```typescript
+// styled-components 예시
+const Button = styled.button`
+  background: ${props => props.primary ? 'blue' : 'gray'};
+  padding: ${props => props.size === 'large' ? '16px' : '8px'};
+`;
+
+function CartPage() {
+  const [isPremium, setIsPremium] = useState(false);
+
+  return (
+    <Button primary={isPremium} size="large">
+      결제하기
+    </Button>
+  );
+}
+```
+
+이 코드는 런타임에 props에 따라 다른 스타일을 생성합니다. 문제는 스냅샷 시점과 수화 시점의 props가 다를 수 있다는 것입니다.
+
+```
+[스냅샷 시점]
+- isPremium = false
+- 생성된 클래스: .sc-abc123 { background: gray; padding: 16px; }
+- 캡처된 HTML: <button class="sc-abc123">결제하기</button>
+
+[수화 시점]
+- isPremium = false (똑같음)
+- 하지만 styled-components가 생성한 해시: .sc-def456 (다름!)
+- React가 원하는 HTML: <button class="sc-def456">결제하기</button>
+
+→ 클래스명 불일치 → 수화 실패
+```
+
+CSS-in-JS 라이브러리들은 컴포넌트가 마운트될 때 스타일을 동적으로 생성합니다. 이때 생성되는 클래스명 해시가 매번 달라질 수 있습니다. 스냅샷에 저장된 클래스명과 수화 시점의 클래스명이 다르면 React는 수화에 실패합니다.
+
+### 수화 실패의 결과
+
+React 18은 수화 실패 시 자동으로 클라이언트 렌더링으로 폴백합니다. 하지만 이 과정이 매끄럽지 않습니다.
+
+```
+1. Prepaint 스냅샷 복원 (스크린에 어제 화면)
+2. React 마운트 시작
+3. 수화 시도
+4. 클래스명 불일치 감지
+5. 수화 포기
+6. 클라이언트 렌더링으로 폴백
+7. 기존 DOM 제거하고 새로 렌더링
+   → 화면이 깜빡이거나 레이아웃이 흔들림
+```
+
+사용자는 화면이 한 번 그려졌다가 다시 그려지는 걸 보게 됩니다. Prepaint의 목표였던 "부드러운 경험"이 오히려 해쳐졌습니다.
+
+### 얼마나 자주 발생하는가?
+
+Playground에서 다양한 앱 구조로 테스트한 결과, CSS-in-JS 불일치는 약 **18%의 케이스**에서 발생했습니다.
+
+```md
+| 앱 유형                        | 수화 성공률 |
+| ------------------------------ | ----------- |
+| 정적 Tailwind + 단순 상태      | ~95%        |
+| styled-components + 동적 props | ~82%        |
+| Emotion + theme 전환           | ~78%        |
+| Material-UI + 복잡한 스타일    | ~75%        |
+```
+
+80% 정도는 잘 동작하지만, 20%는 화면이 깜빡입니다. 이건 받아들일 수 없었습니다. 모든 사용자에게 부드러운 경험을 제공해야 했습니다.
+
+### 두 가지 선택지
+
+이 문제를 해결하는 방법은 두 가지였습니다.
+
+**1. 완벽한 예측 시도**
+
+스냅샷 시점의 스타일 해시를 저장하고, 수화 시점에 같은 해시가 생성되도록 강제합니다. 하지만 이는 다음 문제가 있었습니다.
+
+- styled-components, Emotion, Tailwind JIT 등 모든 CSS-in-JS 라이브러리의 내부 구현을 이해해야 함
+- 라이브러리 버전이 바뀌면 해시 알고리즘도 바뀔 수 있음
+- 외부 라이브러리(UI 프레임워크)의 스타일까지 제어해야 함
+- 유지보수 비용이 기하급수적으로 증가
+
+**2. React에게 위임 + 부드러운 폴백**
+
+수화 불일치를 완벽히 막으려 하지 말고, React가 알아서 복구하게 둡니다. 대신 복구 과정을 ViewTransition으로 감싸서 부드럽게 만듭니다.
+
+<br />
+
+우리는 2번을 선택했습니다. 이유는 명확했습니다. **"80%는 이미 잘 동작한다. 나머지 20%도 복구는 되니, 그 과정만 매끄럽게 만들면 된다."** 완벽한 예측은 포기하고, 우아한 실패 복구에 집중하기로 했습니다.
+
+## 해결 2: ViewTransition과 자동 복구
+
+React에게 수화를 위임하되, 실패 시 부드럽게 복구하도록 만들었습니다. 핵심은 ViewTransition API입니다.
+
+### ViewTransition이란?
+
+ViewTransition은 Chrome 111+에서 지원하는 API로, DOM 변경을 자동으로 애니메이션화합니다.
+
+```typescript
+document.startViewTransition(() => {
+  // 이 안에서 DOM을 변경하면
+  // before/after 스냅샷을 찍어서 자동으로 fade transition
+  element.textContent = 'New Text';
+});
+```
+
+Before 스냅샷과 After 스냅샷을 자동으로 비교해서, 변경된 부분을 crossfade로 전환합니다. 우리는 이걸 수화 과정에 적용하기로 했습니다.
+
+### 수화 과정에 ViewTransition 적용
+
+```typescript
+// helpers.ts (v0.3.0)
+export function createFirstTxRoot(
+  container: Element,
+  element: ReactElement,
+  options?: { transition?: boolean },
+): void {
+  setupCapture();
+
+  const strategy = handoff();
+  const useTransition = options?.transition ?? true;
+
+  if (strategy === 'has-prepaint') {
+    if (useTransition && 'startViewTransition' in document) {
+      // ViewTransition으로 감싸기
+      document.startViewTransition(() => {
+        hydrateRoot(container, element, {
+          onRecoverableError: (error) => {
+            console.warn('[Prepaint] Hydration mismatch:', error);
+            // 수화 실패 시 자동으로 클라이언트 렌더링으로 폴백
+            // React가 알아서 처리함
+          },
+        });
+      });
+    } else {
+      hydrateRoot(container, element);
+    }
+  } else {
+    createRoot(container).render(element);
+  }
+
+  // Prepaint 마킹 정리
+  requestAnimationFrame(() => {
+    document.documentElement.removeAttribute('data-prepaint');
+    document
+      .querySelectorAll('style[data-firsttx-prepaint]')
+      .forEach((el) => el.remove());
+  });
+}
+```
+
+핵심은 `document.startViewTransition(() => hydrateRoot(...))`입니다. 이렇게 감싸면 다음과 같은 일이 일어납니다.
+
+```
+1. Before 스냅샷: Prepaint가 복원한 화면
+2. hydrateRoot 실행
+   - 성공: React가 기존 DOM을 그대로 사용
+   - 실패: React가 DOM을 새로 렌더링
+3. After 스냅샷: 최종 화면
+4. Before → After 자동 전환 (crossfade)
+```
+
+수화 성공 시에는 DOM이 거의 안 바뀌므로 전환이 즉시 끝납니다. 수화 실패 시에는 DOM이 크게 바뀌지만, ViewTransition이 부드럽게 전환합니다. 사용자는 깜빡임 대신 자연스러운 fade를 봅니다.
+
+### onRecoverableError로 로깅
+
+React 18의 hydrateRoot는 `onRecoverableError` 콜백을 제공합니다. 수화 불일치가 발생하면 이 콜백이 호출됩니다. 우리는 이걸 로깅에 활용했습니다.
+
+```typescript
+hydrateRoot(container, element, {
+  onRecoverableError: (error) => {
+    if (typeof __FIRSTTX_DEV__ !== 'undefined' && __FIRSTTX_DEV__) {
+      console.warn('[Prepaint] Hydration mismatch detected:', error);
+      console.warn(
+        'This is expected for CSS-in-JS. Falling back to client render.',
+      );
+    }
+  },
+});
+```
+
+개발 모드에서는 콘솔에 경고를 출력하지만, 프로덕션에서는 조용히 복구합니다. 사용자는 문제가 있었는지조차 모릅니다.
+
+### 결과: 부드러운 복구
+
+ViewTransition 적용 후 사용자 경험이 크게 개선되었습니다.
+
+**Before (ViewTransition 없음):**
+
+```
+Prepaint 복원 → [깜빡임] → 최종 화면
+```
+
+**After (ViewTransition 적용):**
+
+```
+Prepaint 복원 → [부드러운 fade] → 최종 화면
+```
+
+수화 실패가 발생해도 사용자는 자연스러운 전환으로 인지합니다. Playground에서 측정한 결과, **82%는 완벽한 수화**, **18%는 부드러운 폴백**으로 동작했습니다. 100%는 아니지만, 100% 부드러운 경험을 제공합니다.
+
+<br />
+
+하지만 여전히 한 가지 문제가 남아있었습니다. 복잡한 SPA에서는 단일 루트 인젝션도 충분하지 않았습니다.
+
+## 세 번째 위기: 복잡한 라우팅과 동적 UI
+
+단일 루트 인젝션과 ViewTransition으로 대부분의 케이스를 해결했지만, 특정 앱에서는 여전히 문제가 발생했습니다.
+
+### 문제 상황
+
+```typescript
+// React Router를 사용하는 복잡한 앱
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/cart" element={<Cart />} />
+      </Routes>
+      <GlobalModal /> {/* 라우트 밖에서 렌더링 */}
+      <Toast /> {/* 라우트 밖에서 렌더링 */}
+    </Router>
+  );
+}
+```
+
+이런 구조에서 /cart → /products 라우팅 전환 시 이상한 일이 발생했습니다.
+
+```
+1. /cart 스냅샷 복원
+2. React 마운트 → Router가 현재 경로(/products) 인식
+3. Products 컴포넌트 렌더링
+4. 하지만 Cart 스냅샷의 DOM이 일부 남아있음
+   → Cart + Products UI가 섞여서 나타남
+```
+
+문제는 **라우트 외부의 컴포넌트**(Modal, Toast 등)였습니다. 이들은 React Portal을 통해 #root 밖에 렌더링되는데, 스냅샷에는 #root만 포함되니 제대로 복원되지 않았습니다.
+
+### MutationObserver로 감지
+
+이 문제를 해결하려면 #root의 자식 개수를 감시해야 했습니다. 단일 자식이 아니면 뭔가 잘못된 것입니다.
+
+```typescript
+// helpers.ts - 루트 가드
+function setupRootGuard(root: Element) {
+  const observer = new MutationObserver(() => {
+    if (root.children.length !== 1) {
+      console.warn('[Prepaint] Multiple root children detected. Resetting...');
+
+      // 수화 루트 언마운트
+      if (hydrationRoot) {
+        hydrationRoot.unmount();
+      }
+
+      // #root 정리
+      root.innerHTML = '';
+
+      // 클라이언트 렌더링으로 리셋
+      createRoot(root).render(element);
+
+      observer.disconnect();
+    }
+  });
+
+  observer.observe(root, { childList: true });
+}
+```
+
+MutationObserver가 #root의 자식 변경을 감시합니다. 1개가 아니면 즉시 감지해서 리셋합니다. 이렇게 하면 복잡한 라우팅이나 외부 스크립트 주입에도 자동으로 복구됩니다.
+
+<br />
+
+하지만 이것만으로는 부족했습니다. 아예 DOM에 손을 대지 않는 방법이 필요했습니다.
+
+## 해결 3: 오버레이 모드 (Shadow DOM)
+
+복잡한 앱을 위한 최종 해결책은 **오버레이 모드**였습니다. 스냅샷을 실제 DOM에 주입하지 않고, Shadow DOM으로 화면 전체를 덮는 것입니다.
+
+### Shadow DOM이란?
+
+Shadow DOM은 격리된 DOM 트리를 만드는 웹 표준입니다. Shadow DOM 안의 스타일과 마크업은 바깥쪽에 영향을 주지 않습니다.
+
+```typescript
+const host = document.createElement('div');
+const shadow = host.attachShadow({ mode: 'open' });
+
+shadow.innerHTML = '<p>This is isolated</p>';
+document.body.appendChild(host);
+
+// 바깥쪽 CSS가 shadow 안에 영향 안 줌
+// shadow 안의 CSS가 바깥쪽에 영향 안 줌
+```
+
+우리는 이걸 Prepaint 오버레이에 활용했습니다.
+
+### 오버레이 복원 로직
+
+```typescript
+// boot.ts (v0.3.0 - 오버레이 모드)
+(async function boot() {
+  const route = window.location.pathname;
+  const snapshot = await storage.get(`snapshot:${route}`);
+
+  if (!snapshot) return;
+  if (Date.now() - snapshot.timestamp > 7 * 24 * 60 * 60 * 1000) {
+    return;
+  }
+
+  // 오버레이 활성화 확인
+  const useOverlay =
+    window.__FIRSTTX_OVERLAY__ ||
+    localStorage.getItem('firsttx:overlay') === '1';
+
+  if (useOverlay) {
+    // Shadow DOM 오버레이 생성
+    const overlay = document.createElement('div');
+    overlay.id = 'firsttx-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 999999;
+      background: white;
+    `;
+
+    const shadow = overlay.attachShadow({ mode: 'open' });
+
+    // 스타일 주입
+    const style = document.createElement('style');
+    style.textContent = snapshot.styles;
+    shadow.appendChild(style);
+
+    // HTML 주입
+    const content = document.createElement('div');
+    content.innerHTML = snapshot.html;
+    shadow.appendChild(content);
+
+    document.body.appendChild(overlay);
+    document.documentElement.setAttribute('data-prepaint-overlay', '');
+  } else {
+    // 기본 인젝션 모드 (단일 루트)
+    const root = document.getElementById('root');
+    if (!root) return;
+
+    root.innerHTML = snapshot.html;
+
+    const style = document.createElement('style');
+    style.setAttribute('data-firsttx-prepaint', '');
+    style.textContent = snapshot.styles;
+    document.head.appendChild(style);
+
+    document.documentElement.setAttribute('data-prepaint', '');
+  }
+})();
+```
+
+오버레이 모드는 실제 #root를 건드리지 않습니다. 대신 화면 전체를 덮는 `position: fixed` 요소를 만들고, 그 안에 Shadow DOM으로 스냅샷을 렌더링합니다. 사용자는 똑같은 화면을 보지만, 실제 DOM은 깨끗합니다.
+
+### React 통합
+
+```typescript
+// helpers.ts (v0.3.0 - 오버레이 지원)
+export function createFirstTxRoot(
+  container: Element,
+  element: ReactElement,
+  options?: { transition?: boolean },
+): void {
+  setupCapture();
+
+  const strategy = handoff(); // 'has-prepaint' | 'has-prepaint-overlay' | 'cold-start'
+  const useTransition = options?.transition ?? true;
+
+  if (strategy === 'has-prepaint' || strategy === 'has-prepaint-overlay') {
+    if (useTransition && 'startViewTransition' in document) {
+      document.startViewTransition(() => {
+        // 오버레이 제거
+        if (strategy === 'has-prepaint-overlay') {
+          document.getElementById('firsttx-overlay')?.remove();
+        }
+
+        hydrateRoot(container, element, {
+          onRecoverableError: (error) => {
+            console.warn('[Prepaint] Hydration mismatch:', error);
+          },
+        });
+      });
+    } else {
+      if (strategy === 'has-prepaint-overlay') {
+        document.getElementById('firsttx-overlay')?.remove();
+      }
+      hydrateRoot(container, element);
+    }
+  } else {
+    createRoot(container).render(element);
+  }
+
+  // 정리
+  requestAnimationFrame(() => {
+    document.documentElement.removeAttribute('data-prepaint');
+    document.documentElement.removeAttribute('data-prepaint-overlay');
+    document
+      .querySelectorAll('style[data-firsttx-prepaint]')
+      .forEach((el) => el.remove());
+  });
+}
+```
+
+React가 마운트될 때 오버레이를 제거하고 실제 DOM을 렌더링합니다. ViewTransition으로 감싸면 오버레이 → 실제 화면 전환이 부드럽게 일어납니다.
+
+### 오버레이 모드의 장점
+
+오버레이 모드는 세 가지 큰 장점이 있었습니다.
+
+**1. DOM 충돌 제로**
+
+실제 #root를 건드리지 않으니 수화 충돌이 원천적으로 불가능합니다. React는 깨끗한 DOM에서 시작합니다.
+
+```html
+<!-- 오버레이 모드 -->
+<body>
+  <div id="root"></div>
+  <!-- 깨끗함 -->
+  <div id="firsttx-overlay">
+    #shadow-root
+    <!-- 스냅샷 (격리됨) -->
+  </div>
+</body>
+```
+
+**2. 복잡한 라우팅 지원**
+
+Portal이나 외부 스크립트가 DOM을 조작해도 문제없습니다. 오버레이는 단지 화면을 덮고 있을 뿐, 실제 DOM과 독립적입니다.
+
+**3. 디버깅 용이**
+
+오버레이가 있는 동안에는 실제 앱이 백그라운드에서 조용히 로드됩니다. 개발자 도구에서 두 레이어를 분리해서 볼 수 있습니다.
+
+### 오버레이 모드의 트레이드오프
+
+물론 단점도 있습니다.
+
+**1. 메모리 사용**
+
+오버레이와 실제 DOM이 동시에 존재하는 순간, 메모리가 2배로 필요합니다. 하지만 React 마운트 후 오버레이를 즉시 제거하므로 잠깐입니다.
+
+**2. 이벤트 차단**
+
+오버레이가 `z-index: 999999`로 전체를 덮으니, 사용자가 클릭이나 스크롤을 할 수 없습니다. 하지만 어차피 스냅샷은 정적 화면이니 문제없습니다.
+
+**3. 약간의 복잡도**
+
+인젝션 모드보다 코드가 복잡합니다. 하지만 복잡한 앱에서는 그만한 가치가 있습니다.
+
+### 언제 오버레이를 쓸까?
+
+사용자가 선택할 수 있게 했습니다.
+
+```typescript
+// 전역 플래그
+window.__FIRSTTX_OVERLAY__ = true;
+
+// 또는 localStorage
+localStorage.setItem('firsttx:overlay', '1');
+
+// 또는 특정 라우트만
+localStorage.setItem('firsttx:overlayRoutes', '/dashboard,/products');
+```
+
+권장 사항은 다음과 같습니다.
+
+```md
+| 앱 유형                            | 권장 모드     |
+| ---------------------------------- | ------------- |
+| 단순한 구조 (정적 라우팅)          | 인젝션 (기본) |
+| 복잡한 SPA (React Router + Portal) | 오버레이      |
+| CSS-in-JS 많이 사용                | 오버레이      |
+| 외부 스크립트 주입 (채팅, 분석)    | 오버레이      |
+```
+
+개발 중에는 양쪽을 테스트해보고, 더 안정적인 쪽을 선택하면 됩니다.
+
+## 성능 최적화: 1.74KB 부트 스크립트
+
+오버레이 모드까지 구현하고 나니, 부트 스크립트 크기가 문제가 되었습니다. 초기 버전은 3.2KB(gzip)였는데, 목표는 2KB 이하였습니다.
+
+### 최적화 전략
+
+**1. 스타일 필터링 최적화**
+
+```typescript
+// Before: 모든 시트 순회
+const styles = Array.from(document.styleSheets)
+  .flatMap((sheet) => {
+    try {
+      return Array.from(sheet.cssRules)
+        .filter((rule) => {
+          const element = rule.parentStyleSheet?.ownerNode;
+          return !element?.hasAttribute('data-firsttx-prepaint');
+        })
+        .map((rule) => rule.cssText);
+    } catch {
+      return [];
+    }
+  })
+  .join('\n');
+
+// After: 필요한 시트만 필터링
+const styles = Array.from(document.styleSheets)
+  .filter((sheet) => {
+    const owner = sheet.ownerNode;
+    return owner && !owner.hasAttribute('data-firsttx-prepaint');
+  })
+  .map((sheet) => {
+    try {
+      return Array.from(sheet.cssRules)
+        .map((r) => r.cssText)
+        .join('\n');
+    } catch {
+      return '';
+    }
+  })
+  .join('\n');
+```
+
+시트 레벨에서 먼저 필터링하면 불필요한 반복을 줄일 수 있습니다.
+
+**2. 조건부 오버레이 로직**
+
+```typescript
+// 오버레이 관련 코드를 조건부로만 실행
+if (useOverlay) {
+  // 오버레이 생성 (500 bytes)
+} else {
+  // 인젝션 (200 bytes)
+}
+```
+
+두 모드를 완전히 분리하면 코드 중복을 줄일 수 있습니다.
+
+**3. 주석과 공백 제거**
+
+Terser로 압축하면서 주석, 공백, 긴 변수명을 모두 제거했습니다.
+
+```typescript
+// Before
+const snapshotData = await storage.get(`snapshot:${route}`);
+if (!snapshotData) return;
+
+// After (minified)
+const s = await storage.get(`snapshot:${r}`);
+if (!s) return;
+```
+
+### 최종 결과
+
+최적화 후 부트 스크립트는 **1.74KB(gzip)**로 줄었습니다.
+
+```md
+| 항목           | 크기       |
+| -------------- | ---------- |
+| 기본 복원 로직 | 0.8KB      |
+| 스타일 수집    | 0.4KB      |
+| 오버레이 모드  | 0.3KB      |
+| TTL 체크       | 0.1KB      |
+| 기타           | 0.14KB     |
+| **총합**       | **1.74KB** |
+```
+
+목표였던 2KB를 달성했고, 실행 시간도 ~15ms로 유지했습니다. HTML 파싱 직후 즉시 실행되므로, 사용자는 빈 화면을 거의 보지 않습니다.
+
+## 마무리: 80%와 100% 사이
+
+Prepaint의 여정을 돌아보면, 세 가지 큰 위기가 있었습니다. 중복 렌더링, 수화 불일치, 복잡한 라우팅. 각각을 단일 루트 인젝션, ViewTransition, 오버레이 모드로 해결했습니다. 하지만 가장 중요한 결정은 **"100% 완벽을 포기하고 80% 케이스에 집중하기"**였습니다.
+
+<br />
+
+처음에는 모든 CSS-in-JS 라이브러리와 호환되고, 모든 앱 구조를 지원하고, 완벽한 수화를 보장하려 했습니다. 하지만 그건 불가능했습니다. CSS-in-JS 해시 알고리즘을 완벽히 예측할 수 없고, 외부 스크립트가 DOM을 어떻게 조작할지 알 수 없고, 사용자가 어떤 라우팅 라이브러리를 쓸지 모릅니다. 완벽을 추구하다 보면 복잡도가 기하급수적으로 증가하고, 결국 아무도 쓸 수 없는 라이브러리가 됩니다.
+
+<br />
+
+대신 우리는 **"80%는 완벽하게, 20%는 우아하게"**를 선택했습니다. 대부분의 케이스에서는 즉시 복원되고 부드럽게 수화됩니다. 나머지 케이스에서는 React가 자동으로 복구하고, ViewTransition이 전환을 부드럽게 만듭니다. 사용자는 100% 부드러운 경험을 하지만, 내부적으로는 80%만 완벽합니다. 이게 실용적인 트레이드오프였습니다.
+
+<br />
+
+현재 v0.3.0은 다음을 달성했습니다.
+
+- **BlankScreenTime ~0ms**: 재방문 시 빈 화면 제거
+- **PrepaintTime ~20ms**: 부트 스크립트 실행 15ms
+- **HydrationSuccess ~82%**: 수화 성공률
+- **ViewTransitionSmooth ~95%**: 부드러운 전환 비율
+- **BootScriptSize 1.74KB**: 목표 달성
+
+다음 단계는 BroadcastChannel을 통한 멀티탭 동기화와, Esbuild 플러그인 완성입니다. 하지만 핵심 기능은 완성되었습니다. Prepaint는 이제 프로덕션에서 사용할 수 있습니다.
+
+<br />
+
+기술적 결정은 항상 트레이드오프를 수반합니다. body 전체가 아니라 단일 루트만 캡처한 것, 완벽한 예측 대신 우아한 복구를 선택한 것, 인젝션과 오버레이 두 모드를 제공한 것. 각 결정의 근거를 명확히 하고, 그 근거를 코드와 문서에 반영하는 게 중요했습니다.
