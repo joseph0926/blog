@@ -42,6 +42,11 @@ const POST_COMPONENT_MAP = {
     'AutoSyncComparison',
   ],
   '2025-10-12-csr-prepaint': [],
+  '2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot': [
+    'ProfilerResult',
+    'ServiceComparison',
+    'BackButtonDemo',
+  ],
 };
 
 const COMPONENT_IMPORT_MAP = {
@@ -75,6 +80,10 @@ const COMPONENT_IMPORT_MAP = {
   MemoryCachePatternDemo:
     '@/mdx/components/local-first/memory-cache-pattern-demo',
   AutoSyncComparison: '@/mdx/components/local-first/auto-sync-comparison',
+
+  ProfilerResult: '@/mdx/components/url/profiler-result',
+  ServiceComparison: '@/mdx/components/url/service-comparison',
+  BackButtonDemo: '@/mdx/components/url/back-button-demo',
 };
 
 function slugToFunctionName(slug) {

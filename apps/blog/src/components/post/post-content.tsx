@@ -166,6 +166,21 @@ const postComponents = {
       ),
     },
   ),
+  '2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot':
+    dynamic(
+      () =>
+        import(
+          './mdx-posts/2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot'
+        ).then(
+          (m) =>
+            m.Post_2025_10_27_Cheukjeothago_Bigyohago_Pandanhagi_Pilteo_Guhyeon_Sago_Gwajeot,
+        ),
+      {
+        loading: () => (
+          <div className="h-[67vh] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+        ),
+      },
+    ),
 } as const;
 
 interface PostContentProps {

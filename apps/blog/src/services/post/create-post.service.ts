@@ -17,23 +17,22 @@ export const createPost = async (
 
     const slug = generateSlug(title);
     const date = new Date().toISOString().split('T')[0];
-    const fileName = `${date}-${slug}.mdx`;
 
-    const existingPost = await prisma.post.findUnique({
-      where: {
-        slug: `${date}-${slug}`,
-      },
-    });
-    if (existingPost) {
-      console.error(`createPost > existingPost Error`);
-      throw new Error('이미 존재하는 slug입니다');
+    let finalSlug = `${date}-${slug}`;
+    let counter = 2;
+
+    while (await prisma.post.findUnique({ where: { slug: finalSlug } })) {
+      finalSlug = `${date}-${slug}-${counter}`;
+      counter++;
     }
+
+    const fileName = `${finalSlug}.mdx`;
 
     let post = null;
     try {
       post = await prisma.post.create({
         data: {
-          slug: `${date}-${slug}`,
+          slug: finalSlug,
           title,
           description,
           tags: {
@@ -58,7 +57,7 @@ export const createPost = async (
       title: post.title,
       description: post.description,
       tags,
-      slug: post.slug,
+      slug,
     });
     const postsPath = path.join(process.cwd(), 'src/mdx');
 
@@ -79,7 +78,6 @@ export const createPost = async (
         }
       }
 
-      console.log(`새 글 생성에 실패하였습니다: ${fileError}`);
       throw new Error(`새 글 생성에 실패하였습니다: ${fileName}`);
     }
 

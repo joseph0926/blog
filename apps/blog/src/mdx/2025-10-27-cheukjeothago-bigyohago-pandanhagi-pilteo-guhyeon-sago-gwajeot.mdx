@@ -1,0 +1,235 @@
+---
+slug: '2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot'
+title: '측정하고, 비교하고, 판단하기 - 필터 구현 사고 과정'
+description: '필터를 구현하면서 불안감을 질문으로, 질문을 측정으로, 측정을 확신으로 사고한 과정'
+date: '2025-10-27'
+tags: ['react', 'learn']
+---
+
+## 시작: 막연한 불안감
+
+실무에서 로그 조회 시스템을 만들 때, 필터 구현 방법을 고민했습니다. 날짜 범위와 검색어를 URL로 관리할지, 아니면 로컬스토리지나 클라이언트 상태로 관리할지 결정해야 했습니다.
+
+처음엔 URL 방식이 맞다고 생각했지만, 막연한 불안감이 있었습니다.
+
+"URL로 관리하면 필터 바꿀 때마다 리렌더링이 많이 일어나지 않을까?"<br/>
+"검색어를 타이핑할 때마다 URL이 바뀌면 성능 문제가 생기지 않을까?"
+
+구체적으로 무엇이 문제인지 설명하진 못했지만, 뭔가 걱정스러웠습니다.
+
+---
+
+## 1단계: 불안감의 정체 찾기
+
+"왜 리렌더링이 걱정되는가?"라는 질문부터 시작했습니다.
+
+리렌더링 자체가 문제라기보다, 제가 실제로 걱정한 건 이것이었습니다
+
+- 여러 필터를 하나의 `useEffect`로 다루면 상태 변경마다 실행됩니다
+- `useEffect` 의존성 배열에 여러 개가 들어가면 뭔가 비효율적일 것 같습니다
+- 검색어 타이핑할 때마다 서버 호출이 늘어나면 문제가 생길 것 같습니다
+
+```tsx
+// 이런 코드가 걱정스러웠습니다
+const [startDate, setStartDate] = useState('');
+const [endDate, setEndDate] = useState('');
+const [search, setSearch] = useState('');
+
+useEffect(() => {
+  const params = new URLSearchParams();
+  if (startDate) params.set('start', startDate);
+  if (endDate) params.set('end', endDate);
+  if (search) params.set('search', search);
+
+  window.history.pushState({}, '', `?${params}`);
+}, [startDate, endDate, search]);
+```
+
+정리하면 제 불안감의 정체는 "리렌더링 = 성능 최적화 실패"라는 고정관념에서 나온 것이었습니다.
+
+---
+
+## 2단계: 실제로 측정하기
+
+추측만 하지 말고 측정하기로 했습니다. React Profiler와 console.log로 실제 성능을 확인했습니다.
+
+```tsx
+import { Profiler, ProfilerOnRenderCallback } from 'react';
+
+const onRenderCallback: ProfilerOnRenderCallback = (
+  id,
+  phase,
+  actualDuration,
+) => {
+  console.log('Profiler:', {
+    id,
+    phase,
+    actualDuration: `${actualDuration.toFixed(2)}ms`,
+  });
+};
+
+export default function App() {
+  return (
+    <Profiler id="UrlSection" onRender={onRenderCallback}>
+      <UrlSection />
+    </Profiler>
+  );
+}
+```
+
+```tsx
+export const UrlSection = () => {
+  console.log('UrlSection 렌더링');
+
+  useEffect(() => {
+    console.log('useEffect 실행:', { startDate, endDate, search });
+
+    const before = performance.now();
+    window.history.pushState({}, '', `?${params}`);
+    const after = performance.now();
+
+    console.log(`pushState 소요 시간: ${(after - before).toFixed(3)}ms`);
+  }, [startDate, endDate, search]);
+
+  // ...
+};
+```
+
+<ProfilerResult />
+
+**측정 결과**
+
+- 렌더링 시간: 1.6~1.8ms
+- pushState 실행 시간: 0.4~0.6ms
+- 전체 프로세스: 약 2ms
+
+성능 인식 기준을 보면:
+
+- 100ms 이상: 사용자가 느림을 인지
+- 16ms 이상: 60fps 밑으로 떨어짐
+- 1~2ms: 무시 가능
+
+제 걱정은 기우였습니다. `window.history.pushState()`는 브라우저 히스토리 스택에 객체 하나를 추가하는 작업일 뿐, 네트워크 요청이나 DOM 조작이 아니었습니다.
+
+여기서 배운 것: "리렌더링 = 나쁨"이 항상 맞지 않습니다. 최적화는 측정된 문제가 있을 때 하는 것입니다.
+
+---
+
+## 3단계: 실제 서비스 리서치
+
+다른 서비스들은 어떻게 구현했는지 확인했습니다.
+
+**당근마켓**
+
+```
+?in=물금읍-3662&price=100__100000&search=노트북
+```
+
+**쿠팡**
+
+```
+?filterType=&rating=0&minPrice=680000&maxPrice=1360000
+&brand=257&q=노트북
+```
+
+**구글**
+
+```
+?q=₩300,000부터+₩800,000까지+노트북
+```
+
+세 서비스 모두 URL로 필터를 관리했습니다. 그런데 한 가지 패턴이 보였습니다.
+
+<ServiceComparison />
+
+**UI 배치의 차이**
+
+- 검색창: 네비게이션 바 (상단, 눈에 띄는 위치)
+- 필터들: 사이드바 (보조적 위치)
+
+왜 이렇게 분리했을까요? 실험을 해봤습니다.
+
+**쿠팡에서 실험**
+
+1. 가격 필터 설정 (50만원~100만원)
+2. 검색창에 "노트북" 입력 후 검색
+3. 결과: 가격 필터가 초기화됨
+
+검색이 더 큰 범위입니다. 검색은 전체 컨텍스트를 바꾸는 행동이고, 필터는 검색 결과 안에서의 세부 조정입니다.
+
+여기서 배운 것: 같은 "필터"라는 카테고리지만 역할이 다르면 다르게 처리해야 합니다.
+
+---
+
+## 4단계: 사용자 관점으로 전환
+
+URL 방식을 선택했지만, 또 다른 고민이 생겼습니다. `pushState`와 `replaceState` 중 무엇을 써야 할까요?
+
+```tsx
+// pushState: 히스토리 스택에 추가
+window.history.pushState({}, '', `?${params}`);
+
+// replaceState: 현재 항목 교체
+window.history.replaceState({}, '', `?${params}`);
+```
+
+차이를 테스트했습니다.
+
+**pushState 테스트**
+
+1. 검색창에 "골드아이템버그" 타이핑 (8글자)
+2. 뒤로가기 버튼 클릭
+3. 결과: 8번 눌러야 이전 페이지로 돌아감
+
+**replaceState 테스트**
+
+1. 검색창에 "골드아이템버그" 타이핑 (8글자)
+2. 뒤로가기 버튼 클릭
+3. 결과: 1번만 누르면 이전 페이지로 돌아감
+
+<BackButtonDemo />
+
+어느 쪽이 나을까요? 사용자의 "의도"를 생각해봤습니다.
+
+사용자가 뒤로가기를 누를 때,
+
+- 타이핑 과정 하나하나로 돌아가고 싶을까요?
+- 아니면 "검색"이라는 의도 자체를 되돌리고 싶을까요?
+
+"골드아이템버그"를 입력하는 것은 **수단**이고, "골드아이템버그를 검색하겠다"가 **의도**입니다. 히스토리는 의도 단위로 쌓여야 합니다.
+
+그래서 검색어는 debounce를 적용하거나 Enter 키/검색 버튼을 통해 명시적으로 완료를 표시하도록 했습니다. 날짜 필터는 선택하는 순간이 완료 시점이므로 즉시 `pushState`를 사용했습니다.
+
+---
+
+## 회고: 배운 판단 원칙들
+
+이 과정에서 배운 다섯 가지 원칙입니다.
+
+### 1. 막연한 불안을 구체적 시나리오로
+
+"리렌더링이 걱정돼요"는 막연합니다. "useEffect가 여러 번 실행되면 서버 호출이 늘어나서 걱정됩니다"가 구체적입니다. 구체화하면 검증할 수 있습니다.
+
+### 2. 추측하지 말고 측정하기
+
+React Profiler로 1.8ms를 확인하기 전까지는 그냥 추측이었습니다. 측정하면 막연한 불안이 구체적 숫자가 됩니다.
+
+### 3. 혼자 고민하지 말고 리서치하기
+
+당근, 쿠팡, 구글이 이미 검증한 패턴이 있습니다. 바퀴를 재발명할 필요가 없습니다. 다만 왜 그렇게 만들었는지 이유를 추론하는 것이 중요합니다.
+
+### 4. 최적화는 이유가 있을 때
+
+"할 수 있으면 무조건 하는 게 맞다"가 아니라 "지금 필요한 이유를 생각하고 적용하자"입니다. 측정된 문제가 없다면 최적화는 과최적화입니다.
+
+### 5. 기술보다 사용자 관점
+
+pushState vs replaceState 선택은 기술적 차이보다 "사용자가 뒤로가기를 눌렀을 때 무엇을 기대하는가"를 기준으로 결정했습니다. 코드를 짜기 전에 사용자를 생각해야 합니다.
+
+---
+
+## 마무리
+
+필터 하나를 구현하면서 많은 것을 배웠습니다. 단순히 "URL로 필터를 관리하는 법"이 아니라, 불안감을 질문으로, 질문을 측정으로, 측정을 확신으로 바꾸는 사고 과정을 연습했습니다.
+
+다음에 또 다른 기술 선택 앞에서 망설이게 된다면, 이 다섯 가지 원칙을 떠올릴 것입니다.
