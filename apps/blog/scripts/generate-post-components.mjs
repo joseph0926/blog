@@ -47,6 +47,15 @@ const POST_COMPONENT_MAP = {
     'ServiceComparison',
     'BackButtonDemo',
   ],
+
+  '2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka':
+    [
+      'CodeTransformAnimation',
+      'RSCPayloadVisualization',
+      'HydrationTimeline',
+      'BundleSplitDiagram',
+      'BundleSizeComparison',
+    ],
 };
 
 const COMPONENT_IMPORT_MAP = {
@@ -84,6 +93,13 @@ const COMPONENT_IMPORT_MAP = {
   ProfilerResult: '@/mdx/components/url/profiler-result',
   ServiceComparison: '@/mdx/components/url/service-comparison',
   BackButtonDemo: '@/mdx/components/url/back-button-demo',
+
+  CodeTransformAnimation: '@/mdx/components/rsc-build/code-transform-animation',
+  RSCPayloadVisualization:
+    '@/mdx/components/rsc-build/rsc-payload-visualization',
+  HydrationTimeline: '@/mdx/components/rsc-build/hydration-timeline',
+  BundleSplitDiagram: '@/mdx/components/rsc-build/bundle-split-diagram',
+  BundleSizeComparison: '@/mdx/components/rsc-build/bundle-size-comparison',
 };
 
 function slugToFunctionName(slug) {

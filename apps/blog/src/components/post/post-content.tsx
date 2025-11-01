@@ -181,6 +181,21 @@ const postComponents = {
         ),
       },
     ),
+  '2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka':
+    dynamic(
+      () =>
+        import(
+          './mdx-posts/2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka'
+        ).then(
+          (m) =>
+            m.Post_2025_11_01_Rscneun_Eotteoundefinedge_Seobeokeulraieonteu_Beondeuleul_Nanulkka,
+        ),
+      {
+        loading: () => (
+          <div className="h-[67vh] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+        ),
+      },
+    ),
 } as const;
 
 interface PostContentProps {

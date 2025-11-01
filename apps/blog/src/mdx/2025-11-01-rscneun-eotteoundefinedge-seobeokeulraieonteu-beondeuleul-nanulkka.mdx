@@ -1,0 +1,400 @@
+---
+slug: '2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka'
+title: 'RSC는 어떻게 서버/클라이언트 번들을 나눌까'
+description: 'React Server Components를 사용하면 클라이언트 번들 크기가 줄어든다는 것은 알지만, 실제로 어떤 메커니즘으로 번들이 분리되는지는 명확하지 않았습니다. Next.js 저장소의 실제 코드를 추적하며 빌드 타임부터 런타임까지의 처리 과정을 확인했습니다.'
+date: '2025-11-01'
+tags: ['nextjs', 'react']
+---
+
+## 번들이 줄어든다는데, 어떻게?
+
+RSC가 번들 크기를 줄인다는 것은 알지만, 실제 구현 메커니즘은 명확하지 않았습니다. Next.js 저장소 코드를 추적하며 빌드 타임부터 런타임까지의 번들 분리 과정을 확인했습니다.
+
+핵심 질문은 이것이었습니다: **같은 파일이 서버와 클라이언트에 다르게 번들링된다는 게 무슨 의미인가?**
+
+```tsx
+// components/Button.tsx
+'use client';
+
+export default function Button() {
+  return <button onClick={() => alert('clicked')}>Click</button>;
+}
+
+// app/page.tsx
+import Button from '@/components/Button';
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <Button />
+    </div>
+  );
+}
+```
+
+이 간단한 코드에서, `Button.tsx`는 서버 번들과 클라이언트 번들에 각각 어떻게 포함될까요? 그리고 서버 컴포넌트인 `Page`는 어디에 들어갈까요?
+
+---
+
+## 1. 'use client'의 정체
+
+먼저 `'use client'` 지시어가 빌드 과정에서 어떻게 처리되는지 추적했습니다.
+
+### webpack 로더의 역할
+
+Next.js는 `next-swc-loader`에서 파일을 분석합니다,
+
+```typescript
+// packages/next/src/build/webpack/loaders/next-swc-loader.ts
+const FORCE_TRANSPILE_CONDITIONS =
+  /next\/font|next\/dynamic|use server|use client|use cache/;
+
+async function loaderTransform(
+  this: LoaderContext<SWCLoaderOptions>,
+  source?: string,
+  inputSourceMap?: any,
+) {
+  // 'use client'가 있는지 체크
+  if (shouldMaybeExclude && !FORCE_TRANSPILE_CONDITIONS.test(source)) {
+    return [source, inputSourceMap];
+  }
+
+  // SWC로 변환
+  return transform(source as any, programmaticOptions);
+}
+```
+
+이 로더는 `'use client'` 문자열을 찾으면 SWC(Rust 컴파일러)에게 변환을 요청합니다.
+
+### SWC의 변환
+
+SWC는 `'use client'`를 주석으로 변환합니다,
+
+```typescript
+// 변환 전
+'use client'
+export default function Button() { ... }
+
+// 변환 후 (개념적)
+/* __next_internal_client_entry_do_not_use__ default auto */
+export default function Button() { ... }
+```
+
+이 주석은 이후 단계에서 파일이 Client Component임을 표시하는 마커 역할을 합니다.
+
+### next-flight-loader의 처리
+
+다음으로 `next-flight-loader`가 이 주석을 감지하고 번들별로 다르게 처리합니다,
+
+```typescript
+// packages/next/src/build/webpack/loaders/next-flight-loader/index.ts
+export default function transformSource(
+  this: LoaderContext<undefined>,
+  source: string,
+  sourceMap: any,
+) {
+  const buildInfo = getModuleBuildInfo(module);
+  buildInfo.rsc = getRSCModuleInformation(source, true);
+
+  // Client Component인 경우
+  if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
+    const stringifiedResourceKey = JSON.stringify(resourceKey);
+
+    // 서버 번들용: 실제 코드를 참조로 대체
+    if (assumedSourceType === 'module') {
+      let esmSource = `
+import { registerClientReference } from "react-server-dom-webpack/server";
+
+export default registerClientReference(
+  function() { 
+    throw new Error(\`Attempted to call the default export of \${stringifiedResourceKey} from the server\`);
+  },
+  ${stringifiedResourceKey},
+  "default",
+);
+`;
+      return this.callback(null, esmSource, sourceMap);
+    }
+  }
+
+  // Client Component가 아니면 원본 그대로
+  return this.callback(null, source, sourceMap);
+}
+```
+
+<CodeTransformAnimation />
+
+여기서 핵심은 **같은 파일이 두 번 처리된다**는 점입니다.
+
+- 서버 번들: `registerClientReference` 호출로 대체
+- 클라이언트 번들: 원본 코드 그대로
+
+---
+
+## 2. 참조 객체의 구조
+
+`registerClientReference`가 반환하는 것은 무엇일까요?
+
+React의 코드를 보면,
+
+```typescript
+// packages/react-server-dom-webpack/src/ReactFlightWebpackReferences.js
+export function registerClientReference(proxyImplementation, id, exportName) {
+  return Object.defineProperties(proxyImplementation, {
+    $$typeof: { value: CLIENT_REFERENCE },
+    $$id: { value: id },
+    $$async: { value: false },
+    // ...
+  });
+}
+```
+
+반환되는 객체는 특별한 `$$typeof` 속성을 가진 **참조 객체**입니다.
+
+```typescript
+{
+  $$typeof: Symbol.for('react.client.reference'),
+  $$id: '/absolute/path/to/Button.tsx#default',
+  $$async: false
+}
+```
+
+이 객체는 실제 컴포넌트가 아니라, "여기에 클라이언트 컴포넌트가 있다"는 표식입니다.
+
+---
+
+## 3. 서버에서의 직렬화
+
+서버에서 컴포넌트를 렌더링할 때, 이 참조 객체를 만나면 어떻게 될까요?
+
+```tsx
+// app/page.tsx (Server Component)
+export default function Page() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <Button /> {/* 실제로는 참조 객체 */}
+    </div>
+  );
+}
+```
+
+React는 트리를 순회하면서 참조 객체를 발견하면 RSC Payload로 직렬화합니다.
+
+```typescript
+// packages/react-server/src/ReactFlightServer.js (개념적)
+function renderElement(element) {
+  if (element.$$typeof === CLIENT_REFERENCE) {
+    // 참조 정보를 직렬화
+    return serializeClientReference(element);
+  }
+  // 일반 요소는 그대로 렌더링
+}
+```
+
+최종적으로 생성되는 RSC Payload,
+
+```
+M1: {"id":"./src/components/Button.tsx","name":"default","chunks":["client123"]}
+0: ["$","div",null,{"children":[
+0:   ["$","h1",null,{"children":"Welcome"}],
+0:   ["$","@1"]
+0: ]}]
+```
+
+<RSCPayloadVisualization />
+
+여기서,
+
+- `M1`: Client Component 정의 (파일 경로, export 이름, 청크 ID)
+- `@1`: "M1을 여기 렌더링하라"는 플레이스홀더
+
+---
+
+## 4단계: 클라이언트에서의 복원
+
+브라우저가 이 데이터를 받으면,
+
+```html
+<!DOCTYPE html>
+<html>
+  <body>
+    <div>
+      <h1>Welcome</h1>
+    </div>
+
+    <script>
+      self.__next_f.push([
+        1,
+        'M1:{"id":"./Button.tsx","chunks":["client123"]}',
+      ]);
+      self.__next_f.push([1, '0:["$","div",null,{"children":...}]']);
+    </script>
+    <script src="/_next/static/chunks/client-123.js" async></script>
+  </body>
+</html>
+```
+
+처리 과정,
+
+1. **HTML 파싱**: `<h1>Welcome</h1>`이 즉시 화면에 보임
+2. **RSC Payload 저장**: `self.__next_f` 배열에 누적
+3. **청크 로드**: `client-123.js`에서 실제 Button 컴포넌트 가져옴
+4. **하이드레이션**: `@1` 위치에 실제 컴포넌트 연결
+
+<HydrationTimeline />
+
+클라이언트 번들의 실제 내용,
+
+```javascript
+// client-chunk-123.js
+export default function Button() {
+  return React.createElement(
+    'button',
+    {
+      onClick: () => alert('clicked'),
+    },
+    'Click',
+  );
+}
+```
+
+원본 코드가 그대로 들어있습니다. 서버 번들과 달리 실제 실행 가능한 코드입니다.
+
+---
+
+## 정리: 번들 분리의 메커니즘
+
+전체 과정을 정리하면,
+
+### 빌드 타임
+
+```typescript
+// 1. 개발자가 작성
+'use client'
+export default function Button() { ... }
+
+// 2. SWC 변환
+/* __next_internal_client_entry_do_not_use__ */
+export default function Button() { ... }
+
+// 3. next-flight-loader 분기
+// 서버 번들:
+export default registerClientReference(...)
+
+// 클라이언트 번들:
+export default function Button() { ... }  // 원본 유지
+```
+
+### 런타임
+
+```typescript
+// 4. 서버 렌더링
+<Page>
+  → <Button /> (참조 객체 발견)
+  → RSC Payload 생성: M1: {...}, @1
+
+// 5. 클라이언트 수신
+HTML: <div><h1>Welcome</h1></div>
+Payload: M1, @1
+Chunk: client-123.js
+
+// 6. 하이드레이션
+@1 위치 + client-123.js → 실제 Button 렌더링
+```
+
+<BundleSplitDiagram />
+
+---
+
+## 번들 크기가 줄어드는 이유
+
+이제 RSC의 이점이 명확해집니다.
+
+```tsx
+// Server Component
+import _ from 'lodash'; // 2MB 라이브러리
+import { db } from './db';
+
+export default async function Page() {
+  const users = await db.getUsers();
+  const grouped = _.groupBy(users, 'country');
+
+  return (
+    <div>
+      <UserList data={grouped} /> {/* Client Component */}
+    </div>
+  );
+}
+```
+
+**서버 번들에만 포함**
+
+- Server Component 코드 (Page)
+- lodash 라이브러리
+- 데이터베이스 접근 코드
+
+**클라이언트 번들에만 포함**
+
+- Client Component 코드 (UserList)
+- UserList가 사용하는 라이브러리만
+
+**클라이언트로 전송**
+
+- Server Component의 실행 **결과** (HTML + RSC Payload)
+- Client Component 참조 정보
+- Server Component 코드는 전송 안됨
+
+<BundleSizeComparison />
+
+같은 파일도 어디서 사용하느냐에 따라 번들이 결정됩니다.
+
+```tsx
+// 서버에서만 사용 → 서버 번들에만
+import _ from 'lodash';
+
+// 클라이언트에서만 사용 → 클라이언트 번들에만
+('use client');
+import _ from 'lodash';
+
+// 둘 다 사용 → 양쪽 번들 모두
+```
+
+---
+
+마지막으로 핵심을 정리해보면,
+
+### 1. 'use client'는 빌드 타임 마커
+
+런타임 동작을 바꾸는 게 아니라, webpack이 번들을 나눌 때 사용하는 표식입니다. SWC → next-flight-loader로 이어지는 파이프라인이 이를 처리합니다.
+
+### 2. 같은 파일, 다른 처리
+
+Client Component 파일은 두 번 번들링됩니다.
+
+- 서버용: 참조 객체로 대체
+- 클라이언트용: 원본 코드 유지
+
+### 3. 직렬화가 핵심
+
+서버의 참조 객체가 RSC Payload로 직렬화되고, 클라이언트에서 실제 컴포넌트로 복원되는 과정이 RSC의 핵심입니다.
+
+### 4. 번들 분리는 자동
+
+개발자는 `'use client'`만 쓰면 되고, 나머지는 빌드 시스템이 알아서 처리합니다. webpack이 의존성 그래프를 분석해서 최적의 번들을 생성합니다.
+
+---
+
+## 마무리
+
+RSC의 번들 분리는 단순히 "마법"이 아니라, 체계적인 빌드 파이프라인의 결과였습니다.
+
+`'use client'` 한 줄이 SWC 변환 → webpack 로더 → 참조 객체 생성 → RSC Payload 직렬화 → 하이드레이션으로 이어지는 전체 프로세스를 작동시킵니다.
+
+이 메커니즘을 이해하면, RSC를 사용할 때 "왜 이렇게 동작하는지", "어떤 코드가 어디에 포함되는지"를 명확하게 판단할 수 있습니다.
+
+더 깊은 구현 디테일은 Next.js와 React 저장소에서 확인할 수 있습니다,
+
+- `packages/next/src/build/webpack/loaders/next-flight-loader/`
+- `packages/react-server-dom-webpack/src/`
