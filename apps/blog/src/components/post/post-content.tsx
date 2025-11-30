@@ -143,9 +143,7 @@ const postComponents = {
   ),
   '2025-10-12-local-first-usesyncexternalstore-indexeddb-react': dynamic(
     () =>
-      import(
-        './mdx-posts/2025-10-12-local-first-usesyncexternalstore-indexeddb-react'
-      ).then(
+      import('./mdx-posts/2025-10-12-local-first-usesyncexternalstore-indexeddb-react').then(
         (m) =>
           m.Post_2025_10_12_Local_First_Usesyncexternalstore_Indexeddb_React,
       ),
@@ -169,9 +167,7 @@ const postComponents = {
   '2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot':
     dynamic(
       () =>
-        import(
-          './mdx-posts/2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot'
-        ).then(
+        import('./mdx-posts/2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot').then(
           (m) =>
             m.Post_2025_10_27_Cheukjeothago_Bigyohago_Pandanhagi_Pilteo_Guhyeon_Sago_Gwajeot,
         ),
@@ -184,9 +180,7 @@ const postComponents = {
   '2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka':
     dynamic(
       () =>
-        import(
-          './mdx-posts/2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka'
-        ).then(
+        import('./mdx-posts/2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka').then(
           (m) =>
             m.Post_2025_11_01_Rscneun_Eotteoundefinedge_Seobeokeulraieonteu_Beondeuleul_Nanulkka,
         ),

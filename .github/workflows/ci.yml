@@ -9,7 +9,7 @@ jobs:
   lintandbuild:
     runs-on: ubuntu-22.04
     env:
-      PNPM_VERSION: 10.19.0
+      PNPM_VERSION: 10.24.0
       NODE_VERSION: 22
       NEXT_TELEMETRY_DISABLED: 1
     steps:
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
       - name: Restore pnpm store
         uses: actions/cache@v4
         with:

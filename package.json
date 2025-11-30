@@ -52,7 +52,7 @@
   },
   "author": "joseph0926",
   "engines": {
-    "node": ">=22.21.0"
+    "node": ">=22"
   },
-  "packageManager": "pnpm@10.19.0"
+  "packageManager": "pnpm@10.24.0"
 }
