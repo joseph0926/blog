@@ -250,7 +250,7 @@ export function PostDialog({
                   <FormControl>
                     <MultiSelect
                       options={tagOptions}
-                      values={field.value}
+                      values={field.value ?? []}
                       onChange={field.onChange}
                       placeholder="태그 선택 또는 생성"
                       creatable={true}

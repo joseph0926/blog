@@ -81,20 +81,6 @@
 │   │   │   └── types
 │   │   ├── tsconfig.json
 │   │   └── tsconfig.tsbuildinfo
-│   └── planner
-│       ├── app
-│       │   ├── components
-│       │   │   └── layout
-│       │   ├── constants
-│       │   ├── lib
-│       │   └── routes
-│       ├── components.json
-│       ├── package.json
-│       ├── prisma
-│       │   └── schema.prisma
-│       ├── public
-│       ├── README.md
-│       └── tsconfig.json
 ├── eslint.config.mjs
 ├── package.json
 ├── packages
@@ -121,7 +107,6 @@ pnpm build
 # 실행
 pnpm dev
 # blog(next.js): localhost:3000
-# planner(react-router): localhost:5173
 
 # 체크
 pnpm lint:fix
