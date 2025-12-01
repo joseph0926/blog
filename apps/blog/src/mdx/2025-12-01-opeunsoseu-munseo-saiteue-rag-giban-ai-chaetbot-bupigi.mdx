@@ -1,0 +1,570 @@
+---
+slug: '2025-12-01-opeunsoseu-munseo-saiteue-rag-giban-ai-chaetbot-bupigi'
+title: '오픈소스 문서 사이트에 RAG 기반 AI 챗봇 붙이기'
+description: '오픈소스 라이브러리 문서에 RAG 기반 AI 챗봇을 붙인 과정을 공유합니다. 기술 선택부터 비용 최적화까지, 실제 구현 과정을 정리했습니다.'
+date: '2025-12-01'
+tags: ['ai', 'firsttx']
+---
+
+## 오픈소스 문서에 AI 챗봇을 도입한 이유
+
+Firsttx는 Prepaint, Local-First, Tx 세개의 레이어로 구성된 오픈소스입니다.
+
+- Prepaint는 CSR React 앱의 재방문 시 빈 화면 문제를 해결합니다.
+- Local-First는 IndexedDB 기반의 데이터 레이어입니다.
+- Tx는 낙관적 업데이트를 트랜잭션으로 관리하는 라이브러리입니다.
+
+각 패키지의 역할은 명확하지만, 세 개를 조합해서 사용하는 개념이 생소할 수 있습니다. 문서를 작성했지만 "처음 보는 사람이 쉽게 시작할 수 있을까?"라는 고민이 남았습니다.
+
+그러던 중, 최근 RAG 기반 문서 챗봇들이 많아진 걸 보고 Firsttx 문서에도 붙이면 좋겠다는 생각이 들었습니다. 이 글에서는 실제로 AI 챗봇을 구현한 과정을 공유합니다.
+
+- 어떤 기술을 선택했고, 왜 그랬는지
+- RAG 파이프라인을 어떻게 구축했는지
+- 비용과 운영을 어떻게 고려했는지
+
+완성된 챗봇은 다음과 같이 동작합니다.
+
+**Firsttx 관련 질문 시 - RAG 기반 답변**
+
+![Firsttx 관련 질문에 대한 RAG 기반 답변](https://res.cloudinary.com/dx25hswix/image/upload/v1764582254/firsttx-ai-01_kxl7wz.gif)
+
+**관련 없는 질문 시 - 범위 안내**
+
+![관련 없는 질문에 대한 안내 메시지](https://res.cloudinary.com/dx25hswix/image/upload/v1764582254/firsttx-ai-02_ad9dyv.gif)
+
+## 모델 선택 - gpt-4o-mini를 고른 이유
+
+AI 챗봇을 구현함에 있어서 가장 먼저 결정해야하는 부분은 "어떤 모델"을 선택할지 였습니다.
+
+이를 위해 비용과 성능을 따져야하였고, 저는 [OpenAI의 모델 비교 문서](https://platform.openai.com/docs/models/compare)를 참고하였습니다.
+
+여기서 주목한 점은 **비용 대비 성능**이었습니다.
+
+<table>
+  <thead>
+    <tr>
+      <th>모델</th>
+      <th>Input (1M)</th>
+      <th>Output (1M)</th>
+      <th>특징</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>gpt-4o-mini</td>
+      <td>$0.15</td>
+      <td>$0.60</td>
+      <td>가장 저렴, 문서 Q&A에 충분</td>
+    </tr>
+    <tr>
+      <td>gpt-4.1-mini</td>
+      <td>$0.40</td>
+      <td>$1.60</td>
+      <td>더 긴 컨텍스트, 약간 비쌈</td>
+    </tr>
+    <tr>
+      <td>gpt-5-mini</td>
+      <td>$0.25</td>
+      <td>$2.00</td>
+      <td>추론 특화, Output 비용 높음</td>
+    </tr>
+  </tbody>
+</table>
+
+문서 챗봇의 특성상,
+
+- 복잡한 추론보다는 **검색된 문서 기반 답변**이 주 용도
+- 질문당 토큰 사용량이 크지 않음
+- 일 50~100회 정도의 사용량 예상
+- **Input보다 Output 비중이 큼** (짧은 질문 → 긴 답변)
+
+특히 마지막 포인트가 중요했습니다. gpt-5-mini는 Input은 저렴하지만 Output이 $2.00으로 gpt-4o-mini($0.60)의 3배 이상입니다
+
+문서 챗봇처럼 답변이 긴 경우, Output 비용이 전체 비용의 대부분을 차지하기 때문에 gpt-4o-mini가 가장 합리적이라 판단했습니다.
+
+## RAG 파이프라인 구축 - 문서 -> 벡터 -> 검색
+
+### RAG란?
+
+LLM은 기본적으로 "알고있는 정보"에 대한 답변이 가능합니다. 즉 Firsttx 처럼 일반적으로 알려져있지 않고 새롭게 만들어진 정보에 대한 데이터는 존재하지 않기때문에 LLM은 답변이 불가능하거나 없는 내용을 만들어서 이상한 답변을 하게됩니다.
+
+이를 해결하기 위해서 **질문과 관련된 문서를 검색**해서 LLM에게 컨텍스트로 제공하고, LLM은 해당 데이터로 몰랐던 것에 대한 답변이 가능해집니다.
+
+- 일반: Firsttx 질문 -> LLM -> 답변 (모른다고 하거나, 관련 없는 답변 제공)
+- RAG: Firsttx 질문 -> 문서 검색 -> 검색 결과 + 질문 -> LLM -> 답변
+
+문제는 컴퓨터는 텍스트의 의미를 직접 비교할 수 없습니다. 그렇기 때문에 **임베딩**을 합니다.
+
+### 임베딩이란?
+
+앞서 언급한대로 컴퓨터는 텍스트의 의미를 직접 비교하지 못합니다. 따라서 텍스트를 숫자로 변환한 후 질문과 관련된 벡터를 찾아 반환합니다.
+
+예를 들어 "Prepaint는 CSR 앱의 빈 화면 문제를 해결합니다"라는 텍스트가 `[0.023, -0.156, 0.891, ...]` (1,536개의 숫자)로 변환됩니다.
+
+이제 사용자가 "재방문할 때 흰 화면이 보여요"라고 질문하면, 이 질문도 벡터로 변환되고, 두 벡터가 **의미적으로 유사**하기 때문에 관련 문서를 찾을 수 있습니다.
+
+키워드 검색이었다면 "빈 화면"과 "흰 화면"은 다른 단어라 매칭되지 않았을 것입니다.
+
+또한 이러한 임베딩 벡터를 저장하고 유사한 벡터를 빠르게 검색하는 전용 DB를 Vector DB라 합니다.
+
+### Vector DB란?
+
+일반 DB와 같은점은 데이터를 저장하고 읽는다는 점입니다.
+
+하지만 핵심적인 차이는 일반 DB는 **정확히 일치하거나 포함하는** 검색만 가능하고, **의미적으로 비슷한 값**을 찾는 것은 불가능합니다.
+
+예를 들어,
+
+- 일반 DB: `WHERE content LIKE '%빈 화면%'` → "흰 화면", "빈 페이지"는 못 찾음
+- Vector DB: "빈 화면" 검색 → "흰 화면", "빈 페이지", "아무것도 안 보임" 모두 찾음
+
+이런 **의미 기반 검색(Semantic Search)**이 RAG의 핵심입니다.
+
+### 실제 구현
+
+이러한 개념을 바탕으로 실제로 아래와 같이 구현하였습니다.
+
+#### 임베딩 모델 선택
+
+OpenAI의 `text-embedding-3-small`을 선택했습니다.
+
+- 1,536차원 벡터 생성
+- 한국어 지원이 잘 됨
+- API가 안정적
+
+```typescript
+import OpenAI from 'openai';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+async function embed(text: string): Promise<number[]> {
+  const response = await openai.embeddings.create({
+    model: 'text-embedding-3-small',
+    input: text.trim(),
+  });
+  return response.data[0].embedding;
+}
+```
+
+#### Vector DB 선택
+
+여러 옵션을 비교했습니다.
+
+<table>
+  <thead>
+    <tr>
+      <th>DB</th>
+      <th>장점</th>
+      <th>단점</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Supabase pgvector</td>
+      <td>PostgreSQL 통합, 익숙함</td>
+      <td>Vercel AI SDK 공식 지원 X</td>
+    </tr>
+    <tr>
+      <td>Pinecone</td>
+      <td>성숙한 생태계</td>
+      <td>무료 티어 제한적</td>
+    </tr>
+    <tr>
+      <td>
+        <strong>Upstash Vector</strong>
+      </td>
+      <td>Vercel AI SDK 공식 지원, 무료 10K/일</td>
+      <td>상대적으로 신규</td>
+    </tr>
+  </tbody>
+</table>
+
+결과적으로 **Upstash Vector**를 선택하였습니다.
+
+- Vercel AI SDK에서 공식 지원
+- 무료 티어가 일 10,000 요청으로 충분
+- 같은 계정으로 Redis도 사용 가능 (Rate Limiting, 캐싱에 활용)
+
+#### 인덱싱 파이프라인
+
+문서를 벡터 DB에 저장하는 과정입니다. 이 작업은 문서가 변경될 때만 1회 실행합니다.
+
+```
+문서 (markdown) → 청킹 → 임베딩 → Upstash Vector 저장
+```
+
+**청킹**은 문서를 적당한 크기로 나누는 작업입니다. 전체 문서를 임베딩하면 검색 정확도가 떨어지기 때문에, 섹션 단위로 분할합니다.
+
+저는 **헤딩 기반 청킹**을 선택했습니다. MDX 문서가 이미 H1/H2/H3로 논리적으로 구분되어 있어서, 이 구조를 그대로 활용했습니다.
+
+```typescript
+function chunkMarkdown(content: string, docId: string): Chunk[] {
+  const lines = content.split('\n');
+  const chunks: Chunk[] = [];
+
+  let currentH1 = '';
+  let currentH2 = '';
+  let currentH3 = '';
+  let currentContent: string[] = [];
+
+  function saveChunk() {
+    const text = currentContent.join('\n').trim();
+    if (text.length > 0) {
+      chunks.push({
+        id: `${docId}-${chunks.length + 1}`,
+        title: currentH1,
+        section: currentH3 || currentH2 || currentH1,
+        content: text,
+      });
+    }
+    currentContent = [];
+  }
+
+  for (const line of lines) {
+    // 더 구체적인 패턴(###)을 먼저 체크
+    if (line.startsWith('### ')) {
+      saveChunk();
+      currentH3 = line.slice(4);
+    } else if (line.startsWith('## ')) {
+      saveChunk();
+      currentH2 = line.slice(3);
+      currentH3 = '';
+    } else if (line.startsWith('# ')) {
+      saveChunk();
+      currentH1 = line.slice(2);
+      currentH2 = '';
+      currentH3 = '';
+    } else {
+      currentContent.push(line);
+    }
+  }
+
+  saveChunk(); // 마지막 섹션 저장
+  return chunks;
+}
+```
+
+#### 검색 파이프라인
+
+사용자 질문이 들어오면 다음 과정을 거칩니다.
+
+```
+질문 → 임베딩 → Upstash Vector 검색 → 관련 청크 → LLM에 컨텍스트로 전달
+```
+
+```typescript
+import { Index } from '@upstash/vector';
+
+const index = new Index({
+  url: process.env.UPSTASH_VECTOR_REST_URL,
+  token: process.env.UPSTASH_VECTOR_REST_TOKEN,
+});
+
+async function searchDocs(query: string, topK = 5) {
+  const queryVector = await embed(query);
+
+  const results = await index.query({
+    vector: queryVector,
+    topK,
+    includeMetadata: true,
+  });
+
+  return results.map((r) => ({
+    content: r.metadata?.content,
+    section: r.metadata?.section,
+    score: r.score,
+  }));
+}
+```
+
+검색된 청크들은 시스템 프롬프트에 포함되어 LLM에게 전달됩니다.
+
+```typescript
+const systemPrompt = `
+당신은 Firsttx 문서 assistant입니다.
+아래 문서를 참고하여 질문에 답변하세요.
+
+## 참고 문서
+${chunks.map((c) => `### ${c.section}\n${c.content}`).join('\n\n')}
+`;
+```
+
+## API & UI 구현 - AI SDK 5 적용
+
+### AI SDK 선택
+
+Vercel의 AI SDK를 사용했습니다. 5 버전이 최신이며, Next.js와의 통합이 잘 되어있습니다.
+
+```bash
+pnpm add ai @ai-sdk/react @ai-sdk/openai
+```
+
+### API Route 구현
+
+Next.js App Router의 Route Handler로 챗봇 API를 구현했습니다.
+
+```typescript
+// app/api/chat/route.ts
+import { streamText, convertToModelMessages, type UIMessage } from 'ai';
+import { chatModel } from '@/lib/ai/openai';
+import { retrieveContext, buildSystemPrompt } from '@/lib/ai/rag';
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+
+  // 마지막 사용자 메시지에서 질문 추출
+  const lastUserMessage = messages.findLast((m) => m.role === 'user');
+  const userQuery =
+    lastUserMessage?.parts
+      ?.filter((part) => part.type === 'text')
+      .map((part) => part.text)
+      .join(' ') || '';
+
+  // RAG: 관련 문서 검색
+  const { contextText } = await retrieveContext(userQuery);
+  const systemPrompt = buildSystemPrompt(contextText);
+
+  // LLM 호출 (스트리밍)
+  const result = streamText({
+    model: chatModel,
+    system: systemPrompt,
+    messages: convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### 클라이언트 구현
+
+`useChat` 훅으로 채팅 UI를 구현했습니다.
+
+```typescript
+// components/chat/chat-panel.tsx
+'use client';
+
+import { useState, useMemo } from 'react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
+
+export function ChatPanel() {
+  const [input, setInput] = useState('');
+
+  const transport = useMemo(
+    () => new DefaultChatTransport({ api: '/api/chat' }),
+    []
+  );
+
+  const { messages, sendMessage, status } = useChat({ transport });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    sendMessage({ text: input });
+    setInput('');
+  };
+
+  return (
+    <div>
+      {messages.map((message) => (
+        <ChatMessage key={message.id} message={message} />
+      ))}
+
+      <form onSubmit={handleSubmit}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="질문을 입력하세요..."
+          disabled={status === 'streaming'}
+        />
+      </form>
+    </div>
+  );
+}
+```
+
+## 운영 고려사항 - Rate Limiting, 비용, 다국어
+
+### Rate Limiting
+
+베타 서비스 특성상 과도한 사용을 방지해야 했습니다. Upstash Redis를 활용해 3중 제한을 구현했습니다.
+
+<table>
+  <thead>
+    <tr>
+      <th>제한 타입</th>
+      <th>제한량</th>
+      <th>대상</th>
+      <th>목적</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>분당</td>
+      <td>10회</td>
+      <td>IP당</td>
+      <td>빠른 연속 요청 방지</td>
+    </tr>
+    <tr>
+      <td>일일</td>
+      <td>50회</td>
+      <td>IP당</td>
+      <td>개인 과다 사용 방지</td>
+    </tr>
+    <tr>
+      <td>전체 일일</td>
+      <td>1,000회</td>
+      <td>서비스 전체</td>
+      <td>베타 비용 상한선</td>
+    </tr>
+  </tbody>
+</table>
+
+```typescript
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+// 분당 제한
+const perMinuteLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, '1 m'),
+  prefix: 'chat:minute',
+});
+
+// 일일 제한
+const perDayLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(50, '1 d'),
+  prefix: 'chat:day',
+});
+
+// 전체 일일 제한
+const globalDayLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(1000, '1 d'),
+  prefix: 'chat:global',
+});
+
+export async function checkRateLimit(ip: string) {
+  const [minuteResult, dayResult, globalResult] = await Promise.all([
+    perMinuteLimit.limit(ip),
+    perDayLimit.limit(ip),
+    globalDayLimit.limit('global'),
+  ]);
+
+  if (!minuteResult.success) return { success: false, limitType: 'minute' };
+  if (!dayResult.success) return { success: false, limitType: 'day' };
+  if (!globalResult.success) return { success: false, limitType: 'global' };
+
+  return { success: true };
+}
+```
+
+### 다국어 지원
+
+문서 사이트가 한국어/영어를 지원하므로, 챗봇도 다국어를 지원해야 했습니다.
+
+**Vector DB Namespace 활용**
+
+언어별로 별도 인덱스를 만드는 대신, Upstash Vector의 Namespace 기능을 활용했습니다.
+
+```typescript
+// 인덱싱 시
+index.namespace('ko').upsert(koChunks);
+index.namespace('en').upsert(enChunks);
+
+// 검색 시
+index.namespace(locale).query({ vector, topK });
+```
+
+**Namespace를 선택한 이유**
+
+- 메타데이터 필터링은 "필터링 예산" 제한이 있음
+- Namespace는 검색 공간 자체를 분리해 더 효율적
+- 추가 비용 없이 단일 인덱스 내에서 관리 가능
+
+**다국어 시스템 프롬프트**
+
+```typescript
+const SYSTEM_PROMPTS = {
+  ko: (context: string) => `당신은 FirstTx 문서 도우미입니다.
+아래 문서를 참고하여 한국어로 답변하세요.
+${context}`,
+
+  en: (context: string) => `You are the FirstTx documentation assistant.
+Answer in English based on the following documents.
+${context}`,
+};
+```
+
+### 예상 비용
+
+<table>
+  <thead>
+    <tr>
+      <th>항목</th>
+      <th>월 예상 비용</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>OpenAI API</td>
+      <td>~$5</td>
+    </tr>
+    <tr>
+      <td>Upstash Vector</td>
+      <td>무료 (10K/일)</td>
+    </tr>
+    <tr>
+      <td>Upstash Redis</td>
+      <td>무료 (10K/일)</td>
+    </tr>
+    <tr>
+      <td>Vercel</td>
+      <td>~$20 (Pro)</td>
+    </tr>
+    <tr>
+      <td>
+        <strong>합계</strong>
+      </td>
+      <td>
+        <strong>~$25</strong>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+일 50~100회 사용 기준으로, gpt-4o-mini의 저렴한 가격 덕분에 월 $5 이하로 LLM 비용을 유지할 수 있었습니다.
+
+## 결과 & 회고
+
+### 배운 점
+
+**1. RAG는 생각보다 간단하다**
+
+복잡해 보이지만, 핵심은 "검색 → 컨텍스트 주입 → LLM 호출"입니다. 좋은 라이브러리들(AI SDK, Upstash) 덕분에 구현이 수월했습니다.
+
+**2. 청킹 전략이 중요하다**
+
+헤딩 기반 청킹이 문서 구조를 잘 활용합니다. 검색 정확도는 청킹 품질에 크게 좌우됩니다.
+
+**3. Namespace가 메타데이터 필터링보다 낫다**
+
+다국어 지원 시 메타데이터 필터링은 제약이 있습니다. Namespace로 검색 공간을 분리하는 것이 더 효율적입니다.
+
+### 향후 개선할 점
+
+- 피드백 버튼 (도움됨/안됨) 추가
+- 동일 질문 응답 캐싱
+- 토큰 사용량 대시보드
+
+---
+
+AI 챗봇을 문서에 붙이는 건 생각보다 어렵지 않았습니다. Upstash의 무료 티어와 gpt-4o-mini의 저렴한 가격 덕분에 월 $25 이하로 운영할 수 있습니다.
+
+비슷한 고민을 하고 계신 분들께 도움이 되었으면 합니다.

@@ -190,6 +190,20 @@ const postComponents = {
         ),
       },
     ),
+  '2025-12-01-opeunsoseu-munseo-saiteue-rag-giban-ai-chaetbot-bupigi': dynamic(
+    () =>
+      import('./mdx-posts/default-post').then((m) => ({
+        default: () =>
+          m.DefaultPost({
+            slug: '2025-12-01-opeunsoseu-munseo-saiteue-rag-giban-ai-chaetbot-bupigi',
+          }),
+      })),
+    {
+      loading: () => (
+        <div className="h-[67vh] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
+      ),
+    },
+  ),
 } as const;
 
 interface PostContentProps {

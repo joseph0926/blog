@@ -56,6 +56,8 @@ const POST_COMPONENT_MAP = {
       'BundleSplitDiagram',
       'BundleSizeComparison',
     ],
+
+  '2025-12-01-opeunsoseu-munseo-saiteue-rag-giban-ai-chaetbot-bupigi': [],
 };
 
 const COMPONENT_IMPORT_MAP = {
