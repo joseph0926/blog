@@ -20,8 +20,8 @@ export const postRouter = router({
         const post = await createPost(input, ctx.prisma);
 
         await Promise.all([
-          revalidateTag('all-posts'),
-          revalidateTag(`post-${post.slug}`),
+          revalidateTag('all-posts', 'max'),
+          revalidateTag(`post-${post.slug}`, 'max'),
         ]);
 
         return {
@@ -259,8 +259,8 @@ export const postRouter = router({
         });
 
         await Promise.all([
-          revalidateTag('all-posts'),
-          revalidateTag(`post-${slug}`),
+          revalidateTag('all-posts', 'max'),
+          revalidateTag(`post-${slug}`, 'max'),
         ]);
 
         return {

@@ -1,18 +1,21 @@
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-import { FlatCompat } from '@eslint/eslintrc';
-import { globalIgnores } from 'eslint/config';
+import { defineConfig, globalIgnores } from 'eslint/config';
+import nextConfig from 'eslint-config-next';
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 import pluginImportSort from 'eslint-plugin-simple-import-sort';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const eslintConfig = [
-  globalIgnores(['**/generated/**']),
+const eslintConfig = defineConfig([
+  globalIgnores([
+    '**/generated/**',
+    '.next/**',
+    'out/**',
+    'build/**',
+    'next-env.d.ts',
+    '**/node_modules/**',
+  ]),
+  nextConfig,
+  nextCoreWebVitals,
+  nextTypescript,
   {
     plugins: {
       'simple-import-sort': pluginImportSort,
@@ -27,9 +30,13 @@ const eslintConfig = [
         },
       ],
       'simple-import-sort/exports': 'error',
+      'react-hooks/purity': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/set-state-in-effect': 'warn',
+      'no-unused-vars': 'warn',
+      '@typescript-eslint/no-unused-vars': 'warn',
     },
   },
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
-];
+]);
 
 export default eslintConfig;

@@ -10,9 +10,9 @@ const getJwtSecret = () => {
   return new TextEncoder().encode(secret);
 };
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  console.log('Middleware checking path:', pathname);
+  console.log('Proxy checking path:', pathname);
 
   if (pathname === '/login') {
     console.log('Login page - allowing access');

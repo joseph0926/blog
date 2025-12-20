@@ -41,10 +41,14 @@ function TraditionalItem({
 }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<string>('');
+  const [displayRenderCount, setDisplayRenderCount] = useState(0);
   const renderCount = useRef(0);
   const startTime = useRef(performance.now());
 
-  renderCount.current++;
+  useEffect(() => {
+    renderCount.current++;
+    setDisplayRenderCount(renderCount.current);
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -84,7 +88,7 @@ function TraditionalItem({
     <div className="rounded border bg-orange-50 p-2 text-black">
       <span className="text-sm">{data}</span>
       <span className="text-muted-foreground ml-2 text-xs">
-        (렌더: {renderCount.current}회)
+        (렌더: {displayRenderCount}회)
       </span>
     </div>
   );
@@ -92,14 +96,19 @@ function TraditionalItem({
 
 function SuspenseItem({ id }: { id: number }) {
   const data = use(getCachedPromise(id));
+  const [displayRenderCount, setDisplayRenderCount] = useState(0);
   const renderCount = useRef(0);
-  renderCount.current++;
+
+  useEffect(() => {
+    renderCount.current++;
+    setDisplayRenderCount(renderCount.current);
+  });
 
   return (
     <div className="rounded border bg-blue-50 p-2 text-black">
       <span className="text-sm">{data}</span>
       <span className="text-muted-foreground ml-2 text-xs">
-        (렌더: {renderCount.current}회)
+        (렌더: {displayRenderCount}회)
       </span>
     </div>
   );
