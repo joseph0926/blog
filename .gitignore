@@ -45,3 +45,5 @@ generated
 
 # turbo
 .turbo
+
+temp.*
