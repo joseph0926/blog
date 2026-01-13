@@ -1,31 +1,23 @@
-import { Button } from '@joseph0926/ui/components/button';
-import { Label } from '@joseph0926/ui/components/label';
 import { Skeleton } from '@joseph0926/ui/components/skeleton';
 
 export const BlogFilterSkeleton = () => {
   return (
-    <div className="sticky top-14 left-4 z-10 hidden h-3/4 w-44 p-2 xl:block">
-      <div className="flex flex-col gap-10">
-        <div className="flex flex-col gap-4">
-          <Label>Search</Label>
-          <Skeleton className="h-10 w-full" />
-        </div>
-        <div className="flex flex-col gap-4">
-          <Label>Category</Label>
-          <ul className="flex flex-col gap-2.5">
-            {Array.from({ length: 3 })?.map((_, idx) => (
-              <li key={idx}>
-                <Skeleton className="h-8 w-full" />
-              </li>
+    <div className="border-border bg-background/80 sticky top-14 z-20 border-b backdrop-blur-md">
+      <div className="container mx-auto px-4 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="hidden items-center gap-6 md:flex">
+            <Skeleton className="h-6 w-8" />
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <Skeleton key={idx} className="h-6 w-16" />
             ))}
-          </ul>
+          </div>
+
+          <Skeleton className="h-9 w-24 md:hidden" />
+
+          <div className="flex items-center gap-3">
+            <Skeleton className="hidden h-9 w-48 md:block" />
+          </div>
         </div>
-        <Button
-          variant="outline"
-          className="border-destructive text-destructive cursor-pointer"
-        >
-          Clear
-        </Button>
       </div>
     </div>
   );

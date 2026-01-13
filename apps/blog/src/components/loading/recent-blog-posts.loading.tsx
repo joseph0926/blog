@@ -1,48 +1,32 @@
-import { Skeleton } from '@joseph0926/ui/components/skeleton';
+'use client';
+
+import { motion } from 'motion/react';
+import { skeletonContainer, skeletonItem } from '@/lib/motion-variants';
+import { BlogPostSkeleton } from '../home/blog-post.skeleton';
 
 export const RecentBlogPostsLoading = () => {
   return (
-    <>
+    <motion.div variants={skeletonContainer} initial="hidden" animate="visible">
       <section className="grid grid-cols-1 gap-x-8 gap-y-12 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <Skeleton className="h-[200px] w-full rounded-lg" />
-          <Skeleton className="h-6 w-3/4 rounded-lg" />
-          <Skeleton className="h-4 w-full rounded-lg" />
-          <Skeleton className="h-4 w-5/6 rounded-lg" />
-          <div className="flex gap-2">
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-6 w-20 rounded-full" />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 gap-y-12">
+        <motion.div variants={skeletonItem}>
+          <BlogPostSkeleton type="col" />
+        </motion.div>
+        <motion.div
+          variants={skeletonContainer}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 gap-y-12"
+        >
           {[1, 2].map((idx) => (
-            <div key={idx} className="flex gap-4">
-              <Skeleton className="aspect-video w-1/3 rounded-lg sm:w-1/2" />
-              <div className="flex w-full flex-col gap-3">
-                <Skeleton className="h-5 w-2/3 rounded-lg" />
-                <Skeleton className="h-4 w-full rounded-lg" />
-                <Skeleton className="h-4 w-5/6 rounded-lg" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-6 w-12 rounded-full" />
-                  <Skeleton className="h-6 w-16 rounded-full" />
-                </div>
-              </div>
-            </div>
+            <motion.div key={idx} variants={skeletonItem}>
+              <BlogPostSkeleton type="row" />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
-      <div className="mt-12 flex gap-4">
-        <Skeleton className="aspect-video w-1/3 rounded-lg sm:w-1/2" />
-        <div className="flex w-full flex-col gap-3">
-          <Skeleton className="h-5 w-2/3 rounded-lg" />
-          <Skeleton className="h-4 w-full rounded-lg" />
-          <Skeleton className="h-4 w-5/6 rounded-lg" />
-          <div className="flex gap-2">
-            <Skeleton className="h-6 w-12 rounded-full" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-          </div>
-        </div>
-      </div>
-    </>
+      <motion.div variants={skeletonItem} className="mt-12">
+        <BlogPostSkeleton type="row" />
+      </motion.div>
+    </motion.div>
   );
 };

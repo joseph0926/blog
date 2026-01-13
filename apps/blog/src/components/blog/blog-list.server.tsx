@@ -2,7 +2,7 @@ import { HydrateClient, serverTrpc } from '@/server/trpc/server';
 import { BlogList } from './blog-list';
 
 export async function BlogListServer() {
-  void serverTrpc.post.getPosts.prefetchInfinite(
+  await serverTrpc.post.getPosts.prefetchInfinite(
     {
       limit: 10,
       filter: { category: undefined },

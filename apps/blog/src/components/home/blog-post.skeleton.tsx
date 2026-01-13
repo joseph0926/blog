@@ -11,23 +11,23 @@ export const BlogPostSkeleton = ({ type = 'col' }: BlogPostSkeletonProps) => {
   return (
     <article
       className={cn(
-        'flex w-full gap-8',
+        'flex w-full gap-6',
         type === 'row' ? 'flex-row' : 'flex-col',
       )}
     >
       <Skeleton
         className={cn(
-          'aspect-video rounded-lg',
-          type === 'row' ? 'w-1/3 sm:w-1/2' : 'h-[180px] w-full',
+          'aspect-video shrink-0 rounded-xl',
+          type === 'row' ? 'w-1/3 sm:w-2/5' : 'w-full',
         )}
       />
       <div className="flex w-full flex-col gap-3">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-7 w-3/4" />
-        <Skeleton className="h-5 w-full max-w-lg" />
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-6 w-4/5" />
+        <Skeleton className="h-4 w-full max-w-md" />
         <div className="flex flex-wrap items-center gap-2">
-          {Array.from({ length: 3 }).map((_, idx) => (
-            <Skeleton key={idx} className="h-6 w-16 rounded-full" />
+          {Array.from({ length: 2 }).map((_, idx) => (
+            <Skeleton key={idx} className="h-6 w-14 rounded-full" />
           ))}
         </div>
       </div>

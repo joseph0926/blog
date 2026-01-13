@@ -1,6 +1,15 @@
+import { Badge } from '@joseph0926/ui/components/badge';
+import { format } from 'date-fns';
+import { Calendar, Clock } from 'lucide-react';
 import Image from 'next/image';
 import { ENV } from '@/lib/env';
 import { serverTrpc } from '@/server/trpc/server';
+
+const getReadingTime = (content: string) => {
+  const wordsPerMinute = 200;
+  const words = content.split(' ').length;
+  return Math.ceil(words / wordsPerMinute);
+};
 
 export const PostHeader = async ({ slug }: { slug: string }) => {
   let post = null;
@@ -11,32 +20,57 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
     console.error(`Failed to fetch post: ${slug}`, e);
   }
 
+  if (!post) {
+    return (
+      <p className="text-destructive py-12 text-center font-medium">
+        블로그 글을 찾을 수 없습니다.
+      </p>
+    );
+  }
+
+  const readingTime = getReadingTime(post.description);
+
   return (
-    <>
-      <div className="relative h-[calc(100vh/3)] w-full overflow-y-hidden">
-        <Image
-          src={post?.thumbnail ?? '/logo/logo.webp'}
-          width={1200}
-          height={675}
-          priority
-          unoptimized={ENV === 'dev'}
-          className="aspect-video w-full object-cover"
-          alt={post?.title ?? ''}
-        />
-        <div className="from-background pointer-events-none absolute inset-0 bg-gradient-to-t to-transparent" />
+    <header className="py-12">
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        {post.tags.slice(0, 3).map((tag) => (
+          <Badge key={tag.id} variant="secondary" className="text-xs">
+            {tag.name}
+          </Badge>
+        ))}
       </div>
-      {post ? (
-        <div className="flex flex-col gap-4 text-center">
-          <h1 className="text-center text-3xl font-extrabold">{post.title}</h1>
-          <p className="text-muted-foreground text-base font-medium">
-            {post.description}
-          </p>
+
+      <h1 className="text-foreground text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+        {post.title}
+      </h1>
+
+      <p className="text-muted-foreground mt-4 text-lg md:text-xl">
+        {post.description}
+      </p>
+
+      <div className="text-muted-foreground mt-6 flex items-center gap-4 text-sm">
+        <span className="flex items-center gap-1.5">
+          <Calendar className="h-4 w-4" />
+          {format(new Date(post.createdAt), 'MMM dd, yyyy')}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Clock className="h-4 w-4" />
+          {readingTime} min read
+        </span>
+      </div>
+
+      {post.thumbnail && (
+        <div className="relative mt-8 aspect-video overflow-hidden rounded-lg">
+          <Image
+            src={post.thumbnail}
+            fill
+            priority
+            unoptimized={ENV === 'dev'}
+            className="object-cover"
+            alt={post.title}
+          />
         </div>
-      ) : (
-        <p className="text-destructive text-center font-bold">
-          블로그 글을 찾을 수 없습니다.
-        </p>
       )}
-    </>
+    </header>
   );
 };

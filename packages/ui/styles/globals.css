@@ -51,6 +51,12 @@
 
 :root {
   --radius: 0.625rem;
+  --hover-lift: -4px;
+  --active-press: 2px;
+  --transition-fast: 100ms;
+  --transition-normal: 150ms;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  --shadow-card-hover: 0 10px 40px -10px rgb(0 0 0 / 0.15);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -125,4 +131,66 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Accessibility: Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0%,
+    oklch(from var(--accent) calc(l + 0.08) c h) 50%,
+    var(--accent) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--accent) 0%,
+    oklch(from var(--accent) calc(l + 0.05) c h) 50%,
+    var(--accent) 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* Skip link - visible only on focus */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  padding: 8px 16px;
+  background: var(--foreground);
+  color: var(--background);
+  z-index: 100;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 0 0 4px 0;
+  transition: top 0.15s ease-in-out;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: none;
 }

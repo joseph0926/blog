@@ -66,6 +66,10 @@ export default function RootLayout({
       <body
         className={cn(geistSans.variable, geistMono.variable, 'antialiased')}
       >
+        {/* Accessibility: Skip to main content link */}
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -73,7 +77,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <Toaster richColors closeButton position="top-center" />
-          <ReactQueryProvider>{children}</ReactQueryProvider>
+          <ReactQueryProvider>
+            <div id="main-content">{children}</div>
+          </ReactQueryProvider>
           {isVercel && (
             <>
               <Analytics />

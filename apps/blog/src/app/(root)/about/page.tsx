@@ -1,5 +1,9 @@
 import { Metadata } from 'next';
-import { TerminalAbout } from '@/components/about/terminal-about';
+import { ExperienceTimeline } from '@/components/about/experience-timeline';
+import { OpenSourceSection } from '@/components/about/open-source-section';
+import { ProfileHero } from '@/components/about/profile-hero';
+import { SkillsGrid } from '@/components/about/skills-grid';
+import { Container } from '@/components/ui/container';
 import { commonOpenGraph } from '@/meta/open-graph';
 import { pageRobots } from '@/meta/robots';
 
@@ -39,5 +43,12 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  return <TerminalAbout />;
+  return (
+    <Container size="md">
+      <ProfileHero />
+      <ExperienceTimeline />
+      <SkillsGrid />
+      <OpenSourceSection />
+    </Container>
+  );
 }

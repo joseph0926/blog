@@ -53,6 +53,7 @@ export const postRouter = router({
         filter: z
           .object({
             category: z.string().optional(),
+            search: z.string().optional(),
           })
           .optional(),
       }),
@@ -60,10 +61,14 @@ export const postRouter = router({
     .query(async ({ ctx, input }) => {
       const { limit, cursor, filter } = input;
       const categoryFilter = filter?.category?.toLowerCase();
+      const searchFilter = filter?.search?.toLowerCase().trim();
 
       const cacheKey = ['posts'];
       if (categoryFilter) {
         cacheKey.push(`cat:${categoryFilter}`);
+      }
+      if (searchFilter) {
+        cacheKey.push(`q:${searchFilter}`);
       }
       cacheKey.push(`limit:${limit}`);
       if (cursor) {
@@ -75,6 +80,19 @@ export const postRouter = router({
       const cachedFn = unstable_cache(
         async () => {
           cacheHit = false;
+
+          const whereClause: Prisma.PostWhereInput = {};
+
+          if (categoryFilter) {
+            whereClause.tags = { some: { name: categoryFilter } };
+          }
+
+          if (searchFilter) {
+            whereClause.OR = [
+              { title: { contains: searchFilter, mode: 'insensitive' } },
+              { description: { contains: searchFilter, mode: 'insensitive' } },
+            ];
+          }
 
           const posts = await ctx.prisma.post.findMany({
             select: {
@@ -91,9 +109,8 @@ export const postRouter = router({
                 },
               },
             },
-            where: categoryFilter
-              ? { tags: { some: { name: categoryFilter } } }
-              : undefined,
+            where:
+              Object.keys(whereClause).length > 0 ? whereClause : undefined,
             orderBy: { createdAt: 'desc' },
             take: limit + 1,
             skip: 0,
@@ -115,7 +132,7 @@ export const postRouter = router({
             'all-posts',
             ...(categoryFilter ? [`posts-category:${categoryFilter}`] : []),
           ],
-          revalidate: cursor ? 60 : 300,
+          revalidate: searchFilter ? 60 : cursor ? 60 : 300,
         },
       );
 
