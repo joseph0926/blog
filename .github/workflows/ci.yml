@@ -9,7 +9,7 @@ jobs:
   lintandbuild:
     runs-on: ubuntu-22.04
     env:
-      PNPM_VERSION: 10.24.0
+      PNPM_VERSION: 10.28.0
       NODE_VERSION: 22
       NEXT_TELEMETRY_DISABLED: 1
     steps:
