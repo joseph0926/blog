@@ -109,7 +109,7 @@ importers:
         specifier: ^3.1.0
         version: 3.1.1(@types/react@19.2.8)(react@19.2.3)
       '@next/mdx':
-        specifier: ^16.1.0
+        specifier: ^16.1.1
         version: 16.1.1(@mdx-js/loader@3.1.1)(@mdx-js/react@3.1.1(@types/react@19.2.8)(react@19.2.3))
       '@node-rs/argon2':
         specifier: ^2.0.2
@@ -163,7 +163,7 @@ importers:
         specifier: ^12.12.1
         version: 12.26.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       next:
-        specifier: ^16.1.0
+        specifier: ^16.1.1
         version: 16.1.1(@babel/core@7.28.6)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       next-mdx-remote:
         specifier: ^5.0.0
@@ -218,7 +218,7 @@ importers:
         specifier: ^0.15.0
         version: 0.15.1
       '@next/bundle-analyzer':
-        specifier: ^16.1.0
+        specifier: ^16.1.1
         version: 16.1.1
       '@tailwindcss/postcss':
         specifier: ^4
@@ -239,7 +239,7 @@ importers:
         specifier: ^5.0.0
         version: 5.1.2(vite@7.3.1(@types/node@20.19.28)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2))
       eslint-config-next:
-        specifier: ^16.1.0
+        specifier: ^16.1.1
         version: 16.1.1(@typescript-eslint/parser@8.53.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       happy-dom:
         specifier: ^18.0.1
