@@ -24,6 +24,7 @@ interface Project {
 }
 
 interface ProjectSelectorProps {
+  // eslint-disable-next-line no-unused-vars
   onComplete?: (project: Project) => void;
 }
 

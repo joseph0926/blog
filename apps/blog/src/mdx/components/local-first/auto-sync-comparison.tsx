@@ -15,19 +15,19 @@ interface ModelState {
 }
 
 export function AutoSyncComparison() {
-  const [autoSyncModel, setAutoSyncModel] = useState<ModelState>({
+  const [autoSyncModel, setAutoSyncModel] = useState<ModelState>(() => ({
     data: 'Initial data',
     updatedAt: Date.now(),
     isStale: false,
     apiCalls: 0,
-  });
+  }));
 
-  const [manualSyncModel, setManualSyncModel] = useState<ModelState>({
+  const [manualSyncModel, setManualSyncModel] = useState<ModelState>(() => ({
     data: 'Initial data',
     updatedAt: Date.now(),
     isStale: false,
     apiCalls: 0,
-  });
+  }));
 
   const [isRunning, setIsRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -104,10 +104,17 @@ export function AutoSyncComparison() {
     });
   };
 
-  const getStaleAge = (model: ModelState) => {
-    const age = Math.floor((Date.now() - model.updatedAt) / 1000);
-    return age;
-  };
+  const [staleAges, setStaleAges] = useState({ auto: 0, manual: 0 });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setStaleAges({
+        auto: Math.floor((Date.now() - autoSyncModel.updatedAt) / 1000),
+        manual: Math.floor((Date.now() - manualSyncModel.updatedAt) / 1000),
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [autoSyncModel.updatedAt, manualSyncModel.updatedAt]);
 
   return (
     <Card className="space-y-6 p-6">
@@ -161,7 +168,7 @@ export function AutoSyncComparison() {
                 {autoSyncModel.isStale ? 'Stale' : 'Fresh'}
               </Badge>
               <div className="text-muted-foreground text-xs">
-                {getStaleAge(autoSyncModel)}초 전 업데이트
+                {staleAges.auto}초 전 업데이트
               </div>
             </div>
 
@@ -225,7 +232,7 @@ export function AutoSyncComparison() {
                 {manualSyncModel.isStale ? 'Stale' : 'Fresh'}
               </Badge>
               <div className="text-muted-foreground text-xs">
-                {getStaleAge(manualSyncModel)}초 전 업데이트
+                {staleAges.manual}초 전 업데이트
               </div>
             </div>
 

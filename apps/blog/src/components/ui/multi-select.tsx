@@ -28,7 +28,8 @@ export function MultiSelect({
 }: {
   values: string[];
   options: string[];
-  onChange: (v: string[]) => void;
+  // eslint-disable-next-line no-unused-vars
+  onChange: (values: string[]) => void;
   placeholder?: string;
   creatable?: boolean;
   createLabel?: string;

@@ -12,10 +12,8 @@ const getJwtSecret = () => {
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  console.log('Proxy checking path:', pathname);
 
   if (pathname === '/login') {
-    console.log('Login page - allowing access');
     return NextResponse.next();
   }
 
@@ -33,8 +31,7 @@ export async function proxy(request: NextRequest) {
       });
 
       return NextResponse.next();
-    } catch (error) {
-      console.error('Admin auth failed:', error);
+    } catch {
       return NextResponse.redirect(new URL('/login', request.url));
     }
   }

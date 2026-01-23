@@ -27,6 +27,7 @@ import {
 } from '@joseph0926/ui/components/tabs';
 import { Textarea } from '@joseph0926/ui/components/textarea';
 import { Link, Upload, X } from 'lucide-react';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -60,6 +61,7 @@ type PostFormData = z.infer<typeof postSchema>;
 
 interface PostDialogProps {
   open: boolean;
+  // eslint-disable-next-line no-unused-vars
   onOpenChange: (open: boolean) => void;
   mode: 'create' | 'edit';
   post?: Post;
@@ -122,8 +124,7 @@ export function PostDialog({
       setThumbnailPreview(url);
       setUrlInput(url);
       toast.success('이미지가 업로드되었습니다.');
-    } catch (error) {
-      console.error(error);
+    } catch {
       toast.error('이미지 업로드에 실패했습니다.');
     } finally {
       setUploadingImage(false);
@@ -188,7 +189,6 @@ export function PostDialog({
         payload: data,
       });
     } else {
-      console.error('Edit mode but no post data');
       toast.error('수정할 게시글 정보가 없습니다.');
     }
   };
@@ -272,11 +272,13 @@ export function PostDialog({
                 <FormItem>
                   <FormLabel>썸네일 이미지</FormLabel>
                   {thumbnailPreview ? (
-                    <div className="relative">
-                      <img
+                    <div className="relative h-48 w-full">
+                      <Image
                         src={thumbnailPreview}
                         alt="썸네일 미리보기"
-                        className="h-48 w-full rounded-md object-cover"
+                        fill
+                        className="rounded-md object-cover"
+                        unoptimized
                       />
                       <Button
                         type="button"

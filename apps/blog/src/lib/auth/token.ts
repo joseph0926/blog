@@ -55,7 +55,6 @@ export async function verifyAccessToken(token: string) {
       throw error;
     }
 
-    console.error('Unexpected token verification error:', error);
     throw new Error('TOKEN_VERIFICATION_FAILED');
   }
 }

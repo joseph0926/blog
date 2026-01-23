@@ -16,8 +16,8 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
   try {
     const result = await serverTrpc.post.getPostBySlug({ slug });
     post = result.post;
-  } catch (e) {
-    console.error(`Failed to fetch post: ${slug}`, e);
+  } catch {
+    // 에러 발생 시 post는 null로 유지되어 에러 UI 표시
   }
 
   if (!post) {

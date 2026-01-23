@@ -19,6 +19,7 @@ function useInView(options?: IntersectionObserverInit) {
     const hasIOSupport = !!window.IntersectionObserver;
 
     if (!hasIOSupport || !node) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInView(true);
       return;
     }
@@ -55,6 +56,7 @@ type SandpackFiles = Record<string, string | SandpackFile>;
 interface SandpackLazyProps extends Omit<SandpackProps, 'files'> {
   files: SandpackFiles;
   loadingHeight?: number;
+  // eslint-disable-next-line no-unused-vars
   onError?: (error: Error) => void;
 }
 

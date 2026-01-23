@@ -29,8 +29,6 @@ export const postRouter = router({
           message: '포스트가 성공적으로 생성되었습니다.',
         };
       } catch (e) {
-        console.error(`tRPC createPost Error: ${e}`);
-
         if (e instanceof Error && e.message.includes('이미 존재하는 slug')) {
           throw new TRPCError({
             code: 'CONFLICT',
@@ -147,9 +145,7 @@ export const postRouter = router({
             : '글이 없습니다.',
           cacheHit,
         };
-      } catch (error) {
-        console.error('Error fetching posts:', error);
-
+      } catch {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: '글을 불러오는 중 오류가 발생했습니다.',

@@ -29,6 +29,7 @@ export const FileUpload = ({
   onChange,
   disabled,
 }: {
+  // eslint-disable-next-line no-unused-vars
   onChange?: (files: File[]) => void;
   disabled?: boolean;
 }) => {

@@ -15,7 +15,8 @@ export const Floating = ({
 }: {
   items: TagResponse[] | undefined;
   className?: string;
-  onClick: (cat: string) => void;
+  // eslint-disable-next-line no-unused-vars
+  onClick: (tag: string) => void;
   clearFilter: () => void;
 }) => {
   const [open, setOpen] = useState(false);

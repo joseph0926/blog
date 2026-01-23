@@ -58,8 +58,7 @@ async function getMDXPosts(): Promise<PostData[]> {
     );
 
     return posts.filter(Boolean);
-  } catch (error) {
-    console.error('Error reading MDX files:', error);
+  } catch {
     return [];
   }
 }

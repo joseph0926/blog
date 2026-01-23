@@ -81,8 +81,7 @@ export async function POST(req: NextRequest) {
   try {
     const { secure_url } = await streamUpload(buffer);
     return NextResponse.json({ url: secure_url });
-  } catch (err) {
-    console.error(err);
+  } catch {
     return NextResponse.json({ message: '업로드 실패' }, { status: 500 });
   }
 }

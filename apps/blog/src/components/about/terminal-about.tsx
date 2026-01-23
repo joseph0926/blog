@@ -175,11 +175,7 @@ export const TerminalAbout = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                 >
-                  <ProjectSelector
-                    onComplete={(project) => {
-                      console.log('Selected:', project);
-                    }}
-                  />
+                  <ProjectSelector />
                 </motion.div>
               )}
             </AnimatePresence>

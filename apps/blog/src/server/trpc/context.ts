@@ -19,8 +19,8 @@ export async function createTRPCContext({
       if (result.isAdmin) {
         user = { isAdmin: true };
       }
-    } catch (error) {
-      console.error('Token verification failed:', error);
+    } catch {
+      // 토큰 검증 실패 시 user는 null로 유지
     }
   }
 

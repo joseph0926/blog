@@ -34,21 +34,27 @@ function TraditionalItem({
 }: {
   id: number;
   index: number;
+  /* eslint-disable no-unused-vars */
   onMetricsUpdate: (
     index: number,
     metrics: { renderCount: number; totalTime: number },
   ) => void;
+  /* eslint-enable no-unused-vars */
 }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<string>('');
   const [displayRenderCount, setDisplayRenderCount] = useState(0);
   const renderCount = useRef(0);
-  const startTime = useRef(performance.now());
+  const startTime = useRef(0);
+
+  useEffect(() => {
+    startTime.current = performance.now();
+  }, []);
 
   useEffect(() => {
     renderCount.current++;
     setDisplayRenderCount(renderCount.current);
-  });
+  }, [loading, data]);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,7 +108,7 @@ function SuspenseItem({ id }: { id: number }) {
   useEffect(() => {
     renderCount.current++;
     setDisplayRenderCount(renderCount.current);
-  });
+  }, [data]);
 
   return (
     <div className="rounded border bg-blue-50 p-2 text-black">

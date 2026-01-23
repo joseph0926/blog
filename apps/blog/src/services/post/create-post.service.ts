@@ -48,7 +48,6 @@ export const createPost = async (
         },
       });
     } catch (error) {
-      console.error('[DB] Create Post Error: ', error);
       throw new Error(`[DB] Create Post Error: ${error}`);
     }
 
@@ -63,18 +62,14 @@ export const createPost = async (
 
     try {
       fs.writeFileSync(path.join(postsPath, fileName), content);
-    } catch (fileError) {
-      console.error('[FILE] Create Post Error: ', fileError);
-
+    } catch {
       if (post && post.slug) {
         try {
           await prisma.post.delete({
             where: { slug: post.slug },
           });
-          console.log('DB 롤백 성공');
-        } catch (rollbackError) {
-          console.error('DB 롤백 실패! 수동으로 확인 필요:', post.slug);
-          console.error('Rollback Error:', rollbackError);
+        } catch {
+          // DB 롤백 실패 시 수동 확인 필요: post.slug
         }
       }
 
@@ -83,7 +78,6 @@ export const createPost = async (
 
     return post;
   } catch (error) {
-    console.error(`createPost Error: ${error}`);
     throw error;
   }
 };

@@ -10,10 +10,8 @@ const techStack = ['React', 'Next.js', 'TypeScript', 'Web'];
 
 export function HeroSection() {
   const [currentTech, setCurrentTech] = useState(0);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const interval = setInterval(() => {
       setCurrentTech((prev) => (prev + 1) % techStack.length);
     }, 3000);
@@ -33,7 +31,7 @@ export function HeroSection() {
         className="relative z-10 mx-auto max-w-4xl text-center"
         variants={staggerContainer}
         initial="hidden"
-        animate={mounted ? 'visible' : 'hidden'}
+        animate="visible"
       >
         <motion.div className="mb-6" variants={staggerItem}>
           <span className="text-muted-foreground inline-flex items-center gap-2 text-sm">

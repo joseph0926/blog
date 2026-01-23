@@ -22,7 +22,7 @@ import {
   useQuery,
 } from '@tanstack/react-query';
 import { Activity, Eye, RefreshCw } from 'lucide-react';
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 
 type UserData = {
   name: string;
@@ -54,9 +54,12 @@ const queryClient = new QueryClient({
 
 const DataOnlyComponent = memo(() => {
   const renderCount = useRef(0);
+  const [displayCount, setDisplayCount] = useState(0);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     renderCount.current = renderCount.current + 1;
+    setDisplayCount(renderCount.current);
   });
 
   const result = useQuery({
@@ -74,7 +77,7 @@ const DataOnlyComponent = memo(() => {
           </span>
           <Badge variant="secondary" className="flex items-center gap-1">
             <Activity className="h-3 w-3" />
-            렌더: {renderCount.current}
+            렌더: {displayCount}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -112,9 +115,12 @@ DataOnlyComponent.displayName = 'DataOnlyComponent';
 
 const MultiPropsComponent = memo(() => {
   const renderCount = useRef(0);
+  const [displayCount, setDisplayCount] = useState(0);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     renderCount.current = renderCount.current + 1;
+    setDisplayCount(renderCount.current);
   });
 
   const { data, isFetching } = useQuery({
@@ -132,7 +138,7 @@ const MultiPropsComponent = memo(() => {
           </span>
           <Badge variant="secondary" className="flex items-center gap-1">
             <Activity className="h-3 w-3" />
-            렌더: {renderCount.current}
+            렌더: {displayCount}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -170,9 +176,12 @@ MultiPropsComponent.displayName = 'MultiPropsComponent';
 
 const ExplicitTrackingComponent = memo(() => {
   const renderCount = useRef(0);
+  const [displayCount, setDisplayCount] = useState(0);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     renderCount.current = renderCount.current + 1;
+    setDisplayCount(renderCount.current);
   });
 
   const { data, isFetching } = useQuery({
@@ -191,7 +200,7 @@ const ExplicitTrackingComponent = memo(() => {
           </span>
           <Badge variant="secondary" className="flex items-center gap-1">
             <Activity className="h-3 w-3" />
-            렌더: {renderCount.current}
+            렌더: {displayCount}
           </Badge>
         </CardTitle>
       </CardHeader>

@@ -16,8 +16,8 @@ export const AllBlogPosts = async () => {
 
     posts = result.posts;
     message = result.message;
-  } catch (e) {
-    console.error(`Failed to fetch posts`, e);
+  } catch {
+    // 에러 발생 시 posts는 null로 유지되어 에러 UI 표시
   }
 
   if (!posts) {
