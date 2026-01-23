@@ -42,13 +42,9 @@ async function getMDXPosts(): Promise<PostData[]> {
             /^(\d{4}-\d{2}-\d{2})-(.+)$/,
           );
 
-          let slug = fileNameWithoutExt;
-          let fileDate = null;
-
-          if (dateMatch) {
-            fileDate = dateMatch[1];
-            slug = dateMatch[2];
-          }
+          // slug는 파일명 전체 사용 (실제 라우팅과 일치)
+          const slug = fileNameWithoutExt;
+          const fileDate = dateMatch ? dateMatch[1] : null;
 
           return {
             slug,
@@ -148,27 +144,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'daily',
       priority: calculatePriority('blog'),
     },
-    {
-      url: `${BASE_URL}/report`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: calculatePriority('report'),
-    },
-    {
-      url: `${BASE_URL}/report/history`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: calculatePriority('report'),
-    },
-  ];
-
-  const adminRoute: MetadataRoute.Sitemap = [
-    {
-      url: `${BASE_URL}/admin`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.1,
-    },
   ];
 
   const posts = await getMDXPosts();
@@ -185,7 +160,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     };
   });
 
-  const allRoutes = [...staticRoutes, ...adminRoute, ...postRoutes];
+  const allRoutes = [...staticRoutes, ...postRoutes];
 
   const uniqueRoutes = Array.from(
     new Map(allRoutes.map((route) => [route.url, route])).values(),

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 
-const COOKIE_NAME = 'kyh-admin-token';
+export const ADMIN_COOKIE_NAME = 'kyh-admin-token';
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
@@ -12,12 +12,12 @@ const COOKIE_OPTIONS = {
 export async function setAdminCookie(token: string) {
   const cookieStore = await cookies();
 
-  cookieStore.set(COOKIE_NAME, token, COOKIE_OPTIONS);
+  cookieStore.set(ADMIN_COOKIE_NAME, token, COOKIE_OPTIONS);
 }
 
 export async function getAdminCookie() {
   const cookieStore = await cookies();
-  const cookie = cookieStore.get(COOKIE_NAME);
+  const cookie = cookieStore.get(ADMIN_COOKIE_NAME);
 
   return cookie?.value;
 }
@@ -25,7 +25,7 @@ export async function getAdminCookie() {
 export async function deleteAdminCookie() {
   const cookieStore = await cookies();
 
-  cookieStore.set(COOKIE_NAME, '', {
+  cookieStore.set(ADMIN_COOKIE_NAME, '', {
     ...COOKIE_OPTIONS,
     maxAge: 0,
   });
@@ -33,5 +33,5 @@ export async function deleteAdminCookie() {
 
 export async function hasAdminCookie() {
   const cookieStore = await cookies();
-  return cookieStore.has(COOKIE_NAME);
+  return cookieStore.has(ADMIN_COOKIE_NAME);
 }

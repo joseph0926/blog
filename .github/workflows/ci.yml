@@ -3,41 +3,57 @@ name: ci
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
-  lintandbuild:
+  lint-and-build:
     runs-on: ubuntu-22.04
     env:
       PNPM_VERSION: 10.28.0
-      NODE_VERSION: 22
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+
       - id: ver
         run: |
           PKG_VER=$(jq -r '.version' package.json)
           SHORT_SHA=${GITHUB_SHA::8}
           echo "APP_VERSION=${PKG_VER}+${SHORT_SHA}" >> $GITHUB_ENV
           echo "app_version=${PKG_VER}+${SHORT_SHA}" >> $GITHUB_OUTPUT
+
       - uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
-      - uses: actions/setup-node@v4
+
+      - uses: actions/setup-node@v6
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: "pnpm"
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
       - name: Restore pnpm store
         uses: actions/cache@v4
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:gen
-      - run: pnpm lint:fix
+
+      # 검증 단계 (코드 수정 없음)
+      - name: Lint
+        run: pnpm --filter @joseph0926/blog lint
+
+      - name: Format check
+        run: pnpm --filter @joseph0926/blog format:check
+
+      - name: Type check
+        run: pnpm --filter @joseph0926/blog type-check
+
       - name: Build Next.js
         run: pnpm build
         env:

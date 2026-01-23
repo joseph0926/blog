@@ -66,13 +66,15 @@ export const Floating = ({
               onClick={clearFilter}
               className="cursor-pointer"
             >
-              Clear
+              초기화
             </Button>
           </motion.div>
         )}
       </AnimatePresence>
       <button
         onClick={() => setOpen(!open)}
+        aria-label={open ? '필터 닫기' : '필터 열기'}
+        aria-expanded={open}
         className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-50 dark:bg-neutral-800"
       >
         <Filter className="h-5 w-5 text-neutral-500 dark:text-neutral-400" />

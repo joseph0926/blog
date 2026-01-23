@@ -35,7 +35,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next();
     } catch (error) {
       console.error('Admin auth failed:', error);
-      return NextResponse.redirect(new URL('/admin/login', request.url));
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 

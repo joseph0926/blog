@@ -1,7 +1,19 @@
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { LogoutButton } from '@/components/admin/logout-button';
 import { getAdminCookie } from '@/lib/auth/cookie';
 import { verifyAccessToken } from '@/lib/auth/token';
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
+};
 
 export default async function AdminLayout({
   children,
@@ -11,13 +23,13 @@ export default async function AdminLayout({
   const token = await getAdminCookie();
 
   if (!token) {
-    redirect('/admin/login');
+    redirect('/login');
   }
 
   try {
     await verifyAccessToken(token);
   } catch {
-    redirect('/admin/login');
+    redirect('/login');
   }
 
   return (

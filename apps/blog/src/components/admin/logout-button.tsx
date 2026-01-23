@@ -9,7 +9,7 @@ export function LogoutButton() {
   const router = useRouter();
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
-      router.push('/admin/login');
+      router.replace('/login');
       router.refresh();
     },
   });
