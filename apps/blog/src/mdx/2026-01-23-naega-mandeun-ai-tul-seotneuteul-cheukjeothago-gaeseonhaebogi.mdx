@@ -1,0 +1,147 @@
+---
+slug: '2026-01-23-naega-mandeun-ai-tul-seotneuteul-cheukjeothago-gaeseonhaebogi'
+title: '내가 만든 ai 툴 성능을 측정하고 개선해보기'
+description: 'ai 툴 품질을 감으로만 판단하지 않고, 데이터셋과 자동 채점으로 개선 폭을 수치화한 기록.'
+date: '2026-01-23'
+tags: ['ai', 'prompt-smith']
+---
+
+## prompt-smith란?
+
+prompt‑smith는 프롬프트를 **점검하고 개선 포인트를 정리해주는 도구**입니다.  
+요구사항을 정리하고, 빠진 요소를 체크하고, 개선안을 만드는 흐름을 제공합니다.
+
+[prompt-smith GitHub](https://github.com/joseph0926/prompt-smith)
+
+## 테스트를 결심한 이유
+
+실무에서 prompt‑smith를 꽤 잘 쓰고 있었지만, 어느 순간 이런 생각이 들었습니다. “진짜 효과가 있는 걸까?”  
+좋아진 느낌은 오는데, 그걸 **팀에 설명하거나 다음 개선 방향을 정하려면** 숫자가 필요했습니다.  
+그래서 이번에는 감이 아니라 **측정으로** 확인해보기로 했습니다.
+
+## 실험 대상: 핀테크 고객지원 라우팅
+
+실무에서 자주 나오는 형태를 선택했습니다. 입력은 문의 + 컨텍스트, 출력은 라우팅에 필요한 JSON입니다.
+
+```json
+{
+  "category": "...",
+  "priority": "...",
+  "needs_human": true,
+  "language": "ko|en",
+  "action": "...",
+  "confidence": 0.0,
+  "injection_detected": false
+}
+```
+
+도메인은 핀테크로 잡았지만 어디까지나 **예시**입니다. 데이터는 50건(ko:en = 7:3)이며, 인젝션 케이스 3건을 포함했습니다. PII는 포함하지 않았습니다.  
+참고로 실제 사용자 로그가 아닌 **합성 데이터셋**이라 분포 차이는 있을 수 있습니다.
+
+## 평가 파이프라인
+
+모델 출력은 CSV로 모으고, 자동 채점 스크립트로 PASS/FAIL을 계산했습니다.  
+이번 실험은 gpt‑4.1‑mini로 진행했습니다. 비용과 성능 균형을 고려해 선택했습니다.
+
+```bash
+python automation/scripts/ps_run_openai.py \
+  --dataset ps_fintech_router_dataset_v1.json \
+  --model gpt-4.1-mini \
+  --prompt-file ps_fintech_router_prompt_p0.md \
+  --out automation/outputs/ps_fintech_runs_filled_41mini_p0.csv
+
+python automation/scripts/taskpack_cli.py ps-grade \
+  --dataset ps_fintech_router_dataset_v1.json \
+  --runs automation/outputs/ps_fintech_runs_filled_41mini_p0.csv \
+  --out automation/outputs/ps_fintech_runs_graded_41mini_p0.csv
+```
+
+정답(JSON)과 모델 출력(JSON)을 비교해 자동 채점하며, 키 누락/형식 오류/값 불일치는 FAIL 처리합니다.
+
+## Baseline(P0) → 개선(P1)
+
+P0는 “기본 지시 + 스키마 안내” 수준으로 얕게 작성했습니다. 이후 prompt‑smith를 기준으로 **판단 규칙을 명시**하고 라우팅 기준을 구체화한 P1을 만들었습니다.
+
+### 결과
+
+<table>
+  <thead>
+    <tr>
+      <th>프롬프트</th>
+      <th align="right">PASS</th>
+      <th align="right">FAIL</th>
+      <th align="right">개선폭</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>P0</td>
+      <td align="right">12</td>
+      <td align="right">38</td>
+      <td align="right">—</td>
+    </tr>
+    <tr>
+      <td>P1</td>
+      <td align="right">47</td>
+      <td align="right">3</td>
+      <td align="right">
+        <strong>+35</strong>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+단순한 문장 다듬기가 아니라, **의사결정 규칙을 명확히 넣는 것**이 성능을 크게 끌어올렸습니다.
+
+<img
+  src="/content/prompt-smith-p0-p1-bars.svg"
+  alt="P0와 P1의 PASS/FAIL 비교 바 차트"
+  width={960}
+  height={540}
+/>
+
+## 실패 패턴에서 얻은 힌트
+
+P0에서 실패가 많았던 이유는 비슷했습니다. needs_human 과소 판단, priority 과소/과대 판단, 일부 카테고리 혼동.  
+P1에서는 이 규칙을 **사전에 명시**했고 결과가 급격히 좋아졌습니다. 이 변화는 “모델이 더 똑똑해져서”라기보다, **판단 기준을 명확히 제공받았기 때문**이라고 보는 게 맞습니다.
+
+아래 표는 P0 기준으로 자동 채점에서 가장 많이 나온 실패 원인입니다.
+
+<table>
+  <thead>
+    <tr>
+      <th>원인</th>
+      <th align="right">건수</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>needs_human 과소 판단</td>
+      <td align="right">13</td>
+    </tr>
+    <tr>
+      <td>priority 높음 → 보통</td>
+      <td align="right">8</td>
+    </tr>
+    <tr>
+      <td>priority 긴급 → 높음</td>
+      <td align="right">5</td>
+    </tr>
+  </tbody>
+</table>
+
+### 개선 과제: 토큰 증가
+
+P1은 규칙을 상세히 넣으면서 **프롬프트 길이가 크게 늘었습니다**. 이번 실험 기준으로 입력 토큰은 약 **3.6배**, 전체 토큰은 약 **3.2배** 증가했습니다. 성능은 좋아졌지만, **토큰 효율을 줄이는 작업이 다음 개선 과제**로 남았습니다.
+
+---
+
+## 결론: prompt‑smith가 “효과적이었나?”
+
+**적어도 이 실험에서는 효과적이었습니다.** 개선 폭이 컸고, 같은 조건에서 결과가 재현됐으며, 실패 패턴도 눈에 띄게 줄었습니다.  
+다만 이 결론은 **합성 데이터셋 + 특정 도메인 + 특정 모델**에 의존합니다. 실무 로그에 적용하려면 홀드아웃/재현 테스트가 필요합니다.
+
+다음으로는 P2에서 남은 실패 케이스(고객불만/보안 우선순위) 규칙을 더 강화해볼 예정입니다. 그리고 gpt‑4o‑mini와의 비용/성능 비교, 더 리얼한/대규모 로그 기반 데이터셋으로 재검증도 계획하고 있습니다.
+
+프롬프트 개선을 감으로만 접근하지 않고, **측정 가능한 개선으로 전환**해보니 방향이 훨씬 또렷해졌습니다. 다음 개선은 어디를 손봐야 하는지가 수치로 보이니까요.  
+이 글이 프롬프트 개선 과정을 정량화하려는 분들께 도움이 되었으면 합니다.

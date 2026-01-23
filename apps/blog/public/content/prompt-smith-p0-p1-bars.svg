@@ -1,0 +1,51 @@
+<svg width="960" height="540" viewBox="0 0 960 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">P0 vs P1 PASS/FAIL</title>
+  <desc id="desc">Stacked bars comparing PASS and FAIL counts for P0 and P1 prompts.</desc>
+  <rect width="960" height="540" fill="#ffffff"/>
+
+  <text x="60" y="48" font-family="Arial, sans-serif" font-size="22" fill="#222">P0 vs P1 (PASS / FAIL)</text>
+  <text x="60" y="74" font-family="Arial, sans-serif" font-size="14" fill="#666">Total cases: 50</text>
+
+  <rect x="720" y="44" width="14" height="14" fill="#2F7D57"/>
+  <text x="740" y="56" font-family="Arial, sans-serif" font-size="14" fill="#333">PASS</text>
+  <rect x="800" y="44" width="14" height="14" fill="#D9645A"/>
+  <text x="820" y="56" font-family="Arial, sans-serif" font-size="14" fill="#333">FAIL</text>
+
+  <line x1="160" y1="320" x2="900" y2="320" stroke="#333" stroke-width="1"/>
+  <line x1="160" y1="110" x2="160" y2="320" stroke="#333" stroke-width="1"/>
+
+  <g font-family="Arial, sans-serif" font-size="12" fill="#666">
+    <line x1="160" y1="320" x2="160" y2="326" stroke="#333"/>
+    <text x="156" y="344">0</text>
+
+    <line x1="300" y1="320" x2="300" y2="326" stroke="#333"/>
+    <text x="292" y="344">10</text>
+
+    <line x1="440" y1="320" x2="440" y2="326" stroke="#333"/>
+    <text x="432" y="344">20</text>
+
+    <line x1="580" y1="320" x2="580" y2="326" stroke="#333"/>
+    <text x="572" y="344">30</text>
+
+    <line x1="720" y1="320" x2="720" y2="326" stroke="#333"/>
+    <text x="712" y="344">40</text>
+
+    <line x1="860" y1="320" x2="860" y2="326" stroke="#333"/>
+    <text x="852" y="344">50</text>
+  </g>
+
+  <text x="100" y="155" font-family="Arial, sans-serif" font-size="14" fill="#333">P0</text>
+  <text x="100" y="245" font-family="Arial, sans-serif" font-size="14" fill="#333">P1</text>
+
+  <!-- P0: PASS 12, FAIL 38 (14px per unit) -->
+  <rect x="160" y="130" width="168" height="40" fill="#2F7D57"/>
+  <rect x="328" y="130" width="532" height="40" fill="#D9645A"/>
+  <text x="232" y="156" font-family="Arial, sans-serif" font-size="12" fill="#ffffff">12</text>
+  <text x="590" y="156" font-family="Arial, sans-serif" font-size="12" fill="#ffffff">38</text>
+
+  <!-- P1: PASS 47, FAIL 3 -->
+  <rect x="160" y="220" width="658" height="40" fill="#2F7D57"/>
+  <rect x="818" y="220" width="42" height="40" fill="#D9645A"/>
+  <text x="470" y="246" font-family="Arial, sans-serif" font-size="12" fill="#ffffff">47</text>
+  <text x="832" y="246" font-family="Arial, sans-serif" font-size="12" fill="#ffffff">3</text>
+</svg>
