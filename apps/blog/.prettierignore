@@ -1,0 +1,10 @@
+# Generated files
+src/generated
+
+# Build outputs
+.next
+dist
+build
+
+# Dependencies
+node_modules
