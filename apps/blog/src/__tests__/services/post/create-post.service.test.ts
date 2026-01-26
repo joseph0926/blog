@@ -63,11 +63,12 @@ describe('createPost를 테스트합니다.', () => {
       expect(fs.existsSync(filePath)).toBe(true);
     });
 
-    it('중복된 slug일 경우 글이 생성되지 않아야합니다.', async () => {
-      await createPost({ ...DUMMY_POST_1 }, prisma);
-      const post = createPost({ ...DUMMY_POST_2 }, prisma);
+    it('중복된 slug일 경우 -2 접미사가 붙어서 생성되어야합니다.', async () => {
+      const post1 = await createPost({ ...DUMMY_POST_1 }, prisma);
+      const post2 = await createPost({ ...DUMMY_POST_2 }, prisma);
 
-      await expect(post).rejects.toThrow('이미 존재하는 slug입니다');
+      expect(post2.slug).toContain('-2');
+      expect(post2.slug).not.toBe(post1.slug);
     });
   });
 });
