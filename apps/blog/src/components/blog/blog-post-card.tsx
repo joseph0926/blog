@@ -31,6 +31,7 @@ export const BlogPostCard = ({ post }: BlogPostCardProps) => {
             <Image
               src={post.thumbnail ?? '/logo/logo.webp'}
               fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               unoptimized={ENV === 'dev'}
               alt={post.title}
               className="object-cover transition-transform duration-300 group-hover:scale-105"

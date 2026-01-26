@@ -21,7 +21,7 @@ export const TopProgress = () => {
     <div className="bg-muted/30 fixed top-0 left-0 z-10 h-2 w-full overflow-hidden">
       <motion.div
         style={{ scaleX }}
-        className="h-full w-full origin-left bg-indigo-500 will-change-transform"
+        className="bg-primary h-full w-full origin-left will-change-transform"
       />
     </div>
   );

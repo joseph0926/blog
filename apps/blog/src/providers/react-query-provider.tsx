@@ -47,7 +47,9 @@ export default function ReactQueryProvider({
     <trpc.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>
         {children}
-        <ReactQueryDevtools initialIsOpen={false} />
+        {process.env.NODE_ENV !== 'production' && (
+          <ReactQueryDevtools initialIsOpen={false} />
+        )}
       </QueryClientProvider>
     </trpc.Provider>
   );

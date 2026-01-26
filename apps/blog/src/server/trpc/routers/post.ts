@@ -217,11 +217,21 @@ export const postRouter = router({
     }),
 
   getTags: publicProcedure.query(async ({ ctx }) => {
-    const tags = await ctx.prisma.tag.findMany();
-    return {
-      tags,
-      message: '태그를 불러왔습니다.',
-    };
+    try {
+      const tags = await ctx.prisma.tag.findMany({
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+      return {
+        tags,
+        message: '태그를 불러왔습니다.',
+      };
+    } catch {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: '태그를 불러오는 중 오류가 발생했습니다.',
+      });
+    }
   }),
 
   update: protectedProcedure

@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Tag } from '@/generated/prisma';
 
 type BlogFilterProps = {
-  tags: Tag[];
+  tags: Pick<Tag, 'id' | 'name'>[];
   totalCount?: number;
 };
 

@@ -13,6 +13,20 @@ jobs:
     env:
       PNPM_VERSION: 10.28.0
       NEXT_TELEMETRY_DISABLED: 1
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+          POSTGRES_DB: testdb
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U testuser -d testdb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v6
         with:
@@ -53,6 +67,16 @@ jobs:
 
       - name: Type check
         run: pnpm --filter @joseph0926/blog type-check
+
+      - name: Setup test database
+        run: pnpm --filter @joseph0926/blog db:test:push
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5433/testdb
+
+      - name: Run tests
+        run: pnpm --filter @joseph0926/blog test:ci
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5433/testdb
 
       - name: Build Next.js
         run: pnpm build

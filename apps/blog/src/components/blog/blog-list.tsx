@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@joseph0926/ui/components/button';
 import { BookX } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
@@ -70,17 +71,46 @@ export const BlogList = () => {
     );
   }
 
+  const handleLoadMore = () => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
+      <div
+        aria-live="polite"
+        aria-atomic="false"
+        className="sr-only"
+        role="status"
+      >
+        {posts.length > 0 && `${posts.length}개의 글이 로드되었습니다.`}
+      </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {posts.map((post) => (
           <BlogPostCard key={post.id} post={post} />
         ))}
       </div>
-      {hasNextPage && <div className="h-1" ref={divRef} />}
+      {hasNextPage && <div className="h-1" ref={divRef} aria-hidden="true" />}
       {isFetchingNextPage && (
-        <div className="mt-8 flex justify-center">
+        <div
+          className="mt-8 flex justify-center"
+          role="status"
+          aria-label="로딩 중"
+        >
           <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
+        </div>
+      )}
+      {hasNextPage && !isFetchingNextPage && (
+        <div className="mt-8 flex justify-center">
+          <Button
+            variant="outline"
+            onClick={handleLoadMore}
+            aria-label="더 많은 글 불러오기"
+          >
+            더 보기
+          </Button>
         </div>
       )}
     </div>

@@ -1,3 +1,4 @@
+import 'server-only';
 import { cookies } from 'next/headers';
 
 export const ADMIN_COOKIE_NAME = 'kyh-admin-token';

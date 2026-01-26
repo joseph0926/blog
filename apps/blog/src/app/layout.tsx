@@ -68,7 +68,7 @@ export default function RootLayout({
       >
         {/* Accessibility: Skip to main content link */}
         <a href="#main-content" className="skip-link">
-          Skip to main content
+          본문으로 건너뛰기
         </a>
         <ThemeProvider
           attribute="class"
@@ -78,7 +78,9 @@ export default function RootLayout({
         >
           <Toaster richColors closeButton position="top-center" />
           <ReactQueryProvider>
-            <div id="main-content">{children}</div>
+            <main id="main-content" tabIndex={-1}>
+              {children}
+            </main>
           </ReactQueryProvider>
           {isVercel && (
             <>
