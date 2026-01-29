@@ -112,12 +112,16 @@ export function generatePostContent({
   title,
   description,
   tags,
+  thumbnail,
 }: {
   date: string;
   slug: string;
   title: string;
   description: string;
   tags: string[];
+  thumbnail?: string;
 }) {
-  return `---\nslug: \"${date}-${slug}\"\ntitle: \"${title}\"\ndescription: \"${description}\"\ndate: \"${date}\"\ntags: [${tags.map((tag) => `\"${tag}\"`).join(', ')}]\n---\n\n여기에 글을 작성하세요.\n`;
+  const thumbnailLine =
+    thumbnail && thumbnail.length > 0 ? `thumbnail: \"${thumbnail}\"\n` : '';
+  return `---\nslug: \"${slug}\"\ntitle: \"${title}\"\ndescription: \"${description}\"\ndate: \"${date}\"\n${thumbnailLine}tags: [${tags.map((tag) => `\"${tag}\"`).join(', ')}]\n---\n\n여기에 글을 작성하세요.\n`;
 }

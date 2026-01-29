@@ -1,7 +1,12 @@
 import { TRPCError } from '@trpc/server';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { z } from 'zod';
-import { Prisma } from '@/generated/prisma';
+import {
+  getAllPosts,
+  getAllTags,
+  getPostBySlug as getPostBySlugFromMdx,
+  updatePostMeta,
+} from '@/services/post.service';
 import { createPost } from '@/services/post/create-post.service';
 import { protectedProcedure, publicProcedure, router } from '../trpc';
 
@@ -15,9 +20,9 @@ export const postRouter = router({
         thumbnail: z.string().optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
-        const post = await createPost(input, ctx.prisma);
+        const post = await createPost(input);
 
         await Promise.all([
           revalidateTag('all-posts', 'max'),
@@ -47,7 +52,7 @@ export const postRouter = router({
     .input(
       z.object({
         limit: z.number().min(1).max(100).default(10),
-        cursor: z.string().cuid().optional(),
+        cursor: z.string().optional(),
         filter: z
           .object({
             category: z.string().optional(),
@@ -56,7 +61,7 @@ export const postRouter = router({
           .optional(),
       }),
     )
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const { limit, cursor, filter } = input;
       const categoryFilter = filter?.category?.toLowerCase();
       const searchFilter = filter?.search?.toLowerCase().trim();
@@ -79,45 +84,40 @@ export const postRouter = router({
         async () => {
           cacheHit = false;
 
-          const whereClause: Prisma.PostWhereInput = {};
+          const allPosts = await getAllPosts();
+
+          let filteredPosts = allPosts;
 
           if (categoryFilter) {
-            whereClause.tags = { some: { name: categoryFilter } };
+            filteredPosts = filteredPosts.filter((post) =>
+              post.tags.some(
+                (tag) => tag.name.toLowerCase() === categoryFilter,
+              ),
+            );
           }
 
           if (searchFilter) {
-            whereClause.OR = [
-              { title: { contains: searchFilter, mode: 'insensitive' } },
-              { description: { contains: searchFilter, mode: 'insensitive' } },
-            ];
+            filteredPosts = filteredPosts.filter(
+              (post) =>
+                post.title.toLowerCase().includes(searchFilter) ||
+                post.description.toLowerCase().includes(searchFilter),
+            );
           }
 
-          const posts = await ctx.prisma.post.findMany({
-            select: {
-              id: true,
-              slug: true,
-              title: true,
-              thumbnail: true,
-              createdAt: true,
-              description: true,
-              tags: {
-                select: {
-                  id: true,
-                  name: true,
-                },
-              },
-            },
-            where:
-              Object.keys(whereClause).length > 0 ? whereClause : undefined,
-            orderBy: { createdAt: 'desc' },
-            take: limit + 1,
-            skip: 0,
-            cursor: cursor ? { id: cursor } : undefined,
-          });
+          let startIndex = 0;
+          if (cursor) {
+            const cursorIndex = filteredPosts.findIndex(
+              (post) => post.id === cursor,
+            );
+            if (cursorIndex >= 0) startIndex = cursorIndex + 1;
+          }
 
+          const posts = filteredPosts.slice(startIndex, startIndex + limit + 1);
           const hasMore = posts.length > limit;
           const slicedPosts = posts.slice(0, limit);
-          const nextCursor = hasMore ? posts[limit]?.id : undefined;
+          const nextCursor = hasMore
+            ? slicedPosts[slicedPosts.length - 1]?.id
+            : undefined;
 
           return {
             posts: slicedPosts,
@@ -164,7 +164,7 @@ export const postRouter = router({
         ),
       }),
     )
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const { slug } = input;
 
       let cacheHit = true;
@@ -173,12 +173,7 @@ export const postRouter = router({
         async () => {
           cacheHit = false;
 
-          const post = await ctx.prisma.post.findUnique({
-            where: { slug },
-            include: {
-              tags: true,
-            },
-          });
+          const post = await getPostBySlugFromMdx(slug);
 
           if (!post) {
             throw new TRPCError({
@@ -216,12 +211,12 @@ export const postRouter = router({
       }
     }),
 
-  getTags: publicProcedure.query(async ({ ctx }) => {
+  getTags: publicProcedure.query(async () => {
     try {
-      const tags = await ctx.prisma.tag.findMany({
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      });
+      const tags = (await getAllTags()).map((tag) => ({
+        id: tag,
+        name: tag,
+      }));
       return {
         tags,
         message: '태그를 불러왔습니다.',
@@ -246,40 +241,11 @@ export const postRouter = router({
         }),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       const { slug, payload } = input;
 
       try {
-        const tagConnections = await Promise.all(
-          payload.tags.map(async (tagName) => {
-            const tag = await ctx.prisma.tag.upsert({
-              where: { name: tagName },
-              create: { name: tagName },
-              update: {},
-            });
-            return { id: tag.id };
-          }),
-        );
-
-        const post = await ctx.prisma.post.update({
-          where: { slug },
-          data: {
-            title: payload.title,
-            description: payload.description,
-            thumbnail: payload.thumbnail || null,
-            tags: {
-              set: [],
-              connect: tagConnections,
-            },
-          },
-          select: {
-            slug: true,
-            title: true,
-            description: true,
-            thumbnail: true,
-            updatedAt: true,
-          },
-        });
+        const post = await updatePostMeta({ slug, payload });
 
         await Promise.all([
           revalidateTag('all-posts', 'max'),
@@ -291,13 +257,15 @@ export const postRouter = router({
           message: '글을 업데이트하였습니다.',
         };
       } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
-          if (error.code === 'P2025') {
-            throw new TRPCError({
-              code: 'NOT_FOUND',
-              message: '해당 글이 없습니다.',
-            });
-          }
+        if (
+          error instanceof Error &&
+          'code' in error &&
+          error.code === 'ENOENT'
+        ) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '해당 글이 없습니다.',
+          });
         }
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',

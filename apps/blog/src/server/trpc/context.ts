@@ -1,7 +1,6 @@
 import { type NextRequest } from 'next/server';
 import { getAdminCookie } from '@/lib/auth/cookie';
 import { verifyAccessToken } from '@/lib/auth/token';
-import { prisma } from '@/lib/prisma';
 
 export async function createTRPCContext({
   req,
@@ -25,7 +24,6 @@ export async function createTRPCContext({
   }
 
   return {
-    prisma,
     user,
     req,
   };
