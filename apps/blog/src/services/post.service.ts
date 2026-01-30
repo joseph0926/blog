@@ -2,6 +2,7 @@ import 'server-only';
 import matter from 'gray-matter';
 import fs from 'node:fs';
 import path from 'node:path';
+import { perfTimer } from '@/lib/perf-log';
 
 type PostMeta = {
   slug: string;
@@ -72,59 +73,73 @@ const toPostListItem = (meta: PostMeta): PostListItem => ({
 });
 
 export const getPostContent = async (slug: string) => {
+  const end = perfTimer('mdx:getPostContent');
   const decodedSlug = decodeURIComponent(slug);
   const postPath = path.join(mdxDir, `${decodedSlug}.mdx`);
   const source = fs.readFileSync(postPath, 'utf-8');
+  end({ slug: decodedSlug, bytes: source.length });
   return { source };
 };
 
 export const getAllPostSlugs = async (): Promise<string[]> => {
+  const end = perfTimer('mdx:getAllPostSlugs');
   const files = fs.readdirSync(mdxDir);
-  return files
+  const slugs = files
     .filter((file) => file.endsWith('.mdx'))
     .map((file) => file.replace(/\.mdx$/, ''));
+  end({ count: slugs.length });
+  return slugs;
 };
 
 const getAllPostMeta = async (): Promise<PostMeta[]> => {
+  const end = perfTimer('mdx:getAllPostMeta');
   const files = await fs.promises.readdir(mdxDir);
-  const posts = await Promise.all(
-    files
-      .filter((file) => file.endsWith('.mdx'))
-      .map(async (file) => {
-        const filePath = path.join(mdxDir, file);
-        const source = await fs.promises.readFile(filePath, 'utf-8');
-        const { data } = matter(source);
-        const slug = file.replace(/\.mdx$/, '');
-        return normalizeMeta(data, slug);
-      }),
+  const mdxFiles = files.filter((file) => file.endsWith('.mdx'));
+  const entries = await Promise.all(
+    mdxFiles.map(async (file) => {
+      const filePath = path.join(mdxDir, file);
+      const source = await fs.promises.readFile(filePath, 'utf-8');
+      const { data } = matter(source);
+      const slug = file.replace(/\.mdx$/, '');
+      return { meta: normalizeMeta(data, slug), bytes: source.length };
+    }),
   );
-
+  const totalBytes = entries.reduce((sum, entry) => sum + entry.bytes, 0);
+  const posts = entries.map((entry) => entry.meta);
+  end({ fileCount: mdxFiles.length, count: posts.length, bytes: totalBytes });
   return posts;
 };
 
 export const getAllPosts = async (): Promise<PostListItem[]> => {
+  const end = perfTimer('mdx:getAllPosts');
   const metas = await getAllPostMeta();
-  return metas.map(toPostListItem).sort((a, b) => {
+  const posts = metas.map(toPostListItem).sort((a, b) => {
     const diff = b.createdAt.getTime() - a.createdAt.getTime();
     if (diff !== 0) return diff;
     return b.slug.localeCompare(a.slug);
   });
+  end({ count: posts.length });
+  return posts;
 };
 
 export const getPostMetaBySlug = async (
   slug: string,
 ): Promise<PostMeta | null> => {
+  const end = perfTimer('mdx:getPostMetaBySlug');
   const decodedSlug = decodeURIComponent(slug);
   const filePath = path.join(mdxDir, `${decodedSlug}.mdx`);
 
   try {
     const source = await fs.promises.readFile(filePath, 'utf-8');
     const { data } = matter(source);
+    end({ slug: decodedSlug, found: true, bytes: source.length });
     return normalizeMeta(data, decodedSlug);
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+      end({ slug: decodedSlug, found: false });
       return null;
     }
+    end({ slug: decodedSlug, error: true });
     throw error;
   }
 };
@@ -138,12 +153,15 @@ export const getPostBySlug = async (
 };
 
 export const getAllTags = async (): Promise<string[]> => {
+  const end = perfTimer('mdx:getAllTags');
   const metas = await getAllPostMeta();
   const tags = new Set<string>();
   metas.forEach((meta) => {
     meta.tags.forEach((tag) => tags.add(tag));
   });
-  return Array.from(tags).sort((a, b) => a.localeCompare(b));
+  const results = Array.from(tags).sort((a, b) => a.localeCompare(b));
+  end({ count: results.length });
+  return results;
 };
 
 export const updatePostMeta = async ({

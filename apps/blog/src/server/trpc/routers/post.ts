@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { z } from 'zod';
+import { perfTimer } from '@/lib/perf-log';
 import {
   getAllPosts,
   getAllTags,
@@ -63,6 +64,7 @@ export const postRouter = router({
     )
     .query(async ({ input }) => {
       const { limit, cursor, filter } = input;
+      const end = perfTimer('trpc:getPosts');
       const categoryFilter = filter?.category?.toLowerCase();
       const searchFilter = filter?.search?.toLowerCase().trim();
 
@@ -137,6 +139,16 @@ export const postRouter = router({
       try {
         const result = await cachedFn();
 
+        end({
+          cacheHit,
+          limit,
+          hasCursor: Boolean(cursor),
+          hasCategory: Boolean(categoryFilter),
+          hasSearch: Boolean(searchFilter),
+          resultCount: result.posts.length,
+          hasNextCursor: Boolean(result.nextCursor),
+        });
+
         return {
           posts: result.posts,
           nextCursor: result.nextCursor,
@@ -146,6 +158,14 @@ export const postRouter = router({
           cacheHit,
         };
       } catch {
+        end({
+          cacheHit,
+          limit,
+          hasCursor: Boolean(cursor),
+          hasCategory: Boolean(categoryFilter),
+          hasSearch: Boolean(searchFilter),
+          error: true,
+        });
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: '글을 불러오는 중 오류가 발생했습니다.',
@@ -166,6 +186,7 @@ export const postRouter = router({
     )
     .query(async ({ input }) => {
       const { slug } = input;
+      const end = perfTimer('trpc:getPostBySlug');
 
       let cacheHit = true;
 
@@ -194,6 +215,8 @@ export const postRouter = router({
       try {
         const post = await cachedFn();
 
+        end({ cacheHit, slug, found: true });
+
         return {
           post,
           message: '글을 불러왔습니다.',
@@ -201,9 +224,11 @@ export const postRouter = router({
         };
       } catch (e) {
         if (e instanceof TRPCError) {
+          end({ cacheHit, slug, error: e.code });
           throw e;
         }
 
+        end({ cacheHit, slug, error: 'INTERNAL_SERVER_ERROR' });
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: '글을 불러오는 중 오류가 발생했습니다.',
@@ -212,16 +237,19 @@ export const postRouter = router({
     }),
 
   getTags: publicProcedure.query(async () => {
+    const end = perfTimer('trpc:getTags');
     try {
       const tags = (await getAllTags()).map((tag) => ({
         id: tag,
         name: tag,
       }));
+      end({ count: tags.length });
       return {
         tags,
         message: '태그를 불러왔습니다.',
       };
     } catch {
+      end({ error: true });
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: '태그를 불러오는 중 오류가 발생했습니다.',
