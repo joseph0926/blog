@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-01-30T08:24:00Z",
+  "repo": {
+    "git_root": "/Users/younghoonkim/dev/personal/@project/joseph0926",
+    "origin_url": "https://github.com/joseph0926/blog.git",
+    "head_sha": "2dcb500d54cae1c3d0ebf4f8289e6701d754cd85"
+  },
+  "invocation": {
+    "mode": "write",
+    "args": ["write"],
+    "targets": [],
+    "diff": null
+  },
+  "monorepo": {
+    "is_monorepo": true,
+    "workspace_manager": "pnpm",
+    "workspace_roots": ["apps/blog", "packages/ui"]
+  },
+  "workspace_mapping": {
+    "files_considered": [
+      "apps/blog/src/lib/perf-log.ts",
+      "apps/blog/src/services/post.service.ts",
+      "apps/blog/src/server/trpc/routers/post.ts"
+    ],
+    "file_to_workspace": {
+      "apps/blog/src/lib/perf-log.ts": "apps/blog",
+      "apps/blog/src/services/post.service.ts": "apps/blog",
+      "apps/blog/src/server/trpc/routers/post.ts": "apps/blog"
+    },
+    "global_files": [],
+    "scopes_touched": [{ "scope": "apps/blog", "file_count": 3 }]
+  },
+  "scope_resolution": {
+    "scope_selected": "apps/blog",
+    "candidates": [
+      {
+        "scope": "apps/blog",
+        "file_count": 3,
+        "reason": "perf debug instrumentation files are all under apps/blog"
+      }
+    ],
+    "reason": "User request adds perf logging for suspected bottlenecks in blog app."
+  },
+  "stack_detection": {
+    "stack_tags": [
+      "nextjs",
+      "react",
+      "trpc",
+      "prisma",
+      "tailwind",
+      "typescript",
+      "vitest",
+      "motion",
+      "react-query"
+    ],
+    "active_skills": ["nextjs-aio", "react-aio", "performance-aio"],
+    "signals": {
+      "deps": [
+        "next",
+        "react",
+        "@trpc/server",
+        "@prisma/client",
+        "tailwindcss",
+        "typescript",
+        "vitest",
+        "motion",
+        "@tanstack/react-query"
+      ],
+      "config_files": [
+        "apps/blog/next.config.ts",
+        "apps/blog/tsconfig.json",
+        "apps/blog/vitest.config.ts",
+        "apps/blog/postcss.config.mjs"
+      ],
+      "grep_hits": []
+    }
+  }
+}
