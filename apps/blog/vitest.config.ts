@@ -25,6 +25,12 @@ export default defineConfig({
         '**/types/**',
         'src/mdx/**',
       ],
+      thresholds: {
+        lines: 60,
+        branches: 50,
+        functions: 50,
+        statements: 60,
+      },
     },
   },
   resolve: {

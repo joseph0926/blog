@@ -172,10 +172,10 @@ JWT_SECRET="..."
 
 상세 내용은 [review/analyze.md](./review/analyze.md) 참조
 
-| 우선순위 | 항목                                        | 난이도 |
-| -------- | ------------------------------------------- | ------ |
-| P2       | 루트 vitest.config.ts 레거시 정리           | 낮음   |
-| P2       | UI/UX 접근성 개선 (aria-label, 키보드 지원) | 중간   |
-| P2       | 이미지 sizes 최적화                         | 낮음   |
-| P3       | E2E 테스트 (Playwright)                     | 중간   |
-| P3       | Lighthouse CI 도입                          | 중간   |
+| 우선순위 | 항목                                            | 상태    |
+| -------- | ----------------------------------------------- | ------- |
+| P2       | ~~루트 vitest.config.ts 레거시 정리~~           | ✅ 완료 |
+| P2       | ~~UI/UX 접근성 개선 (aria-label, 키보드 지원)~~ | ✅ 완료 |
+| P2       | ~~이미지 sizes 최적화~~                         | ✅ 완료 |
+| P3       | E2E 테스트 (Playwright)                         | 미완료  |
+| P3       | Lighthouse CI 도입                              | 미완료  |

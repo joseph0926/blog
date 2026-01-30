@@ -32,6 +32,7 @@ export const BlogPost = ({
         priority
         unoptimized={ENV === 'dev'}
         alt={post.title}
+        sizes={type === 'row' ? '(max-width: 640px) 33vw, 50vw' : '100vw'}
         className={cn(
           'aspect-video rounded-lg object-cover',
           type === 'row' ? 'w-1/3 sm:w-1/2' : 'w-full',

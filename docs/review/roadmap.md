@@ -185,91 +185,49 @@ steps:
 
 ---
 
-## 남은 PR (P2/P3)
-
-### 🔄 PR-08: 루트 vitest.config.ts 정리
+### ✅ PR-08: 루트 vitest.config.ts 정리
 
 **우선순위**: P2
 **난이도**: 낮음
+**상태**: 완료 (2026-01-31)
 
-**변경 파일**:
+**변경 내용**:
 
-- `vitest.config.ts` (루트) - 삭제 또는 workspace 설정으로 전환
-
-**현황**:
-
-- 루트 `vitest.config.ts`가 `./src/test/setup.ts`를 참조하지만 루트에 `src/`가 없음
-- `apps/blog/vitest.config.ts`가 별도로 존재하며 정상 동작
-
-**권장안**:
-
-- 옵션 A: 루트 config 삭제
-- 옵션 B: workspace 설정으로 전환 (`workspaces: ['apps/*']`)
+- `vitest.config.ts` (루트) 삭제
+- `turbo.json`에 `test`, `test:ci`, `lint` task 추가
+- `apps/blog/vitest.config.ts`에 coverage threshold 추가 (lines: 60, branches: 50, functions: 50, statements: 60)
 
 ---
 
-### 🔄 PR-09: UI/UX 접근성 개선
+### ✅ PR-09: UI/UX 접근성 개선
 
 **우선순위**: P2
 **난이도**: 중간
+**상태**: 완료 (2026-01-31)
 
-**변경 파일**:
+**변경 내용**:
 
-- `apps/blog/src/components/ui/file-upload.tsx`
-- `apps/blog/src/components/ui/floating.tsx`
-- `apps/blog/src/components/admin/post-dialog.tsx`
-- `apps/blog/src/components/admin/posts-table.tsx`
-
-**개선 내용**:
-
-#### FileUpload 키보드 접근성
-
-```tsx
-<motion.div
-  role="button"
-  tabIndex={0}
-  aria-disabled={disabled}
-  onKeyDown={(e) => {
-    if (disabled) return;
-    if (e.key === 'Enter' || e.key === ' ') handleClick();
-  }}
->
-```
-
-#### 아이콘 버튼 aria-label
-
-```tsx
-// post-dialog.tsx 썸네일 제거 버튼
-<Button aria-label="썸네일 제거">
-  <X />
-</Button>
-
-// floating.tsx 필터 버튼
-<button aria-label={open ? "필터 닫기" : "필터 열기"}>
-
-// posts-table.tsx 더보기 버튼
-<Button aria-label="게시글 작업 메뉴 열기">
-```
+- `file-upload.tsx`: `role="button"`, `tabIndex`, `onKeyDown` (이미 적용됨)
+- `floating.tsx`: `aria-label`, `aria-expanded` (이미 적용됨)
+- `post-dialog.tsx`: 썸네일 제거 버튼 `aria-label` (이미 적용됨)
+- `posts-table.tsx`: 더보기 버튼 `aria-label="게시글 작업 메뉴 열기"` 추가
 
 ---
 
-### 🔄 PR-10: 이미지 sizes 최적화
+### ✅ PR-10: 이미지 sizes 최적화
 
 **우선순위**: P2
 **난이도**: 낮음
+**상태**: 완료 (2026-01-31)
 
-**변경 파일**:
+**변경 내용**:
 
-- `apps/blog/src/components/blog/blog-post-card.tsx`
-- `apps/blog/src/components/home/blog-post.tsx`
-
-**개선 내용**:
-
-```tsx
-<Image sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" />
-```
+- `blog-post-card.tsx`: `sizes` 속성 (이미 적용됨)
+- `blog-post.tsx`: `sizes` 속성 추가 (type에 따라 동적 적용)
 
 ---
+
+## 남은 PR (P2/P3)
 
 ### 🔄 PR-11: E2E 테스트 도입
 

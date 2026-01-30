@@ -19,8 +19,21 @@
     "type-check": {
       "dependsOn": ["^type-check"]
     },
+    "lint": {
+      "dependsOn": ["^lint"]
+    },
     "lint:fix": {
       "dependsOn": ["^lint:fix"]
+    },
+    "test": {
+      "dependsOn": ["db:gen"],
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "test:ci": {
+      "dependsOn": ["db:gen"],
+      "cache": false,
+      "env": ["DATABASE_URL"]
     },
     "db:gen": {
       "cache": false,
