@@ -1,13 +1,17 @@
 packages:
-  - 'apps/*'
-  - 'packages/*'
+  - apps/*
+  - packages/*
+
 onlyBuiltDependencies:
+  - '@parcel/watcher'
   - '@prisma/client'
   - '@prisma/engines'
+  - '@swc/core'
   - '@tailwindcss/oxide'
   - '@vercel/speed-insights'
   - bcrypt
   - es5-ext
+  - esbuild
   - prisma
   - sharp
   - unrs-resolver

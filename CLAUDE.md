@@ -143,7 +143,7 @@ JWT_SECRET="..."
 
 ### GitHub Actions (`ci.yml`)
 
-1. **환경**: Node.js (`.nvmrc` 기준), pnpm 10.28.0
+1. **환경**: Node.js (`.nvmrc` 기준), pnpm 10.28.2
 2. **검증**: lint, format:check, type-check
 3. **테스트**: postgres service + vitest
 4. **빌드**: turbo build

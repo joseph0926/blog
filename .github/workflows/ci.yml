@@ -11,7 +11,7 @@ jobs:
   lint-and-build:
     runs-on: ubuntu-22.04
     env:
-      PNPM_VERSION: 10.28.0
+      PNPM_VERSION: 10.28.2
       NEXT_TELEMETRY_DISABLED: 1
     services:
       postgres:
@@ -46,8 +46,8 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
 
       - name: Restore pnpm store
         uses: actions/cache@v4
