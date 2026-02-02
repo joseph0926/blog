@@ -1,12 +1,19 @@
+import { PrismaPg } from '@prisma/adapter-pg';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { PrismaClient } from '@/generated/prisma';
+import { PrismaClient } from '@/generated/prisma/client';
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma: ReturnType<typeof createPrismaClient>;
+};
 
 export const reqStore = new AsyncLocalStorage<{ dbDur: number }>();
 
 const createPrismaClient = () => {
-  const client = new PrismaClient();
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL!,
+  });
+
+  const client = new PrismaClient({ adapter });
 
   return client.$extends({
     query: {

@@ -13,7 +13,7 @@ import { Filter, Search, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { Tag } from '@/generated/prisma';
+import { Tag } from '@/generated/prisma/client';
 
 type BlogFilterProps = {
   tags: Pick<Tag, 'id' | 'name'>[];
