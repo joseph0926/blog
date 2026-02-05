@@ -8,6 +8,46 @@
 
 ---
 
+## 블로그 글 작성 전 보강 필수 (퀴즈 리뷰 기반)
+
+> 2026-02-05 리뷰 결과. 기존 정리에서 "안다" 수준을 "설명할 수 있다" 수준으로 올려야 하는 항목.
+
+### 1순위: Value Copy vs Live Binding 메커니즘 (Q4 취약)
+
+- [x] CJS에서 `module.exports = { count }` 시 **객체 리터럴 평가 시점에 값이 복사되는 과정** 정리 → [10-value-copy-vs-live-binding.md](./10-value-copy-vs-live-binding.md)
+- [x] ESM에서 `export let count`가 참조를 내보내는 원리: **Module Environment Record 바인딩** 설명 → [10-value-copy-vs-live-binding.md](./10-value-copy-vs-live-binding.md)
+- [ ] CJS에서도 참조처럼 동작시키는 우회 패턴 (`Object.defineProperty`, `exports.count` 직접 접근)
+- [ ] "CJS도 우회 가능하지만 ESM은 언어 레벨에서 보장" 결론 도출
+
+### 2순위: ESM 로딩 3단계 — "왜 이렇게 나눴는지" (Q5 부분 정답)
+
+- [ ] **Construction**: 모듈 그래프 완성이 Instantiation의 전제 조건인 이유
+- [ ] **Instantiation**: 메모리 할당만 하고 값을 넣지 않는 이유 → 순환 참조 시 TDZ로 빠르게 에러 발견
+- [ ] **Evaluation**: leaf부터 실행하는 이유 → 의존성 없는 것부터 값을 채워야 하므로
+- [ ] 번들러 글(2025-12-20)과 연결: "의존성 그래프 구축 → ESM 3단계 Construction"
+
+### 3순위: Tree-shaking 동작 원리 (번들러 글 예고 주제)
+
+- [ ] 정적 분석 → 사용하지 않는 export 탐지 → dead code elimination 과정
+- [ ] `import { a } from 'lib'`에서 `b`를 안 쓰면 번들러가 제거하는 흐름
+- [ ] **side effects**: `"sideEffects": false` 설정의 의미
+- [ ] barrel file(`index.ts`)이 tree-shaking을 방해하는 이유
+
+### 4순위: 순환 참조 실제 동작 (02-advanced 보강)
+
+- [ ] CJS "불완전한 객체"의 구체적 상태: 아직 실행 안 된 부분이 `undefined`인 이유
+- [ ] ESM 순환 참조: Instantiation에서 바인딩 생성 → 값 없이 접근 시 TDZ → CJS보다 나은 이유
+- [ ] 실무에서 순환 참조를 유발하는 패턴 (barrel file re-export 등)
+
+### 5순위: Dual Package / exports 심화 (Q9 미학습, 선택)
+
+- [ ] `exports` 필드 우선순위: Node.js가 `exports` > `main` > `module` 순으로 해석
+- [ ] subpath exports: `"./utils": { "import": "...", "require": "..." }` 패턴
+- [ ] **Dual Package Hazard**: 같은 패키지가 ESM/CJS 두 번 로드되면 `instanceof` 깨지는 문제
+- [ ] TypeScript `moduleResolution: "bundler"` vs `"node16"`이 `exports` 해석에 미치는 영향
+
+---
+
 ## 실무 적용
 
 - [ ] **Dual Package 작성**: 라이브러리 배포 시 ESM/CJS 모두 지원하는 `package.json` exports 설정
@@ -72,6 +112,18 @@
 
 ## 학습 우선순위 제안
 
+### 블로그 글 작성용 (보강 필수)
+
+| 순위 | 주제                                | 이유                                  | 상태                                                 |
+| ---- | ----------------------------------- | ------------------------------------- | ---------------------------------------------------- |
+| 1    | Value Copy vs Live Binding 메커니즘 | 퀴즈 취약 + 블로그 핵심 차별화 포인트 | ✅ 완료 ([10번](./10-value-copy-vs-live-binding.md)) |
+| 2    | ESM 3단계 "왜 이렇게 나눴는지"      | 번들러 글 후속 연결                   | ⚠️ 보강 필요                                         |
+| 3    | Tree-shaking 동작 원리              | 번들러 글에서 예고한 주제             | 📚 새로 정리                                         |
+| 4    | 순환 참조 실제 동작                 | CJS vs ESM 비교 완성도                | ⚠️ 보강 필요                                         |
+| 5    | Dual Package / exports 심화         | 실무 적용 섹션용 (선택)               | 📚 새로 정리                                         |
+
+### 일반 학습용
+
 | 순위 | 주제                        | 이유                      |
 | ---- | --------------------------- | ------------------------- |
 | 1    | CJS → ESM 마이그레이션 전략 | 실무에서 가장 자주 마주침 |
@@ -83,3 +135,4 @@
 ---
 
 _작성일: 2026-02-03_
+_업데이트: 2026-02-05 (1순위 Value Copy vs Live Binding 심화 문서 완료)_
