@@ -16,6 +16,7 @@
 | [08-todo.md](./08-todo.md)                                             | 추가 학습 TODO 리스트                                 | 확장용        |
 | [09-quiz-review.md](./09-quiz-review.md)                               | 퀴즈 복습 노트 (2026-02-04)                           | 🔴 복습 필수  |
 | [10-value-copy-vs-live-binding.md](./10-value-copy-vs-live-binding.md) | Value Copy vs Live Binding 심화 (원리, 참조값, 비유)  | ⭐⭐⭐        |
+| [11-quiz-review-2.md](./11-quiz-review-2.md)                           | 퀴즈 복습 노트 2차 (2026-02-07)                       | 🔴 복습 필수  |
 
 ## 빠른 요약
 
@@ -40,8 +41,9 @@
 5. **확장** → [08-todo.md](./08-todo.md)
 6. **퀴즈 복습** → [09-quiz-review.md](./09-quiz-review.md)
 7. **심화 보강** → [10-value-copy-vs-live-binding.md](./10-value-copy-vs-live-binding.md)
+8. **퀴즈 복습 2차** → [11-quiz-review-2.md](./11-quiz-review-2.md)
 
 ---
 
 _작성일: 2026-02-02_
-_업데이트: 2026-02-05 (Value Copy vs Live Binding 심화 문서 추가)_
+_업데이트: 2026-02-07 (퀴즈 복습 노트 2차 추가)_
