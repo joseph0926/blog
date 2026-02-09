@@ -21,9 +21,11 @@
 
 ### 2순위: ESM 로딩 3단계 — "왜 이렇게 나눴는지" (Q5 부분 정답)
 
-- [ ] **Construction**: 모듈 그래프 완성이 Instantiation의 전제 조건인 이유
-- [ ] **Instantiation**: 메모리 할당만 하고 값을 넣지 않는 이유 → 순환 참조 시 TDZ로 빠르게 에러 발견
-- [ ] **Evaluation**: leaf부터 실행하는 이유 → 의존성 없는 것부터 값을 채워야 하므로
+- [x] C-I-E 단계 역할 구분 + 장벽 위치 설명 정리 → [12-construction-instantiation-qna.md](./12-construction-instantiation-qna.md)
+- [x] Construction(모듈 그래프) vs Instantiation(바인딩 연결) 구분 정리 → [12-construction-instantiation-qna.md](./12-construction-instantiation-qna.md)
+- [x] **Construction**: 모듈 그래프 완성이 Instantiation의 전제 조건인 이유 → [12-construction-instantiation-qna.md](./12-construction-instantiation-qna.md)
+- [x] **Instantiation**: 메모리 할당만 하고 값을 넣지 않는 이유 → 순환 참조 시 TDZ로 빠르게 에러 발견 → [12-construction-instantiation-qna.md](./12-construction-instantiation-qna.md)
+- [x] **Evaluation**: leaf부터 실행하는 이유 → 의존성 없는 것부터 값을 채워야 하므로 → [12-construction-instantiation-qna.md](./12-construction-instantiation-qna.md)
 - [ ] 번들러 글(2025-12-20)과 연결: "의존성 그래프 구축 → ESM 3단계 Construction"
 
 ### 3순위: Tree-shaking 동작 원리 (번들러 글 예고 주제)
@@ -36,7 +38,7 @@
 ### 4순위: 순환 참조 실제 동작 (02-advanced 보강)
 
 - [ ] CJS "불완전한 객체"의 구체적 상태: 아직 실행 안 된 부분이 `undefined`인 이유
-- [ ] ESM 순환 참조: Instantiation에서 바인딩 생성 → 값 없이 접근 시 TDZ → CJS보다 나은 이유
+- [x] ESM 순환 참조: Instantiation에서 바인딩 생성 → 값 없이 접근 시 TDZ → CJS보다 나은 이유 → [12-construction-instantiation-qna.md](./12-construction-instantiation-qna.md)
 - [ ] 실무에서 순환 참조를 유발하는 패턴 (barrel file re-export 등)
 
 ### 5순위: Dual Package / exports 심화 (Q9 미학습, 선택)
@@ -114,13 +116,13 @@
 
 ### 블로그 글 작성용 (보강 필수)
 
-| 순위 | 주제                                | 이유                                  | 상태                                                 |
-| ---- | ----------------------------------- | ------------------------------------- | ---------------------------------------------------- |
-| 1    | Value Copy vs Live Binding 메커니즘 | 퀴즈 취약 + 블로그 핵심 차별화 포인트 | ✅ 완료 ([10번](./10-value-copy-vs-live-binding.md)) |
-| 2    | ESM 3단계 "왜 이렇게 나눴는지"      | 번들러 글 후속 연결                   | ⚠️ 보강 필요                                         |
-| 3    | Tree-shaking 동작 원리              | 번들러 글에서 예고한 주제             | 📚 새로 정리                                         |
-| 4    | 순환 참조 실제 동작                 | CJS vs ESM 비교 완성도                | ⚠️ 보강 필요                                         |
-| 5    | Dual Package / exports 심화         | 실무 적용 섹션용 (선택)               | 📚 새로 정리                                         |
+| 순위 | 주제                                | 이유                                  | 상태                                                        |
+| ---- | ----------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| 1    | Value Copy vs Live Binding 메커니즘 | 퀴즈 취약 + 블로그 핵심 차별화 포인트 | ✅ 완료 ([10번](./10-value-copy-vs-live-binding.md))        |
+| 2    | ESM 3단계 "왜 이렇게 나눴는지"      | 번들러 글 후속 연결                   | 🟡 진행 중 ([12번](./12-construction-instantiation-qna.md)) |
+| 3    | Tree-shaking 동작 원리              | 번들러 글에서 예고한 주제             | 📚 새로 정리                                                |
+| 4    | 순환 참조 실제 동작                 | CJS vs ESM 비교 완성도                | 🟡 진행 중 ([12번](./12-construction-instantiation-qna.md)) |
+| 5    | Dual Package / exports 심화         | 실무 적용 섹션용 (선택)               | 📚 새로 정리                                                |
 
 ### 일반 학습용
 
@@ -135,4 +137,4 @@
 ---
 
 _작성일: 2026-02-03_
-_업데이트: 2026-02-05 (1순위 Value Copy vs Live Binding 심화 문서 완료)_
+_업데이트: 2026-02-09 (추가 대화 반영: 2순위/4순위 일부 완료 체크)_
