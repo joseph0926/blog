@@ -11,7 +11,7 @@ jobs:
   lint-and-build:
     runs-on: ubuntu-22.04
     env:
-      PNPM_VERSION: 10.28.2
+      PNPM_VERSION: 10.29.2
       NEXT_TELEMETRY_DISABLED: 1
     services:
       postgres:
