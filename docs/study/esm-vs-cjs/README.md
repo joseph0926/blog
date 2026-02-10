@@ -18,6 +18,8 @@
 | [10-value-copy-vs-live-binding.md](./10-value-copy-vs-live-binding.md)         | Value Copy vs Live Binding 심화 (원리, 참조값, 비유)  | ⭐⭐⭐        |
 | [11-quiz-review-2.md](./11-quiz-review-2.md)                                   | 퀴즈 복습 노트 2차 (2026-02-07)                       | 🔴 복습 필수  |
 | [12-construction-instantiation-qna.md](./12-construction-instantiation-qna.md) | 로딩 3단계 대화 정리 (Construction/Instantiation)     | 🔴 복습 필수  |
+| [13-tree-shaking-qna.md](./13-tree-shaking-qna.md)                             | Tree-shaking 대화 정리 (side effects, mark, barrel)   | 🔴 복습 필수  |
+| [14-quiz-review-3.md](./14-quiz-review-3.md)                                   | 퀴즈 복습 노트 3차 (2026-02-10, Q1~Q10)               | 🔴 복습 필수  |
 
 ## 빠른 요약
 
@@ -44,8 +46,10 @@
 7. **심화 보강** → [10-value-copy-vs-live-binding.md](./10-value-copy-vs-live-binding.md)
 8. **퀴즈 복습 2차** → [11-quiz-review-2.md](./11-quiz-review-2.md)
 9. **대화 복습 정리** → [12-construction-instantiation-qna.md](./12-construction-instantiation-qna.md)
+10. **대화 복습 정리 2** → [13-tree-shaking-qna.md](./13-tree-shaking-qna.md)
+11. **퀴즈 복습 3차** → [14-quiz-review-3.md](./14-quiz-review-3.md)
 
 ---
 
 _작성일: 2026-02-02_
-_업데이트: 2026-02-09 (로딩 3단계 대화 정리 문서 추가)_
+_업데이트: 2026-02-10 (퀴즈 복습 3차 문서 추가)_
