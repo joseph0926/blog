@@ -85,7 +85,7 @@ export default async function PostPage({
       <Suspense fallback={<PostHeaderLoading />}>
         <PostHeader slug={slug} />
       </Suspense>
-      <article className="prose dark:prose-invert prose-pre:rounded-xl prose-pre:border prose-pre:border-border/70 prose-pre:bg-muted/55 prose-pre:shadow-xs dark:prose-pre:border-white/20 dark:prose-pre:bg-black/35 max-w-none py-8">
+      <article className="prose dark:prose-invert prose-pre:rounded-xl prose-pre:border prose-pre:border-border/70 prose-pre:bg-muted/55 prose-pre:text-foreground prose-pre:shadow-xs dark:prose-pre:border-white/20 dark:prose-pre:bg-black/35 dark:prose-pre:text-white/90 max-w-none py-8">
         <Suspense
           fallback={
             <div className="h-[67vh] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
