@@ -1,0 +1,718 @@
+---
+slug: '2026-02-13-react-subtle-optimizations'
+title: 'React 소스 코드에서 발견한 사소한 최적화들'
+description: 'React 소스 코드를 직접 읽으면서 발견한 V8 Hidden Class, Object.freeze, 분기 순서 등 한 줄 수준의 최적화 기법들을 정리합니다.'
+date: '2026-02-13'
+tags: ['react']
+thumbnail: '/post/react.webp'
+---
+
+저는 요즘 React 소스 코드를 직접 읽으면서 공부하고 있습니다.
+
+React 레포를 fork해서 로컬에 두고, 파일 하나하나 열어보면서 "이 코드는 왜 이렇게 작성했을까?"를 파고드는 방식입니다. 공식 문서만으로는 알 수 없는 내부 구현을 직접 확인하고, 궁금한 점이 생기면 Git 히스토리나 PR을 추적해서 근거를 찾습니다.
+
+이렇게 소스를 읽다 보면 알고리즘이나 아키텍처 같은 큰 주제가 아니라, 한 줄, 한 단어 수준의 사소한 선택들이 눈에 들어올 때가 있습니다.
+
+```js
+this.actualDuration = -0;
+this.actualStartTime = -1.1;
+```
+
+왜 `0`이 아니라 `-0`이고, `-1`이 아니라 `-1.1`일까요?
+
+```js
+if (typeof type === 'function') {
+  // ...
+} else if (typeof type === 'string') {
+  // ...
+} else {
+  // ...
+}
+```
+
+이 if/else 순서는 왜 이렇게 되어 있을까요? 거꾸로 하면 안 되는 걸까요?
+
+파고 들어가면 각각 이유가 있었습니다. 이 글은 소스 코드를 읽으면서 발견한 "사소한 최적화"들을 정리한 기록입니다.
+
+---
+
+## Object.freeze — DEV에서만 적용하는 이유
+
+React에서 props는 불변(read-only)입니다. 공식 문서에서도 강조하고, 모든 React 개발자가 알고 있는 규칙이죠.
+
+근데 이 규칙은 어떻게 강제되는 걸까요? 단순히 "약속"인 걸까요, 아니면 코드로 막아놓은 걸까요?
+
+`ReactJSXElement.js`의 ReactElement 함수를 보면 답이 나옵니다.
+
+```js
+// packages/react/src/jsx/ReactJSXElement.js:276-279
+if (__DEV__) {
+  // ...
+  if (Object.freeze) {
+    Object.freeze(element.props);
+    Object.freeze(element);
+  }
+}
+```
+
+`Object.freeze()`로 props 객체와 element 자체를 잠그고 있습니다. freeze된 객체는 프로퍼티 추가, 삭제, 수정이 전부 불가능해집니다.
+
+만약 이 규칙을 어기면 어떻게 될까요?
+
+```jsx
+function BadComponent({ items }) {
+  items.push(newItem); // TypeError: Cannot add property 3, object is not extensible
+  items.sort(); // TypeError: Cannot assign to read only property '0'
+}
+
+function AnotherBad() {
+  const el = <div className="a" />;
+  el.props.className = 'b'; // TypeError: "className" is read-only
+  el.type = 'span'; // TypeError: "type" is read-only
+}
+```
+
+개발 모드에서는 이렇게 즉시 TypeError가 발생합니다. 실수를 일찍 잡아주는 것이죠.
+
+근데 여기서 중요한 점은 이 코드가 `__DEV__` 블록 안에 있다는 것입니다. 프로덕션 빌드에서는 `Object.freeze()`가 아예 실행되지 않습니다.
+
+왜 프로덕션에서는 빠질까요?
+
+같은 파일의 DEV와 PROD 분기를 비교하면 의도가 보입니다.
+
+```js
+// DEV — element 생성 (line 188-200)
+element = {
+  $$typeof: REACT_ELEMENT_TYPE,
+  type,
+  key,
+  props,
+  _owner: owner, // DEV 전용
+};
+// + _store, _debugInfo, _debugStack, _debugTask  (defineProperty 4번)
+// + Object.freeze(element.props)
+// + Object.freeze(element)
+
+// PROD — element 생성 (line 227-237)
+element = {
+  $$typeof: REACT_ELEMENT_TYPE,
+  type,
+  key,
+  ref,
+  props, // 이게 전부
+};
+```
+
+PROD element는 프로퍼티 5개짜리 plain object가 전부입니다. DEV에서는 `Object.defineProperty` 4번 + `Object.freeze` 2번이 추가됩니다.
+
+React에서 Element는 컴포넌트 하나당 하나 이상 생성됩니다. 컴포넌트 1000개짜리 앱이면 매 렌더마다 Element도 1000개 이상 만들어지고, 그때마다 freeze를 2번씩 호출하게 됩니다. 이후 섹션 6에서 다룰 V8의 Hidden Class 최적화 이슈(GitHub issue [#14365](https://github.com/facebook/react/issues/14365))에서도 확인할 수 있듯이, React 팀은 객체 생성 경로의 성능에 매우 민감합니다.
+
+React 팀의 판단은 이렇습니다: DEV에서 실수를 충분히 잡아줬다면, 프로덕션에서는 freeze 없이도 안전하다. 프로덕션에서 같은 mutation 코드를 실행하면 에러 없이 조용히 무시될 뿐이니까요.
+
+다만 이건 양날의 검이기도 합니다. DEV에서 테스트하지 않은 코드 경로에서 props mutation이 일어나면, 프로덕션에서는 에러 없이 조용히 무시되기 때문에 찾기 어려운 버그가 될 수 있습니다.
+
+---
+
+## 컴파일러가 보장하는 것들
+
+### props 객체를 복사할까, 재사용할까
+
+JSX를 작성하면 컴파일러(Babel/SWC)가 자동으로 `jsx()` 함수 호출로 변환합니다.
+
+```jsx
+// 우리가 작성한 코드
+<MyComponent name="hello" age={25} />;
+
+// 컴파일러가 변환한 결과
+jsx(MyComponent, { name: 'hello', age: 25 });
+```
+
+이 `jsx()` 함수의 내부를 보면 흥미로운 분기가 있습니다.
+
+```js
+// packages/react/src/jsx/ReactJSXElement.js:322-345
+let props;
+if (!('key' in config)) {
+  // If key was not spread in, we can reuse the original props object. This
+  // only works for `jsx`, not `createElement`, because `jsx` is a compiler
+  // target and the compiler always passes a new object.
+  props = config;
+} else {
+  // We need to remove reserved props (key, prop, ref). Create a fresh props
+  // object and copy over all the non-reserved props. We don't use `delete`
+  // because in V8 it will deopt the object to dictionary mode.
+  props = {};
+  for (const propName in config) {
+    if (propName !== 'key') {
+      props[propName] = config[propName];
+    }
+  }
+}
+```
+
+key가 spread되지 않았으면 `props = config`로 **그대로 재사용**합니다. 새 객체를 만들지 않는 것이죠.
+
+이게 가능한 이유는 주석에 직접 적혀 있습니다: **"jsx is a compiler target and the compiler always passes a new object."** 컴파일러가 매번 `{ ... }` 객체 리터럴을 생성하므로, 런타임에 항상 새 객체가 보장됩니다. 그래서 복사 없이 그대로 써도 안전한 것이죠.
+
+근데 여기서 의문이 들었습니다. jsx()가 아니라 createElement()를 쓰면 어떻게 될까요? 둘 다 Element를 만드는 함수인데, 차이가 뭘까요?
+
+<table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>
+        <code>jsx()</code> / <code>jsxs()</code>
+      </th>
+      <th>
+        <code>createElement()</code>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        <strong>누가 호출?</strong>
+      </td>
+      <td>컴파일러(Babel/SWC)만</td>
+      <td>사람이 직접 호출 가능</td>
+    </tr>
+    <tr>
+      <td>
+        <strong>언제 쓰는가?</strong>
+      </td>
+      <td>JSX 문법을 쓸 때 (자동 변환)</td>
+      <td>JSX 없이 수동으로 Element 만들 때</td>
+    </tr>
+    <tr>
+      <td>
+        <strong>현재 상태</strong>
+      </td>
+      <td>Modern JSX Transform (기본)</td>
+      <td>레거시 호환</td>
+    </tr>
+  </tbody>
+</table>
+
+`createElement()`는 사람이 직접 호출할 수 있기 때문에, 아래처럼 같은 config 객체를 재사용하는 위험한 패턴이 가능합니다.
+
+```js
+const sharedConfig = { name: 'hello' };
+createElement(MyComponent, sharedConfig);
+sharedConfig.name = 'world'; // config 수정!
+createElement(MyComponent, sharedConfig); // 같은 객체!
+```
+
+그래서 `createElement()`는 항상 새 props 객체를 만들어서 복사합니다.
+
+```js
+// packages/react/src/jsx/ReactJSXElement.js:631
+const props = {}; // 항상 새 객체 생성
+```
+
+정리하면, `jsx()`에서 props 복사를 생략할 수 있는 건 "컴파일러가 항상 새 객체를 넘긴다"는 것이 **변환 규칙 자체에 의해 보장**되기 때문입니다. JSX → JS 변환은 기계적이고, 컴파일러가 매번 `{ ... }` 객체 리터럴을 코드에 삽입하므로 런타임에 항상 새 객체가 생성됩니다.
+
+### delete를 안 쓰는 이유
+
+위 `jsx()` 코드에서 key가 spread되어 있으면 props에서 key를 제거해야 합니다. 이때 `delete config.key`를 쓰면 간단할 텐데, React는 그렇게 하지 않고 새 객체에 key를 제외한 나머지를 복사합니다.
+
+주석에 이유가 명시되어 있습니다: **"We don't use `delete` because in V8 it will deopt the object to dictionary mode."**
+
+V8은 객체를 기본적으로 Hidden Class(Shape) 기반의 빠른 모드로 관리합니다. 하지만 `delete`로 프로퍼티를 제거하면 이 구조를 유지할 수 없어서 dictionary mode로 전환됩니다. dictionary mode는 프로퍼티 접근이 해시 테이블 기반으로 바뀌기 때문에 느려집니다.
+
+### ref의 입구 정규화
+
+같은 `ReactElement` 함수에 이런 코드도 있습니다.
+
+```js
+// packages/react/src/jsx/ReactJSXElement.js:177-179
+// An undefined `element.ref` is coerced to `null` for
+// backwards compatibility.
+const ref = refProp !== undefined ? refProp : null;
+```
+
+`undefined`를 `null`로 바꾸는 한 줄인데, 처음에 이걸 보고 든 의문은 "`ref != null`(loose equality)로 체크하면 undefined와 null 둘 다 걸러지는데, 굳이 변환할 필요가 있나?"였습니다.
+
+실제로 React 코드베이스도 `.eslintrc.js`에서 `eqeqeq: [ERROR, 'allow-null']`로 null 비교에서만 `!=`을 허용하고 있고, `createElement()`에서도 `config != null`을 사용합니다(`ReactJSXElement.js:635`).
+
+하지만 null로 통일하는 **진짜 이유**는 Reconciler 전체의 일관성 때문이었습니다.
+
+Reconciler에서 ref를 다루는 곳은 수십 군데입니다. 만약 ref의 "빈 값"이 `undefined`와 `null` 두 가지로 섞여 있으면, **모든** 체크 지점에서 `ref != null`(loose equality)을 써야 합니다. 한 군데라도 `ref !== null`(strict equality)로 쓰면 `undefined`인 ref가 "있는 ref"로 취급되는 버그가 생기죠.
+
+**입구에서 null로 통일하면, 하류의 모든 코드가 `ref !== null` 하나로 안전하게 처리됩니다.** 하류 코드를 단순하게 만들기 위해 상류에서 정규화하는 패턴입니다.
+
+---
+
+## Monomorphic Call — 왜 공통 함수를 안 만들었을까
+
+React의 모든 Hook은 같은 패턴을 따릅니다.
+
+```js
+// packages/react/src/ReactHooks.js
+export function useState(initialState) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useState(initialState);
+}
+
+export function useReducer(reducer, initialArg, init) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useReducer(reducer, initialArg, init);
+}
+
+export function useRef(initialValue) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useRef(initialValue);
+}
+```
+
+`resolveDispatcher()` 호출 → `dispatcher.useXxx()` 위임. 22개 Hook이 전부 이 패턴입니다.
+
+처음에 이걸 보고 "이거 공통 함수로 묶으면 되지 않나?"라는 생각이 들었습니다.
+
+```js
+// 이렇게 하면 안 되나?
+function callHook(name, ...args) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher[name](...args);
+}
+
+export function useState(initialState) {
+  return callHook('useState', initialState);
+}
+```
+
+안 됩니다. 이유가 3가지 있습니다.
+
+**첫째, V8 인라이닝이 깨집니다.** `dispatcher.useState()`처럼 정적 프로퍼티 접근은 V8이 monomorphic call로 인식해서 인라인할 수 있습니다. 하지만 `dispatcher[name]()`처럼 동적 프로퍼티 접근을 하면 V8은 매번 어떤 메서드가 호출되는지 예측할 수 없어서 인라이닝을 포기합니다.
+
+`resolveDispatcher()` 함수의 주석이 이 의도를 직접 밝히고 있습니다.
+
+```js
+// packages/react/src/ReactHooks.js:38-41
+// Will result in a null access error if accessed outside render phase. We
+// intentionally don't throw our own error because this is in a hot path.
+// Also helps ensure this is inlined.
+return ((dispatcher: any): Dispatcher);
+```
+
+**"Also helps ensure this is inlined"** — 에러를 직접 던지지 않는 이유조차 인라이닝을 위해서입니다.
+
+**둘째, 타입 추론이 파괴됩니다.** `callHook('useState', init)`의 반환 타입을 Flow/TypeScript가 추론할 수 없습니다. 각 Hook의 시그니처와 반환 타입이 전부 다르기 때문이죠.
+
+**셋째, 각 Hook의 DEV 가드가 다릅니다.** useEffect는 create 인자의 null 체크, useContext는 Consumer 사용 경고, useDebugValue는 DEV 전용 실행 등 Hook마다 고유한 검증 로직이 있습니다.
+
+한 가지 더 — 소스를 처음 볼 때 "매번 `resolveDispatcher()`를 호출하지 말고 모듈 전역에 캐싱하면 안 되나?"라는 생각도 들었습니다.
+
+```js
+// ❌ 모듈 로드 시점에 한 번만 실행
+const dispatcher = resolveDispatcher();
+
+export function useState(initialState) {
+  return dispatcher.useState(initialState); // null.useState() → 크래시
+}
+```
+
+안 됩니다. H 슬롯의 값이 렌더링 도중 계속 바뀌기 때문입니다.
+
+```
+[앱 시작]     H = null
+[렌더 시작]   H = HooksDispatcherOnMount   ← mountState 실행
+[렌더 완료]   H = ContextOnlyDispatcher
+[리렌더 시작] H = HooksDispatcherOnUpdate  ← updateState 실행
+[리렌더 완료] H = ContextOnlyDispatcher
+```
+
+모듈은 앱 시작 시 한 번만 평가되므로, 그 시점에 캡처된 dispatcher는 영원히 null입니다. 매 Hook 호출마다 "지금 현재 H가 뭔지"를 다시 읽어야 올바른 구현체에 위임할 수 있습니다.
+
+---
+
+## 분기 순서 — typeof === 'function'이 첫 번째인 이유
+
+React는 Element를 받아서 Fiber 노드를 생성할 때, `createFiberFromTypeAndProps()`라는 함수를 사용합니다. 이 함수의 핵심은 Element의 `type`을 보고 어떤 종류의 Fiber를 만들지 결정하는 것입니다.
+
+```js
+// packages/react-reconciler/src/ReactFiber.js:569-601
+let fiberTag = FunctionComponent;
+let resolvedType = type;
+
+if (typeof type === 'function') {
+  if (shouldConstruct(type)) {
+    fiberTag = ClassComponent;
+  }
+} else if (typeof type === 'string') {
+  fiberTag = HostComponent;
+} else {
+  switch (type) {
+    case REACT_FRAGMENT_TYPE: // ...
+    case REACT_SUSPENSE_TYPE: // ...
+    // ...
+    default: {
+      if (typeof type === 'object' && type !== null) {
+        switch (type.$$typeof) {
+          case REACT_MEMO_TYPE:
+            fiberTag = MemoComponent;
+            break;
+          case REACT_FORWARD_REF_TYPE:
+            fiberTag = ForwardRef;
+            break;
+          case REACT_LAZY_TYPE:
+            fiberTag = LazyComponent;
+            break;
+          // ...
+        }
+      }
+    }
+  }
+}
+```
+
+처음 이 코드를 보면서 든 의문은 "else 분기를 타는 memo, forwardRef 같은 것들이 더 특수한 케이스인데, 그쪽을 먼저 체크하고 나머지를 함수 컴포넌트로 처리하면 안 되나?"였습니다.
+
+예를 들어 이런 구조로 바꾸면 어떨까요?
+
+```js
+// 제안: 특수 케이스 먼저 체크
+if (typeof type === 'object' && type !== null) {
+  // memo, forwardRef, lazy 등 처리
+} else if (typeof type === 'string') {
+  fiberTag = HostComponent;
+} else {
+  // 나머지는 함수 컴포넌트
+  fiberTag = FunctionComponent;
+}
+```
+
+논리적으로는 동작합니다. 하지만 현재 구조는 **빈도 기반 최적화**입니다.
+
+<table>
+  <thead>
+    <tr>
+      <th>순서</th>
+      <th>현재 구조</th>
+      <th>제안 구조</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1번째 체크</td>
+      <td>
+        <code>typeof === 'function'</code> (가장 흔한 케이스 → 바로 끝)
+      </td>
+      <td>
+        <code>typeof === 'object'</code> (함수 컴포넌트도 fail 후 통과)
+      </td>
+    </tr>
+    <tr>
+      <td>2번째 체크</td>
+      <td>
+        <code>typeof === 'string'</code> (함수 아닌 경우만)
+      </td>
+      <td>
+        <code>typeof === 'string'</code> (함수 컴포넌트도 fail 후 통과)
+      </td>
+    </tr>
+    <tr>
+      <td>3번째</td>
+      <td>else (드문 경우만)</td>
+      <td>나머지 → 함수 컴포넌트</td>
+    </tr>
+  </tbody>
+</table>
+
+실제 React 앱에서 대부분의 컴포넌트는 함수 컴포넌트입니다. memo, forwardRef, lazy 같은 래퍼 타입은 상대적으로 드물고, `<div>`, `<span>` 같은 HostComponent는 그 다음으로 많습니다.
+
+현재 구조에서는 가장 빈번한 함수 컴포넌트가 **첫 번째 `typeof === 'function'` 체크에서 바로 끝납니다.** 제안 구조에서는 함수 컴포넌트가 object 체크에서 fail하고, string 체크에서도 fail한 뒤에야 세 번째 분기에서 처리됩니다. 불필요한 비교가 2번 추가되는 것이죠.
+
+매 렌더마다 모든 Element가 이 함수를 거친다는 점을 생각하면, 핫 패스를 첫 번째 분기에 놓는 것은 의도적인 설계입니다.
+
+---
+
+## 프로퍼티 접근 깊이 — 3단계에서 1단계로
+
+섹션 3에서 모든 Hook이 `resolveDispatcher()`를 통해 `ReactSharedInternals.H`에 접근한다고 했습니다. 근데 이 `H`라는 한 글자 프로퍼티는 원래 이런 이름이 아니었습니다.
+
+```js
+// 기존 (React 18까지)
+ReactSharedInternals.ReactCurrentDispatcher.current;
+// → 프로퍼티 접근 3단계
+
+// 현재 (React 19+, PR #28783)
+ReactSharedInternals.H;
+// → 프로퍼티 접근 1단계
+```
+
+모든 Hook 호출마다 이 경로를 거친다는 걸 생각하면, 3단계에서 1단계로 줄어든 것이 핫 패스에서 의미가 있습니다.
+
+현재 SharedInternals의 실제 구조를 보면 이렇습니다.
+
+```js
+// packages/react/src/ReactSharedInternalsClient.js:24-29
+export type SharedStateClient = {
+  H: null | Dispatcher,           // Hooks
+  A: null | AsyncDispatcher,      // Cache
+  T: null | Transition,           // Transitions
+  S: null | onStartTransitionFinish,
+  G: null | onStartGestureTransitionFinish,
+};
+```
+
+소스를 읽으면서 처음 든 의문은 "H, A, T, S, G — 성격이 너무 다른 것들을 왜 하나의 객체에 몰아넣었을까?"였습니다. H는 Hook Dispatcher, A는 Async Dispatcher, T는 Transition 상태, S와 G는 렌더러 콜백인데, 한 객체에 담을 이유가 있나 싶었죠.
+
+처음에 추측한 이유는 번들 크기 절감이었습니다. 여러 객체를 하나로 합치면 import/export 오버헤드가 줄어드니까요. 근데 실제로 근거가 있는지 PR을 추적해봤습니다.
+
+### 실제 변경 근거
+
+**[PR #28783](https://github.com/facebook/react/pull/28783) "Flatten ReactSharedInternals" (2024년 4월)**
+
+이 PR이 플래트닝을 수행한 PR입니다. 기존 중첩 구조를 한 글자 키의 플랫 구조로 변경했습니다.
+
+```js
+// Before
+ReactSharedInternals.ReactCurrentDispatcher.current; // Hook Dispatcher
+ReactSharedInternals.ReactCurrentCache.current; // Cache Dispatcher
+
+// After
+ReactSharedInternals.H; // Hook Dispatcher
+ReactSharedInternals.A; // Cache Dispatcher
+```
+
+번들 크기 변화는 [PR #28771](https://github.com/facebook/react/pull/28771)에서 측정되었는데, react-dom에서 **-0.76 kB**. 전체 크기 대비 미미한 수준이었습니다. Sebastian Markbåge는 이 변경을 **"the first step to makeover the Dispatcher"**라고 설명합니다.
+
+"Dispatcher 전면 개편의 첫 단계"라는 설명이 추상적이어서, 후속 PR을 더 추적했습니다.
+
+**[PR #28912](https://github.com/facebook/react/pull/28912) / [#28798](https://github.com/facebook/react/pull/28798) "Move Current Owner (and Cache) to an Async Dispatcher"**
+
+이 PR이 flatten의 **실제 목적지**였습니다. 해결하려는 문제가 구체적이었습니다:
+
+동기 컴포넌트에서는 전역 변수(스택 기반)로 "현재 렌더링 중인 컴포넌트(owner)"를 추적할 수 있습니다. 컴포넌트 A를 렌더링하기 전에 전역 변수에 A를 설정하고, 끝나면 복원하면 됩니다.
+
+하지만 async 컴포넌트(Server Components 등)에서는 이 방법이 깨집니다. `await`에서 실행이 중단되면 다른 컴포넌트가 렌더링되면서 전역 변수가 덮어씌워지기 때문입니다.
+
+```
+[컴포넌트 A 렌더 시작]  owner = A
+[A에서 await 만남]      → 실행 중단
+[컴포넌트 B 렌더 시작]  owner = B  ← A의 owner가 사라짐
+[A의 await 완료]        owner는 여전히 B  ← 잘못된 추적
+```
+
+해결책은 `AsyncLocalStorage`를 사용하여 각 async 실행 컨텍스트별로 독립된 owner를 추적하는 것이었습니다. PR 설명 원문: **"Current Owner inside an Async Component will need to be tracked using AsyncLocalStorage. This is similar to how cache() works."**
+
+이를 위해 기존 A 슬롯의 역할이 바뀌어야 했습니다:
+
+```
+기존 A 슬롯: CacheDispatcher — getCacheForType() 하나만 가진 단순한 캐시 디스패처
+변경 후:     AsyncDispatcher — getOwner() 등 async 관련 메서드도 포함하는 범용 비동기 디스패처
+```
+
+만약 기존의 중첩 구조(`ReactCurrentCache.current`)가 그대로였다면, 이렇게 슬롯의 역할을 바꾸고 이름을 변경하는 작업이 서드파티 코드까지 깨뜨릴 수 있었습니다. 실제로 React DevTools와 일부 라이브러리들이 `ReactSharedInternals.ReactCurrentDispatcher.current` 같은 내부 경로에 의존하고 있었으니까요.
+
+플래트닝은 이 의존성을 한 번에 끊으면서, 후속 변경을 자유롭게 할 수 있는 구조를 만든 것입니다.
+
+### 정리
+
+실제 근거 기반의 우선순위는 이렇습니다:
+
+1. **async 컴포넌트 owner 추적을 위한 Dispatcher 구조 개편** — A 슬롯을 CacheDispatcher에서 AsyncDispatcher로 확장하기 위한 사전 정리 (PR #28783 → #28912)
+2. **서드파티 내부 의존성 차단** — 읽기 쉬운 경로명을 H/A/T로 난독화하여, `ReactCurrentDispatcher.current`에 의존하던 외부 코드와의 결합을 끊음
+3. **번들 크기 + 접근 깊이 축소** — react-dom -0.76 kB 감소, 핫 패스에서 프로퍼티 접근 3단계 → 1단계
+
+"사소한 최적화"라는 이 글의 주제에 비춰보면, 프로퍼티 접근 깊이 축소는 주 목적이 아니라 부수 효과였습니다. 하지만 매 Hook 호출마다 반복되는 경로라는 점에서, 실질적인 이점이 있는 변경이었습니다.
+
+---
+
+## Hidden Class — 필드를 미리 30개 선언하는 이유
+
+React의 핵심 자료구조인 FiberNode의 생성자를 보면, 인자는 4개(tag, pendingProps, key, mode)뿐인데 필드는 30개 가까이 선언됩니다.
+
+```js
+// packages/react-reconciler/src/ReactFiber.js:138-211
+function FiberNode(tag, pendingProps, key, mode) {
+  // Instance
+  this.tag = tag;
+  this.key = key;
+  this.elementType = null;
+  this.type = null;
+  this.stateNode = null;
+
+  // Fiber
+  this.return = null;
+  this.child = null;
+  this.sibling = null;
+  this.index = 0;
+
+  this.ref = null;
+  this.refCleanup = null;
+
+  this.pendingProps = pendingProps;
+  this.memoizedProps = null;
+  this.updateQueue = null;
+  this.memoizedState = null;
+  this.dependencies = null;
+
+  this.mode = mode;
+
+  // Effects
+  this.flags = NoFlags;
+  this.subtreeFlags = NoFlags;
+  this.deletions = null;
+
+  this.lanes = NoLanes;
+  this.childLanes = NoLanes;
+
+  this.alternate = null;
+  // ...
+}
+```
+
+처음에 든 의문은 "필요한 4개만 받으면 되는데, 왜 나머지를 전부 null이나 0으로 미리 선언하는 걸까?"였습니다. 나중에 필요할 때 추가하면 되지 않을까요?
+
+안 됩니다. 소스 코드에 직접적인 근거가 있습니다.
+
+```js
+// packages/react-reconciler/src/ReactFiber.js:180-191
+// Note: The following is done to avoid a v8 performance cliff.
+//
+// Initializing the fields below to smis and later updating them with
+// double values will cause Fibers to end up having separate shapes.
+// This behavior/bug has something to do with Object.preventExtension().
+// Fortunately this only impacts DEV builds.
+// Unfortunately it makes React unusably slow for some applications.
+// To work around this, initialize the fields below with doubles.
+//
+// Learn more about this here:
+// https://github.com/facebook/react/issues/14365
+// https://bugs.chromium.org/p/v8/issues/detail?id=8538
+```
+
+**"makes React unusably slow for some applications"** — 사용할 수 없을 정도로 느려진다는 표현까지 나옵니다.
+
+V8은 객체를 생성할 때 프로퍼티의 집합과 순서를 기반으로 Hidden Class(Shape)를 할당합니다. 같은 Hidden Class를 공유하는 객체들은 프로퍼티 접근이 매우 빠릅니다. V8이 "이 위치에 항상 같은 프로퍼티가 있다"는 것을 알고 있으므로, 오프셋 기반의 직접 접근이 가능하기 때문입니다.
+
+하지만 프로퍼티를 나중에 동적으로 추가하면 Hidden Class가 변경됩니다. 모든 FiberNode가 서로 다른 Shape를 가지게 되면, V8은 인라인 캐싱을 포기하고 느린 경로로 전환합니다.
+
+[GitHub issue #14365](https://github.com/facebook/react/issues/14365)에서는 이 문제가 실제로 보고되었습니다. Profiling 모드에서 `getHostSibling()` 함수가 극도로 느려지는 현상이 Chrome에서만 발생했고, V8 엔지니어(@bmeurer, @mathiasbynens)가 직접 진단하여 원인을 확인했습니다: `Object.preventExtensions()`와 Double 필드 마이그레이션이 결합되면서 모든 FiberNode가 서로 다른 Shape를 가지게 된 것이었습니다.
+
+생성자에서 모든 필드를 미리 선언하면, 모든 FiberNode가 동일한 Hidden Class를 공유하게 되어 이 문제를 방지할 수 있습니다.
+
+---
+
+## Smi vs Double — 왜 0이 아니라 -0일까
+
+바로 위에서 본 FiberNode 생성자의 Profiler 필드를 다시 보겠습니다.
+
+```js
+// packages/react-reconciler/src/ReactFiber.js:193-196
+this.actualDuration = -0;
+this.actualStartTime = -1.1;
+this.selfBaseDuration = -0;
+this.treeBaseDuration = -0;
+```
+
+왜 `0`이 아니라 `-0`이고, `-1`이 아니라 `-1.1`일까요? 소스 코드 주석에는 "Double 값으로 초기화하라"고만 되어 있고, 왜 하필 이 값들인지는 설명이 없습니다.
+
+V8은 숫자를 내부적으로 두 가지 형태로 저장합니다.
+
+- **Smi (Small Integer)**: `0`, `1`, `-1` → 포인터 안에 직접 인코딩 (매우 빠름)
+- **Double (HeapNumber)**: `-0`, `3.14`, `-1.1` → 힙에 별도 객체로 할당
+
+`0`과 `-0`은 JavaScript에서 `0 === -0`이 `true`이지만, V8 내부에서는 완전히 다른 타입입니다.
+
+서류 캐비넷으로 비유하면 이렇습니다.
+
+- `0`으로 초기화 → **작은 서랍(Smi)을 설치**합니다. 나중에 `3.14` 같은 측정값을 넣으려면 작은 서랍을 뜯어내고 **큰 서랍(Double)으로 교체**해야 합니다. 캐비넷 배치도(Shape)가 바뀝니다.
+- `-0`으로 초기화 → **처음부터 큰 서랍(Double)을 설치**합니다. `3.14`를 넣어도 그냥 넣으면 됩니다. 배치도는 그대로입니다.
+
+문제는 이 "배치도 변경"입니다. `0`(Smi)으로 초기화한 뒤 나중에 `3.14`(Double) 같은 측정값을 넣으면, V8이 해당 필드의 내부 표현을 Smi에서 Double로 전환해야 합니다. 이 전환이 일어나면 Shape가 변경되고, 앞에서 본 것처럼 성능 저하가 발생합니다. 처음부터 `-0`(Double)으로 초기화하면 이 전환이 일어나지 않습니다.
+
+그러면 왜 전부 `-0`이 아니라 `actualStartTime`만 `-1.1`일까요?
+
+이건 각 필드의 사용처 코드에서 역추론해야 합니다.
+
+- `actualDuration`은 `!== 0`으로 "측정 안 됨"을 판별합니다. `-0 !== 0`은 JavaScript에서 `false`이므로, `-0`이 "측정 안 됨"으로 올바르게 판별됩니다.
+- `actualStartTime`은 `< 0`으로 "측정 안 됨"을 판별합니다(`ReactProfilerTimer.js:593`). 근데 `-0 < 0`은 JavaScript에서 `false`입니다. `-0`은 `0`과 동등하게 취급되기 때문이죠.
+
+```js
+// packages/react-reconciler/src/ReactProfilerTimer.js:593
+if (((fiber.actualStartTime: any): number) < 0) {
+  fiber.actualStartTime = profilerStartTime;
+}
+```
+
+그래서 `actualStartTime`은 `< 0`이 `true`가 되면서 동시에 Double 타입인 값이 필요합니다. `-1.1`은 이 두 조건을 모두 만족하는 값입니다. `-1`도 `< 0`을 만족하지만 Smi이므로 안 됩니다.
+
+### 수년간 깨져있던 최적화
+
+이 값들에 대한 주석이 없어서 Git 히스토리를 추적해봤습니다. Sebastian Markbåge의 [PR #30942](https://github.com/facebook/react/pull/30942) "[Fiber] Set profiler values to doubles"에서 배경이 드러납니다.
+
+커밋 메시지 핵심:
+
+> "At some point this trick was added to initialize the value first to NaN and then replace them with zeros and negative ones."
+> "However, this fix has been long broken and has deopted the profiling build for years because closure compiler optimizes out the first write."
+
+원래는 NaN으로 먼저 쓰고 0/-1로 덮어쓰는 2단계 방식이었는데, Closure Compiler가 첫 번째 NaN 쓰기를 불필요한 코드로 판단하고 제거해버렸습니다. 그래서 이 최적화가 **수년간 깨진 채 방치**되었고, Sebastian이 `-0`과 `-1.1`로 직접 초기화하는 방식으로 수정한 것입니다.
+
+흥미로운 점은 Sebastian 본인도 이렇게 인정했다는 것입니다: **"I'm not sure because I haven't A/B-tested this in the JIT yet but I think..."** — V8 내부 동작에 대한 경험적 판단이었지, 벤치마크로 검증된 것은 아니었습니다.
+
+---
+
+## 마무리
+
+이 글에서 다룬 최적화들을 정리하면 이렇습니다.
+
+<table>
+  <thead>
+    <tr>
+      <th>최적화</th>
+      <th>위치</th>
+      <th>근거</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Object.freeze DEV 전용</td>
+      <td>ReactJSXElement.js</td>
+      <td>DEV/PROD 분기, issue #14365</td>
+    </tr>
+    <tr>
+      <td>jsx() props 재사용</td>
+      <td>ReactJSXElement.js</td>
+      <td>소스 주석: "compiler always passes a new object"</td>
+    </tr>
+    <tr>
+      <td>delete 회피</td>
+      <td>ReactJSXElement.js</td>
+      <td>소스 주석: "V8 will deopt to dictionary mode"</td>
+    </tr>
+    <tr>
+      <td>ref null 정규화</td>
+      <td>ReactJSXElement.js</td>
+      <td>소스 주석: "coerced to null"</td>
+    </tr>
+    <tr>
+      <td>개별 Hook 함수 유지</td>
+      <td>ReactHooks.js</td>
+      <td>소스 주석: "helps ensure this is inlined"</td>
+    </tr>
+    <tr>
+      <td>typeof 분기 순서</td>
+      <td>ReactFiber.js</td>
+      <td>빈도 기반 핫 패스 최적화</td>
+    </tr>
+    <tr>
+      <td>SharedInternals 플래트닝</td>
+      <td>ReactSharedInternalsClient.js</td>
+      <td>PR #28783 → #28912</td>
+    </tr>
+    <tr>
+      <td>필드 미리 선언</td>
+      <td>ReactFiber.js</td>
+      <td>issue #14365, Chromium bug #8538</td>
+    </tr>
+    <tr>
+      <td>-0 / -1.1 초기값</td>
+      <td>ReactFiber.js</td>
+      <td>PR #30942</td>
+    </tr>
+  </tbody>
+</table>
+
+하나하나는 사소합니다. 하지만 이 코드들은 매 렌더마다 수천~수만 번 실행됩니다. React 팀이 소스 코드 곳곳에 남긴 주석과 PR 히스토리를 보면, 이런 선택들이 단순한 스타일 차이가 아니라 측정과 경험에 기반한 의도적 설계라는 것을 알 수 있습니다.
