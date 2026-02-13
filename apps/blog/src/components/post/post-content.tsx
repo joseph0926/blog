@@ -14,7 +14,11 @@ export async function PostContent({ slug }: PostContentProps) {
   const { content } = await compileMDX({
     source,
     components,
-    options: { parseFrontmatter: true },
+    options: {
+      parseFrontmatter: true,
+      blockJS: true,
+      blockDangerousJS: true,
+    },
   });
 
   return content;
