@@ -5,12 +5,6 @@ import Image from 'next/image';
 import { ENV } from '@/lib/env';
 import { serverTrpc } from '@/server/trpc/server';
 
-const getReadingTime = (content: string) => {
-  const wordsPerMinute = 200;
-  const words = content.split(' ').length;
-  return Math.ceil(words / wordsPerMinute);
-};
-
 export const PostHeader = async ({ slug }: { slug: string }) => {
   let post = null;
   try {
@@ -27,8 +21,6 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
       </p>
     );
   }
-
-  const readingTime = getReadingTime(post.description);
 
   return (
     <header className="py-12">
@@ -55,7 +47,7 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
         </span>
         <span className="flex items-center gap-1.5">
           <Clock className="h-4 w-4" />
-          {readingTime} min read
+          {post.readingTime} min read
         </span>
       </div>
 

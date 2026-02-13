@@ -2,7 +2,7 @@ import 'server-only';
 import fs from 'node:fs';
 import path from 'node:path';
 import { generatePostContent, generateSlug } from '@/lib/generate-post';
-import { PostListItem } from '@/services/post.service';
+import type { PostListItem } from '@/services/post.service';
 
 export const createPost = async (data: {
   title: string;
@@ -42,6 +42,7 @@ export const createPost = async (data: {
     title,
     description,
     thumbnail: thumbnail ?? null,
+    readingTime: 1,
     createdAt: new Date(date),
     tags: tags.map((tag) => ({ id: tag, name: tag })),
   };

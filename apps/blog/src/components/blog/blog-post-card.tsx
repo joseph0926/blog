@@ -11,15 +11,7 @@ type BlogPostCardProps = {
   post: PostResponse;
 };
 
-const getReadingTime = (content: string) => {
-  const wordsPerMinute = 200;
-  const words = content.split(' ').length;
-  return Math.ceil(words / wordsPerMinute);
-};
-
 export const BlogPostCard = ({ post }: BlogPostCardProps) => {
-  const readingTime = getReadingTime(post.description);
-
   return (
     <article className="group h-full">
       <Link
@@ -42,7 +34,7 @@ export const BlogPostCard = ({ post }: BlogPostCardProps) => {
             <div className="text-muted-foreground mb-3 flex items-center gap-2 text-xs">
               <span>{format(new Date(post.createdAt), 'MMM dd, yyyy')}</span>
               <span className="bg-muted-foreground/50 h-1 w-1 rounded-full" />
-              <span>{readingTime} min read</span>
+              <span>{post.readingTime} min read</span>
             </div>
 
             <h3 className="text-foreground group-hover:text-primary mb-2 line-clamp-2 text-lg font-semibold tracking-tight transition-colors duration-150">

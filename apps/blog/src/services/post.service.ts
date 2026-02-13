@@ -10,6 +10,7 @@ type PostMeta = {
   description: string;
   date: string;
   tags: string[];
+  readingTime: number;
   thumbnail?: string | null;
   updatedAt?: string;
 };
@@ -20,6 +21,7 @@ export type PostListItem = {
   title: string;
   description: string;
   thumbnail: string | null;
+  readingTime: number;
   createdAt: Date;
   tags: { id: string; name: string }[];
 };
@@ -39,9 +41,26 @@ const getFileDate = (slug: string) => {
   return dateMatch ? dateMatch[1] : null;
 };
 
+const getReadingTimeFromMdx = (mdxContent: string) => {
+  const wordsPerMinute = 200;
+  const text = mdxContent
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`[^`]*`/g, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[#>*_\-\[\](){}]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!text) return 1;
+
+  const words = text.split(' ').filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / wordsPerMinute));
+};
+
 const normalizeMeta = (
   data: Record<string, unknown>,
   slug: string,
+  mdxContent = '',
 ): PostMeta => {
   const fileDate = getFileDate(slug);
   const date =
@@ -57,6 +76,7 @@ const normalizeMeta = (
     description: typeof data.description === 'string' ? data.description : '',
     date,
     tags: normalizeTags(data.tags),
+    readingTime: getReadingTimeFromMdx(mdxContent),
     thumbnail: typeof data.thumbnail === 'string' ? data.thumbnail : null,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
   };
@@ -68,6 +88,7 @@ const toPostListItem = (meta: PostMeta): PostListItem => ({
   title: meta.title,
   description: meta.description,
   thumbnail: meta.thumbnail ?? null,
+  readingTime: meta.readingTime,
   createdAt: new Date(meta.date),
   tags: meta.tags.map((tag) => ({ id: tag, name: tag })),
 });
@@ -99,9 +120,12 @@ const getAllPostMeta = async (): Promise<PostMeta[]> => {
     mdxFiles.map(async (file) => {
       const filePath = path.join(mdxDir, file);
       const source = await fs.promises.readFile(filePath, 'utf-8');
-      const { data } = matter(source);
+      const { data, content } = matter(source);
       const slug = file.replace(/\.mdx$/, '');
-      return { meta: normalizeMeta(data, slug), bytes: source.length };
+      return {
+        meta: normalizeMeta(data, slug, content),
+        bytes: source.length,
+      };
     }),
   );
   const totalBytes = entries.reduce((sum, entry) => sum + entry.bytes, 0);
@@ -131,9 +155,9 @@ export const getPostMetaBySlug = async (
 
   try {
     const source = await fs.promises.readFile(filePath, 'utf-8');
-    const { data } = matter(source);
+    const { data, content } = matter(source);
     end({ slug: decodedSlug, found: true, bytes: source.length });
-    return normalizeMeta(data, decodedSlug);
+    return normalizeMeta(data, decodedSlug, content);
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
       end({ slug: decodedSlug, found: false });
@@ -199,6 +223,6 @@ export const updatePostMeta = async ({
   const nextSource = matter.stringify(content, nextData);
   await fs.promises.writeFile(filePath, nextSource);
 
-  const normalized = normalizeMeta(nextData, decodedSlug);
+  const normalized = normalizeMeta(nextData, decodedSlug, content);
   return toPostListItem(normalized);
 };

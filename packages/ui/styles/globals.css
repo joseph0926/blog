@@ -1,11 +1,11 @@
 @import 'tailwindcss';
 
-@plugin "tailwindcss-animate";
+@plugin 'tailwindcss-animate';
 
-@plugin "@tailwindcss/typography";
+@plugin '@tailwindcss/typography';
 
-@source "../../../packages/ui/**/*.{js,ts,jsx,tsx}";
-@source "../../../../packages/ui/**/*.{js,ts,jsx,tsx}";
+@source '../../../packages/ui/**/*.{js,ts,jsx,tsx}';
+@source '../../../../packages/ui/**/*.{js,ts,jsx,tsx}';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -193,4 +193,19 @@
 .skip-link:focus {
   top: 0;
   outline: none;
+}
+
+@layer utilities {
+  .prose :where(:not(pre) > code) {
+    @apply border-border/80 bg-muted/70 rounded-md border px-1.5 py-0.5 font-mono text-[0.9em] font-medium;
+  }
+
+  .dark .prose :where(:not(pre) > code) {
+    @apply border-white/20 bg-white/10;
+  }
+
+  .prose :where(:not(pre) > code)::before,
+  .prose :where(:not(pre) > code)::after {
+    content: none !important;
+  }
 }

@@ -9,6 +9,7 @@ export type PostResponse = {
   title: string;
   description: string;
   thumbnail: string | null;
+  readingTime: number;
   createdAt: Date;
   tags: TagResponse[];
 };
