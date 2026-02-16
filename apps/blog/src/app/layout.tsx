@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { getLocale } from 'next-intl/server';
 import { Toaster } from 'sonner';
 import { commonOpenGraph } from '@/meta/open-graph';
 import { getRobotsByEnvironment } from '@/meta/robots';
@@ -58,11 +59,14 @@ export const metadata: Metadata = {
 
 const isVercel = process.env.NEXT_PUBLIC_VERCEL_ENV === 'production';
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale().catch(() => 'ko');
+  const htmlLang = locale === 'en' ? 'en' : 'ko';
+
   return (
-    <html lang="ko" suppressHydrationWarning>
+    <html lang={htmlLang} suppressHydrationWarning>
       <body
         className={cn(geistSans.variable, geistMono.variable, 'antialiased')}
       >

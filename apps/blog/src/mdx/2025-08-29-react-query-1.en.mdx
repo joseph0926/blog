@@ -1,7 +1,7 @@
 ---
 slug: '2025-08-29-2025-08-29-react-query-1'
 title: 'React Query internal operating principles 1 - The secret of selective re-rendering'
-description: "Let's look at internal code to see how React Query configures the data flow from Query → QueryObserver → Component and uses Proxy to track only the properties actually used to prevent unnecessary re-rendering."
+description: 'A source-level look at how React Query uses Proxy tracking to re-render only accessed fields across the Query, Observer, and Component data flow.'
 date: '2025-08-29'
 thumbnail: '/post/react-query.webp'
 tags: ['react-query']
