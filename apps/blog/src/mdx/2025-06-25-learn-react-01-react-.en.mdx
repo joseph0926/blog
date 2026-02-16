@@ -1,0 +1,163 @@
+---
+slug: '2025-06-25-learn-react-01-react-'
+title: 'Learn React 01: React Increases Predictability'
+description: 'Let’s explore why predictable programs are beneficial and how to increase predictability.'
+date: '2025-06-25'
+thumbnail: '/post/react.webp'
+tags: ['react', 'learn_react']
+---
+
+## Is This Code Predictable?
+
+When writing code, one of the most important goals is to write it **well**.<br/>
+The problem is that there is no objective standard that clearly defines what “well-written code” actually means.<br/>
+However, we generally consider good code to be “easy to read,” “easy to maintain,” or “less prone to bugs.”<br/>
+Put more simply, it is **code that is less likely to cause problems**.<br/>
+
+So how can we reduce the likelihood of problems?<br/>
+The answer is simple: we must write **predictable code**.<br/>
+
+No reasonable developer intentionally writes problematic code.<br/>
+Yet issues still occur because—even if the code was written by me (or our team)—we cannot always predict how it will behave.<br/>
+Therefore, **if we write predictable code, the probability of problems decreases, and the likelihood of writing “well-written code” increases.**<br/>
+
+Admittedly, this may sound idealistic or even unrealistic.<br/>
+It is nearly impossible to make an entire app or website completely predictable.<br/>
+However, if we narrow the scope and make each individual building block of the app predictable, then an application composed of those predictable pieces can realistically become predictable as a whole.<br/>
+
+In this article, we will ultimately discuss how to make the building blocks of an app predictable. For now, let’s narrow the scope further and use a function as an example.<br/>
+As we all know, **a function is a block of logic that receives input (or none), performs some computation, and produces output (or none).**<br/>
+If we want to make a function predictable—or eliminate the factors that reduce its predictability—we can gradually turn it into a better, more predictable function.<br/>
+To do that, we first need to understand what reduces a function’s predictability.<br/>
+
+## What Reduces a Function’s Predictability?
+
+As mentioned above, a function performs “input → computation → output.”<br/>
+The problem arises when elements outside of that `input`, `computation`, and `output` are involved, or when the function affects external elements. This is called a **side effect**.<br/>
+For example, consider the following code:
+
+```js
+const todos = [];
+
+function addTodo(todo) {
+  todos.push(todo);
+}
+```
+
+The `addTodo` function takes `todo` as input, performs the computation `todos.push(todo);`, and returns nothing.<br/>
+It works correctly, but because it modifies an external variable `todos`, it creates a side effect.<br/>
+
+Another example:
+
+```js
+function getSomePostByUserId(userId) {
+  return fetch(`https://api.someapi.com/posts?userid=${userId}`).then((res) =>
+    res.json(),
+  );
+}
+```
+
+`getSomePostByUserId` does not appear to affect external state, but it is influenced by external factors—the network.<br/>
+The value it returns depends on whether `fetch` succeeds, and that success is outside the function’s control.<br/>
+
+From these examples, we can conclude that a side effect occurs when a function **affects external state** or **is affected by external state**.<br/>
+
+Another factor that reduces predictability is **inconsistent output**.<br/>
+If a function does not return the same output for the same input, there is a high chance that side effects are involved.<br/>
+For instance, if we fix `userId = 1` and call `getSomePostByUserId` 100 times, some results may differ from others.<br/>
+
+Returning to the main point, to write predictable code, we must minimize side effects.<br/>
+(It would be ideal to eliminate them entirely, but that is nearly impossible in reality.)<br/>
+A function without side effects is called a **pure function**, and this concept becomes the starting point of React.
+
+## Components Are Functions
+
+Let’s summarize what we’ve discussed so far.<br/>
+
+- Good web/apps start from predictable code.
+- Side effects reduce a function’s predictability.
+
+If we add just one more idea, we can begin talking about React.<br/>
+**Components—the building blocks of React—are functions.**<br/>
+
+Before explaining what a component is, let’s briefly describe React.<br/>
+React is a library that helps you build UI in a declarative way. ([Reference: React Official Docs - The library for web and native user interfaces](https://react.dev/))<br/>
+When I first read that sentence, I did not understand it at all.<br/>
+What does “declarative” mean? Why is it a library rather than a framework? I had many questions.<br/>
+
+If I rephrase it in a way that was easier for me to understand:<br/>
+**“When a developer declares the desired UI (a view made of HTML + JS) using tools provided by React, React takes care of rendering it.”**<br/>
+
+More specifically, React uses a syntax called `JSX`.<br/>
+It can be explained in complex terms, but simply put, it is “HTML that can use JS” or “a syntax that allows you to write HTML while leveraging JavaScript features.”<br/>
+
+HTML allows us to draw structured markup in a **declarative way.**<br/>
+Here again, the word “declarative” appears—but it becomes clear with an example:
+
+```html
+<nav>
+  <h1>Logo</h1>
+  <ul>
+    <li>Nav Item 1</li>
+    <li>Nav Item 2</li>
+    <li>Nav Item 3</li>
+  </ul>
+</nav>
+```
+
+We simply declare “this goes here, that goes there” using HTML tags, and when executed, the structure is rendered accordingly.<br/>
+That is what declarative means. If you describe what you expect, it gets rendered without you giving step-by-step instructions.<br/>
+
+What about JS? JavaScript can be viewed as a collection of tools that help solve complex problems using its syntax.<br/>
+
+Returning to the React explanation, in the sentence “React is a library that helps you build UI in a declarative way,” the “build UI” part is achieved through `JSX`.<br/>
+When we write `JSX`, React processes it internally and renders the UI.<br/>
+
+Now, if we focus on the keyword “declarative,” the sentence becomes much clearer.<br/>
+`JSX` is powerful—but a fundamental question remains:<br/>
+How do we **reuse** this `JSX`? → This is where the concept of a **component** comes in.<br/>
+
+A component is **“a function that takes input and returns a UI **description**.”**<br/>
+The input is `props`, and the return value is JSX (= a UI description).<br/>
+If the same `props` always produce the same JSX, then the component is a **pure function**.
+
+```jsx
+export default function BookList({ books }) {
+  return (
+    <section>
+      <h2>Favorite Books</h2>
+      <ul>
+        {books.map((title) => (
+          <li key={title}>{title}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+```
+
+- **Input** → `books` array
+- **Computation** → Convert the list into JSX using `map`
+- **Output** → `<section> ... </section>`
+
+It does not modify external state, it does not make network requests, and the same `books` will always render the same UI.
+In other words, it is a **pure function without side effects**, and therefore **predictable**.
+
+## Therefore, React Demands Predictable Components
+
+A component is ultimately a **function**. For a function to be predictable, we must remember three principles: clear input and output, no unnecessary side effects, and a single responsibility.<br/>
+First, a component’s input is `props`, and its output is JSX. If the same `props` are given, the same screen must always be rendered in order to trust the UI.<br/>
+Second, if you execute code inside a component that affects the outside world—such as network requests or console logs—the output becomes unpredictable. The React team recommends isolating such side effects inside **event handlers** or **Hooks (`useEffect`)** to preserve “pure components.”<br/>
+Third, dividing components into small, focused units makes testing and refactoring easier. A small function with a single responsibility is easier to test, and changes have limited impact on other parts of the system.<br/>
+
+In short, if we treat components like pure functions, we can apply the **predictability** we learned from functions directly to the UI layer.<br/>
+
+To summarize, **React** is “a library that helps you build predictable UIs by combining the declarative nature of HTML with JavaScript’s function and module systems.”<br/>
+
+- Developers _declare_ the UI using **JSX**,
+- Wrap pieces of UI in reusable pure functions called **components**,
+- And isolate dynamic state changes or external requests—**side effects**—using **Hooks**.
+
+Ultimately, the React team’s goal is to make it easy to build applications composed entirely of **predictable components**.<br/>
+Such applications are easier to read, easier to maintain, and less prone to bugs.<br/>
+In the end, the starting point of building a “good web” experience is **predictable code**, and React is a tool that naturally brings that philosophy into the UI world.

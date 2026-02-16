@@ -1,0 +1,385 @@
+---
+slug: '2025-09-13-2025-09-13-react-router-unstablemiddleware-shouldrevalidate'
+title: 'Fixed conflict issue between React Router unstable_middleware and shouldRevalidate'
+description: 'Solved the problem that shouldRevalidate: false did not work when unstable_middleware: true, which was one of the issues in React Router.'
+date: '2025-09-13'
+thumbnail: '/post/react-router.webp'
+tags: ['react-router']
+---
+
+> Issue: [Issue #14257](https://github.com/remix-run/react-router/issues/14257)<br/>PR: [PR #14286](https://github.com/remix-run/react-router/pull/14286)<br/>Release: [v 7.9.0](https://github.com/remix-run/react-router/releases/tag/react-router%407.9.0)
+
+## Problem found
+
+> [Issue #14257](https://github.com/remix-run/react-router/issues/14257)
+
+A bug has been reported when using `unstable_middleware` and `shouldRevalidate` together in React Router v7.8.2. The issue was that the parent loader kept re-running every time I navigated to the child route, despite setting `shouldRevalidate: () => false` in the parent route.
+
+Reproduction conditions were as follows.
+
+1. Enable SSR mode (`ssr: true`)
+2. Enable middleware (`unstable_middleware: true`)
+3. Set `shouldRevalidate: () => false` on the parent route
+
+```ts
+export const shouldRevalidate = () => false;
+
+export const loader = async () => {
+  console.log('parent-loader executed');
+  return { data: 'parent data' };
+};
+```
+
+Also mentioned in the issue was that this problem did not occur until v7.8.1. The changes introduced in v7.8.2 were what created this bug.
+
+## Cause analysis
+
+I started comparing the code between v7.8.1 and v7.8.2 to analyze the differences between the versions. In particular, we focused on middleware-related code and re-verification logic.
+
+I found the core in file `packages/react-router/lib/server-runtime/single-fetch.ts`
+
+```ts
+// Inside singleFetchAction function
+let result = await staticHandler.query(request, {
+  skipRevalidation: true, // Setting the re-verification skip option
+  generateMiddlewareResponse: build.future.v8_middleware
+    ? async (query) => {
+        try {
+          let innerResult = await query(handlerRequest);
+          // skipRevalidation not passed
+          return handleQueryResult(innerResult);
+        } catch (error) {
+          return handleQueryError(error);
+        }
+      }
+    : undefined,
+});
+```
+
+The `skipRevalidation: true` option was set, but it was not being passed when calling `query()` inside the `generateMiddlewareResponse` callback.
+
+When I traced the data flow, the flow of the problem I thought was as follows.
+
+```
+singleFetchAction
+  -> set skipRevalidation: true
+  -> call generateMiddlewareResponse
+  -> skipRevalidation missing when calling internal query()
+  -> shouldRevalidate is ignored and the loader is re-executed.
+```
+
+When I checked the type definition, there was a more fundamental problem. The `skipRevalidation` parameter was not defined at all in the `generateMiddlewareResponse` callback signature.
+
+```ts
+// Existing type definition
+generateMiddlewareResponse?: (
+  query: (
+    r: Request,
+    args?: {
+      filterMatchesToLoad?: (match: AgnosticDataRouteMatch) => boolean;
+      // No skipRevalidation
+    },
+  ) => Promise<StaticHandlerContext | Response>,
+) => MaybePromise<Response>;
+```
+
+## First PR attempt
+
+> [PR #14286](https://github.com/remix-run/react-router/pull/14286)
+
+Two modifications were needed to fix the problem:
+
+### 1. Modify option passing
+
+```ts
+generateMiddlewareResponse: build.future.v8_middleware
+  ? async (query) => {
+      try {
+        let innerResult = await query(handlerRequest, {
+          filterMatchesToLoad: (m) => !loadRouteIds || loadRouteIds.has(m.route.id),
+          skipRevalidation: true // Add options
+        });
+        return handleQueryResult(innerResult);
+      } catch (error) {
+        return handleQueryError(error);
+      }
+    }
+  : undefined,
+```
+
+### 2. Type definition update
+
+```ts
+generateMiddlewareResponse?: (
+  query: (
+    r: Request,
+    args?: {
+      filterMatchesToLoad?: (match: AgnosticDataRouteMatch) => boolean;
+      skipRevalidation?: boolean; // Add type
+    },
+  ) => Promise<StaticHandlerContext | Response>,
+) => MaybePromise<Response>;
+```
+
+### 3. Write integration tests
+
+I wrote a new integration test to verify the modifications.
+
+Actually, I didn't have much experience with e2e testing, so I wrote it by referring to other existing e2e tests.
+
+- Parent route sets shouldRevalidate: () => false
+- Check the number of parent loader calls when navigating between child routes
+- v8_middleware true/false Test both cases
+
+I think the most time-consuming part of this PR was writing these tests.
+
+```ts
+const files = {
+  'react-router.config.ts': reactRouterConfig({
+    ssr: true,
+    v8_middleware: false,
+  }),
+  'app/root.tsx': js`
+    import { Links, Meta, Outlet, Scripts, redirect } from "react-router";
+    export function loader({ params }) {
+      if (!params.child) {
+        throw redirect("/parent/1");
+      }
+      return null;
+    }
+    export default function Root() {
+      return (
+        <html lang="en">
+          <head>
+            <Meta />
+            <Links />
+          </head>
+          <body>
+            <Outlet />
+            <Scripts />
+          </body>
+        </html>
+      );
+    }
+  `,
+
+  'app/routes/parent.tsx': js`
+    import { Outlet, useLoaderData } from "react-router";
+    export const shouldRevalidate = () => {
+      console.log("[PARENT] shouldRevalidate called - returning false");
+      return false;
+    };
+    let loaderCallCount = 0;
+    export function loader() {
+      loaderCallCount++;
+      console.log("[PARENT_LOADER] Called: " + loaderCallCount + " times");
+      return {
+        data: "parent data",
+        callCount: loaderCallCount,
+        timestamp: Date.now(),
+      };
+    }
+    export default function Parent() {
+      const parentData = useLoaderData();
+      if (!parentData) throw new Error("no parent data");
+      return (
+        <div style={{ padding: "20px" }}>
+          <h1>Parent</h1>
+          <div id="parent-loader-count" data-count={parentData.callCount}>
+            Parent Loader Count: {parentData.callCount}
+          </div>
+          <div id="parent-timestamp" data-timestamp={parentData.timestamp}>
+            Parent Timestamp: {parentData.timestamp}
+          </div>
+          <Outlet />
+        </div>
+      );
+    }
+  `,
+
+  'app/routes/parent.$child.tsx': js`
+    import { href, Link, useParams, useLoaderData } from "react-router";
+    export const shouldRevalidate = () => {
+      console.log("[CHILD] shouldRevalidate called - returning true");
+      return true;
+    };
+    let loaderCallCount = 0;
+    export function loader({ params }) {
+      loaderCallCount++;
+      console.log("[CHILD_LOADER] Child " + params.child + " - Called: " + loaderCallCount + " times");
+      return {
+        data: "child data",
+        callCount: loaderCallCount,
+        childNumber: params.child,
+      };
+    }
+    export default function Child() {
+      const childData = useLoaderData();
+      if (!childData) throw new Error("no child data");
+      const params = useParams();
+      const nextChild = Number(params.child) + 1;
+      return (
+        <div style={{ padding: "20px" }}>
+          <h1>Child: {params.child}</h1>
+          <div id="child-loader-count" data-count={childData.callCount}>
+            Child Loader Count: {childData.callCount}
+          </div>
+          <Link
+            id="next-child-link"
+            style={{
+              border: "1px solid #CCC",
+              marginTop: "20px",
+              display: "inline-block",
+              padding: "4px 8px",
+            }}
+            to={href("/parent/:child", {
+              child: nextChild.toString(),
+            })}
+          >
+            Go to next child
+          </Link>
+        </div>
+      );
+    }
+  `,
+};
+
+test.describe('shouldRevalidate with middleware', () => {
+  test('v8_middleware false - parent loader called once', async ({ page }) => {
+    let fixture = await createFixture({
+      files,
+    });
+    let appFixture = await createAppFixture(fixture);
+    let app = new PlaywrightFixture(appFixture, page);
+
+    await app.goto('/parent/1');
+    await app.clickLink('/parent/2');
+    await app.clickLink('/parent/3');
+    await app.clickLink('/parent/4');
+
+    const initialParentCount = await page
+      .locator('#parent-loader-count')
+      .getAttribute('data-count');
+    expect(initialParentCount).toBe('1');
+
+    const secondParentCount = await page
+      .locator('#parent-loader-count')
+      .getAttribute('data-count');
+
+    expect(secondParentCount).toBe('1');
+
+    const thirdParentCount = await page
+      .locator('#parent-loader-count')
+      .getAttribute('data-count');
+
+    expect(thirdParentCount).toBe('1');
+  });
+
+  test('v8_middleware true - server execution tracking', async ({ page }) => {
+    const filesWithMiddleware = {
+      ...files,
+      'react-router.config.ts': reactRouterConfig({
+        ssr: true,
+        v8_middleware: true,
+      }),
+    };
+
+    let fixture = await createFixture({
+      files: filesWithMiddleware,
+    });
+    let appFixture = await createAppFixture(fixture);
+    let app = new PlaywrightFixture(appFixture, page);
+
+    const parentLoaderRegex = /\[PARENT_LOADER\] Called: (\d+) times/;
+    let maxParentLoaderCount = 0;
+
+    const originalLog = console.log;
+    console.log = (...args) => {
+      const message = args.join(' ');
+      const match = message.match(parentLoaderRegex);
+      if (match) {
+        maxParentLoaderCount = Math.max(
+          maxParentLoaderCount,
+          parseInt(match[1]),
+        );
+      }
+      originalLog(...args);
+    };
+
+    await app.goto('/parent/1');
+    await app.clickLink('/parent/2');
+    await app.clickLink('/parent/3');
+    await app.clickLink('/parent/4');
+
+    expect(maxParentLoaderCount).toBe(1);
+  });
+});
+```
+
+### Minor PR issues
+
+There was one issue while preparing for PR. According to React Router’s Contributing Guidelines,
+
+> "All new features, bug-fixes, or anything that touches react-router code should be branched off of and merged into the dev branch."
+
+All code changes had to target the `dev` branch. However, the `dev` branch was using `v8_middleware`, and the `main` branch was using `unstable_middleware`.
+
+The issue was reported for `unstable_middleware`, but a fix had to be made for `v8_middleware` to follow the guidelines. Fortunately, the two middlewares share the same code path, so modifications to `v8_middleware` would also apply to `unstable_middleware`.
+
+Therefore, we added this to the body of the PR to convey the situation.
+
+```md
+## Note on Middleware Selection
+
+Per the contributing guidelines, all code changes must target the dev branch.
+The dev branch uses v8_middleware (whereas main uses unstable_middleware),
+so I implemented and tested the fix against v8_middleware to comply with
+the guidelines. The underlying bug reproduces identically on both
+unstable_middleware and v8_middleware; this PR fixes the shared path by
+correctly forwarding skipRevalidation through generateMiddlewareResponse.
+```
+
+## Feedback from maintainer
+
+The maintainer conducted a review. He approved my approach but suggested a simpler solution,
+
+> "Thank you for the PR @joseph0926! We can fix this in a slightly simpler manner by falling back on the internal `filterMatchesToLoad` (which was what we missed originally in #14154)"
+
+The maintainer solved the problem more succinctly by leveraging the internal `filterMatchesToLoad`. I also integrated the tests I wrote into an existing middleware test suite to make the code cleaner.
+
+final code
+
+```ts
+generateMiddlewareResponse: build.future.v8_middleware
+  ? async (query) => {
+      try {
+        // Use internal filterMatchesToLoad as fallback
+        let innerResult = await query(handlerRequest, {
+          filterMatchesToLoad: opts?.filterMatchesToLoad ||
+            ((m) => !loadRouteIds || loadRouteIds.has(m.route.id)),
+          skipRevalidation: true
+        });
+        return handleQueryResult(innerResult);
+      } catch (error) {
+        return handleQueryError(error);
+      }
+    }
+  : undefined,
+```
+
+## Final merge and release
+
+After all tests passed and the maintainer's improvements were reflected, the PR was merged. This fix is ​​included in the v7.9.0 release.
+
+## Finish
+
+The biggest parts of fixing the issue were “what version is normal and where does the problem start?” and “creating a test case.”
+
+In addition to fixing the issue, I try to follow the rules below in all edits.
+
+1. My modifications must never affect existing functions.
+2. The problem should be solved.
+
+As I followed and revised these guidelines, I think the biggest thing I felt was **the importance of testing**.
+
+In fact, AI exists these days and it is possible to correct the problem if you know exactly where the problem is, but the process of figuring out what effect this fix will have is a bit laborious, and if testing is not enough, verification is not possible, so I think I have learned the importance of testing.

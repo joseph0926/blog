@@ -1,10 +1,17 @@
 import { ArrowRight } from 'lucide-react';
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
+import { Link } from '@/i18n/navigation';
+import type { AppLocale } from '@/i18n/routing';
 import { createTRPCContext } from '@/server/trpc/context';
 import { appRouter } from '@/server/trpc/root';
 import { BlogPostCard } from '../blog/blog-post-card';
 
-export const AllBlogPosts = async () => {
+type AllBlogPostsProps = {
+  locale: AppLocale;
+};
+
+export const AllBlogPosts = async ({ locale }: AllBlogPostsProps) => {
+  const t = await getTranslations({ locale, namespace: 'home' });
   const ctx = await createTRPCContext({ headers: new Headers() });
 
   let posts = null;
@@ -12,7 +19,7 @@ export const AllBlogPosts = async () => {
   try {
     const result = await appRouter
       .createCaller(ctx)
-      .post.getPosts({ limit: 6 });
+      .post.getPosts({ limit: 6, locale });
 
     posts = result.posts;
     message = result.message;
@@ -23,7 +30,7 @@ export const AllBlogPosts = async () => {
   if (!posts) {
     return (
       <div className="text-muted-foreground py-12 text-center">
-        게시글을 불러오는 중 에러가 발생했습니다. ({message})
+        {t('loadPostsError')} ({message})
       </div>
     );
   }
@@ -31,7 +38,7 @@ export const AllBlogPosts = async () => {
   if (posts.length === 0) {
     return (
       <div className="text-muted-foreground py-12 text-center">
-        더 이상 게시글이 없습니다.
+        {t('emptyArchivePosts')}
       </div>
     );
   }
@@ -48,7 +55,7 @@ export const AllBlogPosts = async () => {
           href="/blog"
           className="border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-full border px-6 py-3 text-sm font-medium transition-colors duration-150"
         >
-          View all posts
+          {t('viewAllPosts')}
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

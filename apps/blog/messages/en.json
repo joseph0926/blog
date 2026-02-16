@@ -1,0 +1,173 @@
+{
+  "nav": {
+    "home": "Home",
+    "blog": "Blog",
+    "about": "About",
+    "mainNavigation": "Main navigation",
+    "menu": "Navigation",
+    "openMenu": "Open menu"
+  },
+  "localeSwitcher": {
+    "label": "Language",
+    "ko": "Korean",
+    "en": "English"
+  },
+  "home": {
+    "badge": "Frontend Developer",
+    "headlineTop": "Deep Dive into",
+    "description": "I solve product problems with React and TypeScript, then document what I learned.",
+    "latestPosts": "Latest posts",
+    "about": "About",
+    "scrollToContent": "Scroll to content",
+    "sectionRecentTitle": "Recent",
+    "sectionRecentDescription": "Latest posts",
+    "sectionArchiveTitle": "Archive",
+    "sectionArchiveDescription": "All posts",
+    "viewAllPosts": "View all posts",
+    "loadPostsError": "An error occurred while loading posts.",
+    "emptyRecentPosts": "There are no published posts yet.",
+    "emptyArchivePosts": "No more posts to display."
+  },
+  "blog": {
+    "all": "All",
+    "filter": "Filter",
+    "topics": "topics",
+    "postSingular": "post",
+    "postPlural": "posts",
+    "active": "active",
+    "filters": "Filters",
+    "filterPosts": "Filter Posts",
+    "category": "Category",
+    "searchPlaceholder": "Search by title or description...",
+    "clearSearch": "Clear search",
+    "clearAllFilters": "Clear all filters",
+    "clearAll": "Clear all",
+    "activeFilters": "Active filters",
+    "reset": "Reset",
+    "openFilters": "Open filters",
+    "filterByCategory": "Filter posts by category",
+    "noPostsTitle": "No posts found",
+    "noPostsDescription": "Try adjusting your filters or check back later.",
+    "postsLoaded": "{count} posts loaded.",
+    "loading": "Loading",
+    "loadMore": "Load more",
+    "loadMoreAria": "Load more posts",
+    "readTime": "{minutes} min read"
+  },
+  "post": {
+    "notFound": "Post not found.",
+    "fallbackNotice": "English translation is not available yet. Showing the Korean original."
+  },
+  "footer": {
+    "description": "I document what I learn while solving product problems with React and TypeScript.",
+    "rights": "All rights reserved."
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Please try again.",
+    "retry": "Try again",
+    "goHome": "Go home"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you requested does not exist or may have moved.",
+    "goHome": "Go home",
+    "goBlog": "View blog"
+  },
+  "about": {
+    "metaTitle": "About",
+    "metaDescription": "I am a frontend engineer focused on React and TypeScript, with strong interest in web performance and user experience.",
+    "profile": {
+      "badge": "React Router · TanStack Query Contributor",
+      "name": "Younghoon Kim",
+      "role": "Frontend Engineer",
+      "summaryPrefix": "I am a frontend engineer focused on React, TypeScript, and Next.js. I have worked on stabilizing user flows under high traffic, performance optimization, and legacy migrations. I have contributed to open source projects including TanStack Query and React Router with ",
+      "summaryHighlight": "10 merged PRs included in official releases",
+      "summarySuffix": "."
+    },
+    "experience": {
+      "title": "Experience",
+      "description": "Work history",
+      "items": {
+        "ea": {
+          "company": "EA Korea",
+          "role": "Frontend Engineer — FC Online Operations Tool",
+          "period": "Mar 2025 - Present",
+          "highlight1": "Reduced weekly QA reproduction/log request tickets from 10 to 3 by syncing URL state.",
+          "highlight2": "After redesigning the item version-management flow, similar deployment issues dropped to zero.",
+          "highlight3": "Owned the end-to-end frontend workflow (stack selection, QA collaboration, and documentation)."
+        },
+        "nhn": {
+          "company": "NHN Injeinc",
+          "role": "Frontend Engineer — Ticketlink",
+          "period": "May 2024 - Mar 2025",
+          "highlight1": "Built reservation flows for large-traffic events such as KBO Opening Day and the Korean Series.",
+          "highlight2": "Unified JSP-based multilingual pages into a single React + i18next codebase (2 -> 1).",
+          "highlight3": "Blocked non-eligible users from entering booking flows via fan-club-tier and team-policy filtering."
+        },
+        "pandora": {
+          "company": "PandoraTV",
+          "role": "Frontend Engineer — Cobak (Crypto Community)",
+          "period": "Jul 2023 - May 2024",
+          "highlight1": "Improved Lighthouse SEO score from 56 to 82 using dynamic meta injection in EJS templates.",
+          "highlight2": "Developed a hybrid-app WebView flow for community and product purchase journeys.",
+          "highlight3": "Proposed and implemented @mention support end-to-end, including notification integration."
+        }
+      }
+    },
+    "openSource": {
+      "title": "Open Source",
+      "description": "10 PRs merged to official releases",
+      "github": "GitHub",
+      "merged": "Merged",
+      "groups": {
+        "query": {
+          "pr1Title": "Optimized useQueries from O(N²) to O(N)",
+          "pr1Desc": "Reduced function calls in the 500-query benchmark from 4,500 to 2,000 (~55%).",
+          "pr2Title": "Fixed persist + memoized combine bug",
+          "pr2Desc": "Resolved stale UI after page refresh.",
+          "pr3Title": "Fixed CI timeout",
+          "pr3Desc": "Stabilized mismatch in Nx Cloud distributed execution config."
+        },
+        "router": {
+          "pr1Title": "Fixed missing middleware skipRevalidation handling",
+          "pr1Desc": "Prevented unnecessary parent loader re-executions.",
+          "pr2Title": "Handled restricted browser storage environments",
+          "pr2Desc": "Added safe handling for session save failures in private mode.",
+          "pr3Title": "Fixed fetcher.submit JSON bug",
+          "pr3Desc": "Added regression tests for SSR environments.",
+          "pr4Title": "Fixed generatePath suffix parameter handling",
+          "pr4Desc": "Resolved failures generating :id.json paths.",
+          "pr5Title": "Added crossOrigin attribute to <Links />",
+          "pr5Desc": "Addressed CDN CORS CSS preload issues."
+        },
+        "rhf": {
+          "pr1Title": "Fixed useController type regression",
+          "pr1Desc": "Resolved never-lock issue and added type tests."
+        },
+        "tsr": {
+          "pr1Title": "Fixed params.parse notFound() handling",
+          "pr1Desc": "Changed 500 to 404 behavior and added tests."
+        }
+      }
+    },
+    "skills": {
+      "title": "Skills",
+      "description": "Tech stack",
+      "categories": {
+        "core": "Core",
+        "stateData": "State/Data",
+        "buildTest": "Build/Test",
+        "backend": "Backend"
+      }
+    }
+  },
+  "meta": {
+    "homeTitle": "Younghoon Kim Blog",
+    "homeDescription": "Personal engineering blog about React, TypeScript, and web performance optimization.",
+    "blogTitle": "Blog - Younghoon Kim | Frontend Engineering",
+    "blogDescription": "Technical posts on frontend engineering, React, TypeScript, and web performance.",
+    "postFallbackTitle": "Younghoon Kim Blog",
+    "postFallbackDescription": "Personal engineering blog by Younghoon Kim."
+  }
+}

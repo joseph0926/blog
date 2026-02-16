@@ -1,10 +1,18 @@
-import { Metadata } from 'next';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { PostHeaderLoading } from '@/components/loading/post-header.loading';
 import { PostContent } from '@/components/post/post-content';
 import { PostHeader } from '@/components/post/post-header';
 import { Container } from '@/components/ui/container';
+import { appLocales, isAppLocale } from '@/i18n/routing';
+import {
+  getAlternates,
+  getOpenGraphLocale,
+  localizedPath,
+  toAbsoluteUrl,
+} from '@/i18n/seo';
 import { commonOpenGraph } from '@/meta/open-graph';
 import { pageRobots } from '@/meta/robots';
 import { createTRPCContext } from '@/server/trpc/context';
@@ -16,51 +24,61 @@ export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const slugs = await getAllPostSlugs();
-  return slugs.map((slug) => ({ slug }));
+  return appLocales.flatMap((locale) =>
+    slugs.map((slug) => ({ locale, slug })),
+  );
 }
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  const safeLocale = isAppLocale(locale) ? locale : 'ko';
+  const t = await getTranslations({ locale: safeLocale, namespace: 'meta' });
   const ctx = await createTRPCContext({ headers: new Headers() });
 
   try {
     const { post } = await appRouter
       .createCaller(ctx)
-      .post.getPostBySlug({ slug });
+      .post.getPostBySlug({ slug, locale: safeLocale });
     const keywords = post.tags.map((tag) => tag.name);
 
     return {
       title: post.title,
       description: post.description,
+      keywords,
+      alternates: getAlternates(safeLocale, `/post/${slug}`),
       openGraph: {
         ...commonOpenGraph,
         title: post.title,
         description: post.description,
-        url: `https://www.joseph0926.com/post/${slug}`,
+        url: toAbsoluteUrl(localizedPath(safeLocale, `/post/${slug}`)),
         type: 'article',
-        images: post?.thumbnail
+        locale: getOpenGraphLocale(safeLocale),
+        images: post.thumbnail
           ? [
               {
                 url: post.thumbnail,
                 width: 1200,
                 height: 630,
-                alt: `${post.title} 이미지`,
+                alt: `${post.title} image`,
               },
             ]
           : commonOpenGraph?.images,
       },
-      keywords,
       robots: pageRobots.blogPost,
     };
   } catch {
     return {
-      title: '김영훈 블로그',
-      description: '프론트엔드 개발자 김영훈의 블로그입니다',
-      openGraph: commonOpenGraph,
+      title: t('postFallbackTitle'),
+      description: t('postFallbackDescription'),
+      alternates: getAlternates(safeLocale, `/post/${slug}`),
+      openGraph: {
+        ...commonOpenGraph,
+        locale: getOpenGraphLocale(safeLocale),
+      },
       icons: { icon: '/logo/logo.svg' },
       robots: pageRobots.blogPost,
     };
@@ -70,12 +88,13 @@ export async function generateMetadata({
 export default async function PostPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string; slug: string }>;
 }) {
-  const { slug } = await params;
+  const { locale, slug } = await params;
+  const safeLocale = isAppLocale(locale) ? locale : 'ko';
 
   try {
-    await getPostContent(slug);
+    await getPostContent(slug, safeLocale);
   } catch {
     notFound();
   }
@@ -83,15 +102,15 @@ export default async function PostPage({
   return (
     <Container as="main" size="lg" className="relative">
       <Suspense fallback={<PostHeaderLoading />}>
-        <PostHeader slug={slug} />
+        <PostHeader slug={slug} locale={safeLocale} />
       </Suspense>
-      <article className="prose dark:prose-invert prose-pre:rounded-xl prose-pre:border prose-pre:border-border/70 prose-pre:bg-muted/55 prose-pre:text-foreground prose-pre:shadow-xs dark:prose-pre:border-white/20 dark:prose-pre:bg-black/35 dark:prose-pre:text-white/90 max-w-none py-8">
+      <article className="prose dark:prose-invert prose-pre:rounded-xl prose-pre:border prose-pre:border-border/70 prose-pre:bg-muted/55 prose-pre:text-foreground prose-pre:shadow-xs dark:prose-pre:border-white/20 dark:prose-pre:bg-black/35 dark:prose-pre:text-white/90 prose-pre:overflow-x-auto max-w-none py-8 [&_:not(pre)>code]:break-words [&_pre_code]:break-words [&_pre_code]:whitespace-pre-wrap [&_td]:break-words [&_td]:whitespace-normal [&_td_code]:break-all [&_td_code]:whitespace-normal [&_th]:break-words">
         <Suspense
           fallback={
             <div className="h-[67vh] animate-pulse rounded-lg bg-gray-100 dark:bg-gray-800" />
           }
         >
-          <PostContent slug={slug} />
+          <PostContent slug={slug} locale={safeLocale} />
         </Suspense>
       </article>
     </Container>

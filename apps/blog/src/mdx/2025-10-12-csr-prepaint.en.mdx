@@ -1,0 +1,982 @@
+---
+slug: '2025-10-12-csr-prepaint'
+title: "CSR Revisited Solving Blank Screens: Prepaint's Snapshot Restoration and Stabilization Journey"
+description: "The process of resolving the CSR app's returning blank screen issue with snapshot restoration. From duplicate rendering bugs to introducing overlay mode, Prepaint shares its journey to achieve ~0ms restoration."
+date: '2025-10-12'
+thumbnail: '/post/react.webp'
+tags: ['react', 'opensource', 'firsttx']
+---
+
+## Entering
+
+[Previous post](/post/2025-10-12-local-first-usesyncexternalstore-indexeddb-react) covered the implementation process of Local-First. It was a story about connecting IndexedDB and React and simplifying server synchronization with useSyncedModel. In this article, we cover the journey of FirstTx’s first layer, Prepaint. In particular, we will focus on the process of solving the "revisited blank screen", a chronic problem of CSR apps, and the story of overcoming the duplicate rendering crisis encountered in the process with overlay mode.<br />
+The biggest weakness of Client-Side Rendering (CSR) apps is the repeat visit experience. When the user reopens the shopping cart page they were working on yesterday, a blank screen appears for 1-2 seconds. The JavaScript bundle is loaded, React is mounted, the API is called, and the data arrives before the screen is drawn. On the other hand, SSR/RSC does not have this problem because the HTML is generated and sent by the server. However, not all teams can adopt SSR. Internal tools that don't require SEO, small teams with a burdensome server infrastructure, apps that deal with complex client state... In these cases, CSR makes more sense.<br />
+Prepaint's goal was clear. **"Maintaining CSR and creating repeat visit experiences at the level of SSR"**. It saves the user's last viewed screen as a snapshot and immediately restores it on the next visit. It's okay if your first visit is slow. After all, it's CSR. But things are different from the second visit. You can immediately show the shopping cart you saw yesterday and update it by getting the latest data in the background. In this article, we share three crises we faced while implementing this idea and how we resolved them.
+
+## Revisiting CSR The blank screen: the essence of the problem
+
+We started by accurately understanding the problem. Why does a blank screen appear when I revisit the CSR app?
+
+### Typical CSR loading sequence
+
+```
+[User revisits /cart]
+1. Load HTML (~100ms)
+   → <div id="root"></div> (empty container)
+
+2. Load JavaScript bundle (~300ms)
+   → Parse/execute React code
+
+3. React mount (~50ms)
+   → createRoot(root).render(<App />)
+
+4. API call (~500ms)
+   → await fetch('/api/cart')
+
+5. Data rendering (~50ms)
+   → The user finally sees the screen
+
+Total ~1000ms of blank screen
+```
+
+During this one second, the user only sees a blank screen or skeleton. The shopping cart I was working on yesterday is nowhere to be found. If your internal tools reload pages dozens of times a day, each second adds up to a huge loss of productivity.
+
+### Limitations of existing solutions
+
+There are two traditional ways to solve this problem:
+
+**1. Switch to SSR/RSC**
+
+If the server pre-renderes the HTML and sends it, you will see the completed screen in step 1. But there is a trade-off.
+
+```typescript
+// Things you need when converting to SSR
+- Node.js server infrastructure
+- Server component migration
+- Hydration boiler plate
+- Server/client state separation
+- Increased deployment complexity
+```
+
+This is an excessive choice for internal tools that do not need SEO or for apps that already work well with CSR.
+
+**2. Service Worker Caching**
+
+Caching HTML/JS with a Service Worker makes step 2 faster. But steps 4-5 (API call, rendering) are still unavoidable. Additionally, Service Workers are complex, difficult to debug, and have difficult cache invalidation strategies.
+
+### Access to Prepaint: Client Snapshots
+
+Prepaint took a different approach. **"Save and restore snapshots on the client, not the server"**.
+
+The core idea is simple.
+
+```
+[First visit]
+1. User works in /cart
+2. Just before leaving the page (beforeunload)
+3. Save current DOM + style to IndexedDB
+
+[Revisit]
+1. As soon as the HTML is loaded
+2. Boot script reads snapshot from IndexedDB
+3. Immediate injection into DOM (~15ms)
+4. Users immediately see the screen they saw yesterday
+5. Mount React + call API in background
+6. Smoothly updated with the latest data
+```
+
+The advantages of this approach were clear. First, you don't need a server. Everything happens on the client. Second, there is little need to change existing CSR code. Third, it has low complexity as it only focuses on return visits. Fourth, IndexedDB is supported in all modern browsers.<br />
+However, when implementation began, unexpected problems appeared. The most serious of them was the “duplicate rendering bug.”
+
+## First implementation: pure DOM injection
+
+The initial implementation (v0.1.0) was simple. When beforeunloading, document.body.innerHTML is saved as a whole and restored as is on the next visit.
+
+### Capture logic
+
+```typescript
+// capture.ts (early version)
+export function setupCapture() {
+  window.addEventListener('beforeunload', async () => {
+    const snapshot = {
+      route: window.location.pathname,
+      html: document.body.innerHTML, // full body
+      styles: Array.from(document.styleSheets)
+        .map((sheet) => {
+          try {
+            return Array.from(sheet.cssRules)
+              .map((rule) => rule.cssText)
+              .join('\n');
+          } catch {
+            return '';
+          }
+        })
+        .join('\n'),
+      timestamp: Date.now(),
+    };
+
+    await storage.set(`snapshot:${snapshot.route}`, snapshot);
+  });
+}
+```
+
+In the beforeunload event, the entire body.innerHTML is retrieved and CSS rules are collected by traversing all style sheets. And save it in IndexedDB using the current route as the key.
+
+### Restoration logic
+
+```typescript
+// boot.ts (early version)
+(async function boot() {
+  const route = window.location.pathname;
+  const snapshot = await storage.get(`snapshot:${route}`);
+
+  if (!snapshot) return;
+  if (Date.now() - snapshot.timestamp > 7 * 24 * 60 * 60 * 1000) {
+    return; // TTL 7 days
+  }
+
+  // DOM injection
+  document.body.innerHTML = snapshot.html;
+
+  // style injection
+  const style = document.createElement('style');
+  style.textContent = snapshot.styles;
+  document.head.appendChild(style);
+
+  // marking
+  document.documentElement.setAttribute('data-prepaint', '');
+})();
+```
+
+The boot script is injected inline within the `<head>` of the HTML. When the page loads, it runs immediately to restore the snapshot. This script runs before the main React bundle arrives, so the user immediately sees the screen they saw yesterday instead of a blank screen.
+
+### React integration
+
+```typescript
+// main.tsx (early version)
+import { createFirstTxRoot } from '@firsttx/prepaint';
+
+createFirstTxRoot(
+  document.getElementById('root')!,
+  <App />
+);
+```
+
+createFirstTxRoot internally calls handoff() to check if a prepaint snapshot exists. If present, hydrate with hydrateRoot. If not, perform normal rendering with createRoot.
+
+```typescript
+// helpers.ts (early version)
+export function createFirstTxRoot(
+  container: Element,
+  element: ReactElement,
+): void {
+  setupCapture(); // Capture Settings
+
+  const strategy = handoff();
+
+  if (strategy === 'has-prepaint') {
+    hydrateRoot(container, element);
+  } else {
+    createRoot(container).render(element);
+  }
+}
+```
+
+It was a simple and clear structure. In theory, it was perfect. But when I actually ran it, the screen was drawn strangely.
+
+## First Crisis: Duplicate rendering bug
+
+While testing our initial implementation on Playground, we discovered a serious issue. When you refresh, the same screen appears twice.
+
+### Reproducing the problem
+
+```
+[scenario]
+1. Visit the /cart page
+2. Add 3 products to your shopping cart
+3. Refresh (F5)
+
+[Expected Behavior]
+- Immediately display 3 items in shopping cart
+
+[Actual operation]
+- 3 items in shopping cart appear twice (total 6)
+- When going back, the previous page UI remains.
+- Styles accumulate exponentially with continuous capture
+```
+
+When I checked with developer tools, the DOM structure was strange.
+
+```html
+<div id="root">
+  <!-- Restored by Prepaint -->
+  <div class="cart">
+    <div class="item">Product 1</div>
+    <div class="item">Product 2</div>
+    <div class="item">Product 3</div>
+  </div>
+
+  <!-- Additional rendering by React -->
+  <div class="cart">
+    <div class="item">Product 1</div>
+    <div class="item">Product 2</div>
+    <div class="item">Product 3</div>
+  </div>
+</div>
+```
+
+React renders again on the screen restored by Prepaint. Why did this happen?
+
+### Cause analysis
+
+The cause of the problem was React’s hydration mechanism. hydrateRoot in React 18 has a specific premise. **"The first child node of the container is the target of hydration"**.
+
+```typescript
+// React expectations
+<div id="root">
+  <div class="app">...</div> // This is the only sign language target
+</div>
+
+// what we made
+<div id="root">
+  <!-- body.innerHTML full -->
+  <div class="header">...</div>
+  <div id="app">...</div>
+  <div class="footer">...</div>
+  <!-- Multiple sibling nodes -->
+</div>
+```
+
+Since the entire body.innerHTML has been restored, several child nodes are included in #root. React panicked. “Huh? Only the first child has to sign, but there are multiple?” And when sign language failed, it fell back to client rendering. The result is that the new DOM is rendered on top of the existing DOM.
+
+### Additional issues
+
+In addition to duplicate rendering, other issues were discovered.
+
+**1. Style Stack**
+
+```typescript
+// first capture
+<style data-firsttx-prepaint>/* 100 lines */</style>
+
+// Second capture (first capture remains in DOM)
+<style data-firsttx-prepaint>/* 100 lines */</style>
+<style data-firsttx-prepaint>/* 100 lines */</style>
+
+// third capture
+<style data-firsttx-prepaint>/* 100 lines */</style>
+<style data-firsttx-prepaint>/* 100 lines */</style>
+<style data-firsttx-prepaint>/* 100 lines */</style>
+```
+
+This grew exponentially as the styles Prepaint injected were re-incorporated into the next capture. Snapshot sizes grew, restores slowed down, and memory usage increased.
+
+**2. UI residual between routes**
+
+```
+When moving to /products → /cart
+- DOM of products page remains
+- cart page UI added on top of it
+- Scroll position becomes strange
+```
+
+Snapshots of previous pages were not completely removed when switching routing in SPA.<br />
+These problems stem from essentially the same cause. **"The approach of saving and restoring the entire body.innerHTML does not fit React's hydration model"**. It had to be redesigned from scratch.
+
+## Solution 1: Single root injection
+
+The first solution was to narrow the capture/restore scope. By saving and restoring only the first child of #root rather than the entire body, we can satisfy React's hydration premise.
+
+### Improved capture logic
+
+```typescript
+// capture.ts (v0.2.0)
+function serializeRoot(): string | null {
+  const root = document.getElementById('root');
+  if (!root || !root.firstElementChild) return null;
+
+  // Serialize only the first child
+  return root.firstElementChild.outerHTML;
+}
+
+export function setupCapture() {
+  window.addEventListener('beforeunload', async () => {
+    const html = serializeRoot();
+    if (!html) return;
+
+    // Collect only prepaint styles
+    const styles = Array.from(document.styleSheets)
+      .map((sheet) => {
+        try {
+          return Array.from(sheet.cssRules)
+            .filter((rule) => {
+              const element = rule.parentStyleSheet?.ownerNode;
+              return !element?.hasAttribute('data-firsttx-prepaint');
+            })
+            .map((rule) => rule.cssText)
+            .join('\n');
+        } catch {
+          return '';
+        }
+      })
+      .join('\n');
+
+    const snapshot = {
+      route: window.location.pathname,
+      html, // Single route only
+      styles, // Excluding prepaint styles
+      timestamp: Date.now(),
+    };
+
+    await storage.set(`snapshot:${snapshot.route}`, snapshot);
+  });
+}
+```
+
+There are two key changes:
+
+**1. serializeRoot()** - Get only the first child of #root. You can use `firstElementChild.outerHTML` to get the full markup of a single node.
+
+**2. Style filtering** - Exclude style tags with the `data-firsttx-prepaint` attribute. This will ensure that the styles injected by Prepaint are not recaptured.
+
+### Improved restore logic
+
+```typescript
+// boot.ts (v0.2.0)
+(async function boot() {
+  const route = window.location.pathname;
+  const snapshot = await storage.get(`snapshot:${route}`);
+
+  if (!snapshot) return;
+  if (Date.now() - snapshot.timestamp > 7 * 24 * 60 * 60 * 1000) {
+    return;
+  }
+
+  const root = document.getElementById('root');
+  if (!root) return;
+
+  // Inject only a single root
+  root.innerHTML = snapshot.html;
+
+  // Style injection (add marking)
+  const style = document.createElement('style');
+  style.setAttribute('data-firsttx-prepaint', '');
+  style.textContent = snapshot.styles;
+  document.head.appendChild(style);
+
+  document.documentElement.setAttribute('data-prepaint', '');
+})();
+```
+
+Inject only a single child with `root.innerHTML = snapshot.html`. Now there is exactly one child node inside #root. This is the structure expected by React's hydrateRoot.
+
+### Result
+
+A single root injection has solved many of the redundant rendering issues.
+
+```html
+<!-- Before: Multiple children -->
+<div id="root">
+  <div class="header">...</div>
+  <div class="app">...</div>
+  <div class="footer">...</div>
+</div>
+
+<!-- After: single child -->
+<div id="root">
+  <div class="app">
+    <div class="header">...</div>
+    <div class="content">...</div>
+    <div class="footer">...</div>
+  </div>
+</div>
+```
+
+React can now hydrate a single child. Style stacking issues have also been resolved. Prepaint styles are not recaptured with `data-firsttx-prepaint` filtering.<br />
+But problems still remained. **Sign language inconsistency due to CSS-in-JS or dynamic styles**. In particular, the problem occurred in apps that use libraries such as Tailwind, styled-components, and Emotion.
+
+## Second Crisis: Sign Language Inconsistency and CSS-in-JS
+
+Single root injection solved the structural problem, but it introduced a new problem. Sign language fails in apps that use CSS-in-JS.
+
+### Reproducing the problem
+
+```typescript
+// styled-components example
+const Button = styled.button`
+  background: ${props => props.primary ? 'blue' : 'gray'};
+  padding: ${props => props.size === 'large' ? '16px' : '8px'};
+`;
+
+function CartPage() {
+  const [isPremium, setIsPremium] = useState(false);
+
+  return (
+    <Button primary={isPremium} size="large">
+      Make payment
+    </Button>
+  );
+}
+```
+
+This code generates different styles depending on props at runtime. The problem is that the props at snapshot time and hydration time may be different.
+
+```
+[Snapshot point]
+- isPremium = false
+- Generated class: .sc-abc123 { background: gray; padding: 16px; }
+- Captured HTML: <button class="sc-abc123">Pay</button>
+
+[Point of sign language]
+- isPremium = false (same)
+- but the hash generated by styled-components is: .sc-def456 (different!)
+- HTML desired by React: <button class="sc-def456">Pay</button>
+
+→ Class name mismatch → Sign language failure
+```
+
+CSS-in-JS libraries dynamically create styles when a component is mounted. The class name hash generated at this time may be different each time. If the class name saved in the snapshot is different from the class name at the time of hydration, React will fail hydration.
+
+### Consequences of Hydration Failure
+
+React 18 automatically falls back to client rendering when hydration fails. However, this process is not smooth.
+
+```
+1. Restore Prepaint Snapshot (screen to yesterday's screen)
+2. Start React Mount
+3. Try sign language
+4. Class name mismatch detection
+5. Give up sign language
+6. Fall back to client rendering
+7. Remove existing DOM and render anew
+   → The screen flickers or the layout shakes.
+```
+
+The user sees the screen being drawn once and then redrawn. The “smooth experience” that was Prepaint’s goal was actually undermined.
+
+### How often does it happen?
+
+After testing with various app structures on Playground, CSS-in-JS mismatches occurred in approximately **18% of cases**.
+
+```md
+| App Type                          | Sign language success rate |
+| --------------------------------- | -------------------------- |
+| static Tailwind + simple state    | ~95%                       |
+| styled-components + dynamic props | ~82%                       |
+| Emotion + theme switching         | ~78%                       |
+| Material-UI + Complex Style       | ~75%                       |
+```
+
+About 80% of the time it works fine, but about 20% of the time the screen flickers. This was unacceptable. We needed to provide a smooth experience for all users.
+
+### Two options
+
+There were two ways to solve this problem.
+
+**1. Try perfect prediction**
+
+Stores the style hash at the time of the snapshot and forces the same hash to be generated at the time of hydration. But this had the following problem:
+
+- Must understand the internal implementation of all CSS-in-JS libraries such as styled-components, Emotion, Tailwind JIT, etc.
+- If the library version changes, the hash algorithm may also change.
+- The style of external libraries (UI frameworks) must be controlled
+- Maintenance costs increase exponentially
+
+**2. Delegating to React + Smooth Fallback**
+
+Rather than trying to completely prevent sign language inconsistencies, let React repair them. Instead, wrap the recovery process in a ViewTransition to make it smoother.<br />
+We chose option 2. The reason was clear. **"80% is already working well. The remaining 20% ​​can also be recovered, so we just need to make the process smooth."** We decided to give up on perfect prediction and focus on graceful failure recovery.
+
+## Solution 2: ViewTransition and automatic recovery
+
+We delegated sign language to React, but made it recover smoothly in case of failure. The key is the ViewTransition API.
+
+### What is ViewTransition?
+
+ViewTransition is an API supported in Chrome 111+ that automatically animates DOM changes.
+
+```typescript
+document.startViewTransition(() => {
+  // If you change the DOM inside this
+  // Take before/after snapshots and automatically fade transition
+  element.textContent = 'New Text';
+});
+```
+
+Automatically compares before snapshots and after snapshots and converts the changed parts to crossfade. We decided to apply this to the sign language process.
+
+### Applying ViewTransition to the sign language process
+
+```typescript
+// helpers.ts (v0.3.0)
+export function createFirstTxRoot(
+  container: Element,
+  element: ReactElement,
+  options?: { transition?: boolean },
+): void {
+  setupCapture();
+
+  const strategy = handoff();
+  const useTransition = options?.transition ?? true;
+
+  if (strategy === 'has-prepaint') {
+    if (useTransition && 'startViewTransition' in document) {
+      // Wrap it with ViewTransition
+      document.startViewTransition(() => {
+        hydrateRoot(container, element, {
+          onRecoverableError: (error) => {
+            console.warn('[Prepaint] Hydration mismatch:', error);
+            // Automatically falls back to client rendering when sign language fails
+            // React takes care of it
+          },
+        });
+      });
+    } else {
+      hydrateRoot(container, element);
+    }
+  } else {
+    createRoot(container).render(element);
+  }
+
+  // Prepaint marking arrangement
+  requestAnimationFrame(() => {
+    document.documentElement.removeAttribute('data-prepaint');
+    document
+      .querySelectorAll('style[data-firsttx-prepaint]')
+      .forEach((el) => el.remove());
+  });
+}
+```
+
+The key is `document.startViewTransition(() => hydrateRoot(...))`. When you wrap it like this, the following happens:
+
+```
+1. Before snapshot: Screen restored by Prepaint
+2. Run hydrateRoot
+   - Success: React uses the existing DOM as is.
+   - Failure: React re-renders the DOM
+3. After snapshot: final screen
+4. Before → After automatic transition (crossfade)
+```
+
+When sign language is successful, the transition ends immediately because the DOM changes very little. When hydration fails, the DOM changes significantly, but the ViewTransition provides a smooth transition. Users see a natural fade instead of flickering.
+
+### Logging with onRecoverableError
+
+hydrateRoot in React 18 provides an `onRecoverableError` callback. This callback is called when a sign language mismatch occurs. We used this for logging.
+
+```typescript
+hydrateRoot(container, element, {
+  onRecoverableError: (error) => {
+    if (typeof __FIRSTTX_DEV__ !== 'undefined' && __FIRSTTX_DEV__) {
+      console.warn('[Prepaint] Hydration mismatch detected:', error);
+      console.warn(
+        'This is expected for CSS-in-JS. Falling back to client render.',
+      );
+    }
+  },
+});
+```
+
+In development mode it prints a warning to the console, but in production it recovers quietly. Users don't even know there was a problem.
+
+### Result: Smooth recovery
+
+After applying ViewTransition, the user experience has been greatly improved.
+
+**Before (no ViewTransition):**
+
+```
+Prepaint restoration → [blinking] → final screen
+```
+
+**After (ViewTransition applied):**
+
+```
+Prepaint restoration → [smooth fade] → final screen
+```
+
+Even if a sign language failure occurs, users perceive it as a natural transition. As measured by Playground, **82% were fully hydrated** and **18% were smooth fallback**. It's not 100%, but it does provide a 100% smooth experience.<br />
+But one problem still remained. In complex SPAs, even a single root injection was not sufficient.
+
+## Third crisis: complex routing and dynamic UI
+
+A single root injection and ViewTransition solved most cases, but certain apps still had issues.
+
+### Problem Situation
+
+```typescript
+// Complex app using React Router
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/cart" element={<Cart />} />
+      </Routes>
+      <GlobalModal /> {/* Render outside the route */}
+      <Toast /> {/* Render outside the route */}
+    </Router>
+  );
+}
+```
+
+In this structure, something strange happened when switching the /cart → /products routing.
+
+```
+1. Restore /cart snapshot
+2. Mount React → Router recognizes the current path (/products)
+3. Products component rendering
+4. However, some DOM from the Cart snapshot remains.
+   → Cart + Products UI appear mixed
+```
+
+The problem was **a component outside the route** (Modal, Toast, etc.). These are rendered outside #root through React Portal, but the snapshot only contains #root, so they were not restored properly.
+
+### Detected with MutationObserver
+
+To fix this I had to watch the number of children of #root. If it's not a single child, something is wrong.
+
+```typescript
+// helpers.ts - root guard
+function setupRootGuard(root: Element) {
+  const observer = new MutationObserver(() => {
+    if (root.children.length !== 1) {
+      console.warn('[Prepaint] Multiple root children detected. Resetting...');
+
+      // Sign Language Root Unmount
+      if (hydrationRoot) {
+        hydrationRoot.unmount();
+      }
+
+      // #root cleanup
+      root.innerHTML = '';
+
+      // Reset to client rendering
+      createRoot(root).render(element);
+
+      observer.disconnect();
+    }
+  });
+
+  observer.observe(root, { childList: true });
+}
+```
+
+MutationObserver watches changes to children of #root. If there is not one, it will be detected and reset immediately. This automatically recovers from complex routing or external script injection.<br />
+But this alone wasn't enough. I needed a way to do this without touching the DOM at all.
+
+## Solution 3: Overlay Mode (Shadow DOM)
+
+The final solution for complex apps was **Overlay Mode**. Instead of injecting the snapshot into the actual DOM, it covers the entire screen with Shadow DOM.
+
+### What is Shadow DOM?
+
+Shadow DOM is a web standard for creating isolated DOM trees. Styles and markup inside the Shadow DOM do not affect the outside.
+
+```typescript
+const host = document.createElement('div');
+const shadow = host.attachShadow({ mode: 'open' });
+
+shadow.innerHTML = '<p>This is isolated</p>';
+document.body.appendChild(host);
+
+// Outside CSS has no effect inside the shadow.
+// CSS inside the shadow does not affect the outside
+```
+
+We used this for Prepaint overlays.
+
+### Overlay restoration logic
+
+```typescript
+// boot.ts (v0.3.0 - overlay mode)
+(async function boot() {
+  const route = window.location.pathname;
+  const snapshot = await storage.get(`snapshot:${route}`);
+
+  if (!snapshot) return;
+  if (Date.now() - snapshot.timestamp > 7 * 24 * 60 * 60 * 1000) {
+    return;
+  }
+
+  // Check overlay activation
+  const useOverlay =
+    window.__FIRSTTX_OVERLAY__ ||
+    localStorage.getItem('firsttx:overlay') === '1';
+
+  if (useOverlay) {
+    // Create Shadow DOM Overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'firsttx-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 999999;
+      background: white;
+    `;
+
+    const shadow = overlay.attachShadow({ mode: 'open' });
+
+    // style injection
+    const style = document.createElement('style');
+    style.textContent = snapshot.styles;
+    shadow.appendChild(style);
+
+    // HTML injection
+    const content = document.createElement('div');
+    content.innerHTML = snapshot.html;
+    shadow.appendChild(content);
+
+    document.body.appendChild(overlay);
+    document.documentElement.setAttribute('data-prepaint-overlay', '');
+  } else {
+    // Default injection mode (single root)
+    const root = document.getElementById('root');
+    if (!root) return;
+
+    root.innerHTML = snapshot.html;
+
+    const style = document.createElement('style');
+    style.setAttribute('data-firsttx-prepaint', '');
+    style.textContent = snapshot.styles;
+    document.head.appendChild(style);
+
+    document.documentElement.setAttribute('data-prepaint', '');
+  }
+})();
+```
+
+Overlay mode doesn't touch the actual #root. Instead, we create a `position: fixed` element that covers the entire screen, and render the snapshot inside it as a Shadow DOM. The user sees the same screen, but the actual DOM is clean.
+
+### React integration
+
+```typescript
+// helpers.ts (v0.3.0 - overlay support)
+export function createFirstTxRoot(
+  container: Element,
+  element: ReactElement,
+  options?: { transition?: boolean },
+): void {
+  setupCapture();
+
+  const strategy = handoff(); // 'has-prepaint' | 'has-prepaint-overlay' | 'cold-start'
+  const useTransition = options?.transition ?? true;
+
+  if (strategy === 'has-prepaint' || strategy === 'has-prepaint-overlay') {
+    if (useTransition && 'startViewTransition' in document) {
+      document.startViewTransition(() => {
+        // Remove overlay
+        if (strategy === 'has-prepaint-overlay') {
+          document.getElementById('firsttx-overlay')?.remove();
+        }
+
+        hydrateRoot(container, element, {
+          onRecoverableError: (error) => {
+            console.warn('[Prepaint] Hydration mismatch:', error);
+          },
+        });
+      });
+    } else {
+      if (strategy === 'has-prepaint-overlay') {
+        document.getElementById('firsttx-overlay')?.remove();
+      }
+      hydrateRoot(container, element);
+    }
+  } else {
+    createRoot(container).render(element);
+  }
+
+  // organize
+  requestAnimationFrame(() => {
+    document.documentElement.removeAttribute('data-prepaint');
+    document.documentElement.removeAttribute('data-prepaint-overlay');
+    document
+      .querySelectorAll('style[data-firsttx-prepaint]')
+      .forEach((el) => el.remove());
+  });
+}
+```
+
+When React mounts, it removes the overlay and renders the actual DOM. When wrapped with ViewTransition, the overlay → actual screen transition occurs smoothly.
+
+### Advantages of overlay mode
+
+Overlay mode had three major advantages.
+
+**1. Zero DOM conflicts**
+
+Since the actual #root is not touched, sign language conflicts are fundamentally impossible. React starts with a clean DOM.
+
+```html
+<!-- Overlay mode -->
+<body>
+  <div id="root"></div>
+  <!-- Clean -->
+  <div id="firsttx-overlay">
+    #shadow-root
+    <!-- Snapshot (isolated) -->
+  </div>
+</body>
+```
+
+**2. Complex routing support**
+
+There is no problem if Portal or an external script manipulates the DOM. An overlay just covers the screen and is independent of the actual DOM.
+
+**3. Easy to debug**
+
+As long as the overlay is present, the actual app will load quietly in the background. You can view the two layers separately in Developer Tools.
+
+### Tradeoffs of overlay mode
+
+Of course, there are also disadvantages.
+
+**1. Memory usage**
+
+The moment the overlay and the actual DOM exist at the same time, twice the memory is required. This is only temporary, though, as React removes the overlay immediately after mounting.
+
+**2. Event blocking**
+
+The overlay covers the whole thing with `z-index: 999999`, so the user can't click or scroll. But anyway, snapshots are static screens, so there is no problem.
+
+**3. Some complexity**
+
+The code is more complex than injection mode. But in complex apps it's worth it.
+
+### When to use overlays?
+
+We allow the user to choose.
+
+```typescript
+// global flag
+window.__FIRSTTX_OVERLAY__ = true;
+
+// or localStorage
+localStorage.setItem('firsttx:overlay', '1');
+
+// Or just a specific route
+localStorage.setItem('firsttx:overlayRoutes', '/dashboard,/products');
+```
+
+Here are our recommendations:
+
+```md
+| App Type                                    | Recommended Mode    |
+| ------------------------------------------- | ------------------- |
+| Simple structure (static routing)           | Injection (default) |
+| Complex SPA (React Router + Portal)         | overlay             |
+| CSS-in-JS used a lot                        | overlay             |
+| External script injection (chat, analytics) | overlay             |
+```
+
+During development, you can test both and choose the more stable one.
+
+## Performance optimization: 1.74KB boot script
+
+After implementing overlay mode, boot script size became an issue. The initial version was 3.2KB (gzip), but the goal was to be under 2KB.
+
+### Optimization strategy
+
+**1. Optimized style filtering**
+
+```typescript
+// Before: Traverse all sheets
+const styles = Array.from(document.styleSheets)
+  .flatMap((sheet) => {
+    try {
+      return Array.from(sheet.cssRules)
+        .filter((rule) => {
+          const element = rule.parentStyleSheet?.ownerNode;
+          return !element?.hasAttribute('data-firsttx-prepaint');
+        })
+        .map((rule) => rule.cssText);
+    } catch {
+      return [];
+    }
+  })
+  .join('\n');
+
+// After: Filter only the sheets you need
+const styles = Array.from(document.styleSheets)
+  .filter((sheet) => {
+    const owner = sheet.ownerNode;
+    return owner && !owner.hasAttribute('data-firsttx-prepaint');
+  })
+  .map((sheet) => {
+    try {
+      return Array.from(sheet.cssRules)
+        .map((r) => r.cssText)
+        .join('\n');
+    } catch {
+      return '';
+    }
+  })
+  .join('\n');
+```
+
+Filtering at the sheet level first can reduce unnecessary repetition.
+
+**2. Conditional overlay logic**
+
+```typescript
+// Execute overlay-related code only conditionally
+if (useOverlay) {
+  // Overlay creation (500 bytes)
+} else {
+  // Injection (200 bytes)
+}
+```
+
+Completely separating the two modes reduces code duplication.
+
+**3. Remove comments and spaces**
+
+When compressed with Terser, all comments, spaces, and long variable names were removed.
+
+```typescript
+// Before
+const snapshotData = await storage.get(`snapshot:${route}`);
+if (!snapshotData) return;
+
+// After (minified)
+const s = await storage.get(`snapshot:${r}`);
+if (!s) return;
+```
+
+### Final result
+
+After optimization, the boot script was reduced to **1.74KB (gzip)**.
+
+```md
+| Item                  | size       |
+| --------------------- | ---------- |
+| Default restore logic | 0.8KB      |
+| Style Collection      | 0.4KB      |
+| Overlay Mode          | 0.3KB      |
+| TTL check             | 0.1KB      |
+| Other                 | 0.14KB     |
+| **Total**             | **1.74KB** |
+```
+
+We achieved our goal of 2KB and kept the execution time to ~15ms. It runs immediately after HTML parsing, so users rarely see a blank screen.
+
+## Finish: Between 80% and 100%
+
+Looking back on Prepaint's journey, there were three major crises. Redundant rendering, sign language inconsistencies, complex routing. Each was solved with a single root injection, ViewTransition, and overlay mode. But the most important decision was **“Give up 100% perfection and focus on 80% of the cases”**.<br />
+Initially, we wanted to be compatible with all CSS-in-JS libraries, support all app structures, and ensure complete sign language. But that wasn't possible. We cannot completely predict the CSS-in-JS hash algorithm, we cannot know how external scripts will manipulate the DOM, and we do not know what routing libraries users will use. As we pursue perfection, complexity increases exponentially, ultimately resulting in a library that no one can use.<br />
+Instead we chose **"80% perfect, 20% elegant"**. In most cases, it is immediately restored and gently hydrated. In the remaining cases, React automatically recovers, and ViewTransition makes the transition smooth. Users have a 100% smooth experience, but internally it's only 80% perfect. This was a practical trade-off.<br />
+Currently v0.3.0 has achieved the following:
+
+- **BlankScreenTime ~0ms**: Remove blank screen on return visit.
+- **PrepaintTime ~20ms**: Boot script execution 15ms
+- **HydrationSuccess ~82%**: Hydration success rate
+- **ViewTransitionSmooth ~95%**: Smooth transition percentage.
+- **BootScriptSize 1.74KB**: Goal achieved
+
+The next step is multitap synchronization through BroadcastChannel and completion of the Esbuild plugin. However, the core functionality is complete. Prepaint is now available for production use.<br />
+Technical decisions always involve trade-offs. It captures only a single root rather than the entire body, chooses elegant recovery instead of perfect prediction, and provides two modes: injection and overlay. It was important to clarify the basis for each decision and reflect that basis in code and documentation.

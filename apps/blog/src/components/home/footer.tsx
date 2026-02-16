@@ -1,11 +1,13 @@
 import { Github, Linkedin, Mail } from 'lucide-react';
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { INFO } from '@/constants/info';
-import { navbarItems } from '@/constants/navbar';
+import { Link } from '@/i18n/navigation';
+import type { AppLocale } from '@/i18n/routing';
 import { Container } from '../ui/container';
 
 type FooterProps = {
   size?: 'sm' | 'md' | 'lg';
+  locale: AppLocale;
 };
 
 const socialLinks = [
@@ -14,8 +16,15 @@ const socialLinks = [
   { href: 'mailto:joseph0926@kakao.com', label: 'Email', icon: Mail },
 ];
 
-export const Footer = ({ size = 'lg' }: FooterProps) => {
+export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
+  const tNav = await getTranslations({ locale, namespace: 'nav' });
+  const tFooter = await getTranslations({ locale, namespace: 'footer' });
   const currentYear = new Date().getFullYear();
+
+  const navbarItems = [
+    { href: '/blog', label: tNav('blog') },
+    { href: '/about', label: tNav('about') },
+  ];
 
   return (
     <footer className="border-border mt-auto border-t">
@@ -24,7 +33,7 @@ export const Footer = ({ size = 'lg' }: FooterProps) => {
           <div className="space-y-4">
             <p className="text-foreground text-sm font-medium">joseph0926</p>
             <p className="text-muted-foreground max-w-sm text-sm">
-              React와 TypeScript로 문제를 해결하며 배운 것들을 기록합니다.
+              {tFooter('description')}
             </p>
           </div>
 
@@ -34,7 +43,7 @@ export const Footer = ({ size = 'lg' }: FooterProps) => {
                 href="/"
                 className="text-muted-foreground hover:text-foreground text-sm transition-colors duration-150"
               >
-                Home
+                {tNav('home')}
               </Link>
               {navbarItems.map((item) => (
                 <Link
@@ -70,7 +79,7 @@ export const Footer = ({ size = 'lg' }: FooterProps) => {
 
         <div className="border-border/50 mt-8 border-t pt-8">
           <p className="text-muted-foreground text-center text-xs">
-            &copy; {currentYear} joseph0926. All rights reserved.
+            &copy; {currentYear} joseph0926. {tFooter('rights')}
           </p>
         </div>
       </Container>

@@ -1,0 +1,113 @@
+---
+slug: '2025-10-11-csr-ssr'
+title: "Making the CSR app's revisit experience more like SSR: From target redefinition to architectural transition"
+description: '‘First visit quickly’ → ‘Let’s focus only on repeat visits’ → ‘Prepaint later’. We share practical concerns about open source planning learned through target redefinition, complexity compromise, and architecture conversion.'
+date: '2025-10-11'
+thumbnail: '/post/react.webp'
+tags: ['react', 'opensource', 'firsttx']
+---
+
+## Entering
+
+The trends in web development these days are clear. The goal is to load the initial screen quickly with Server-Side Rendering (SSR) and React Server Components (RSC) to minimize the time users spend looking at a blank screen. But not all projects can follow this trend. Apps that don't require SEO, such as B2B dashboards, in-house tools, and CRMs, still choose Client-Side Rendering (CSR). This is because complex interactions can be freely implemented while avoiding the cost and complexity of server infrastructure.<br />
+FirstTx started in this gap. “Isn’t it possible to show a fast initial screen like SSR while using CSR?” The idea was that by restoring snapshots stored in IndexedDB before the main bundle arrives, we could achieve 0ms blank screen time on return visits. I thought that adding atomic rollback of optimistic updates and offline state restoration would be a new approach to break through the limitations of CSR.<br />
+However, the actual development process was not smooth. Our initial goal of “making every visit faster” has gone through three major transformations. We redefined our targets, traded off complexity, and turned our architecture upside down. In this article, I'll share the technical decisions we faced along the way and how each transition affected FirstTx's design.
+
+## First conversion: Redefine target
+
+When starting a project, the first thing to define was the problem. “The CSR app shows a blank screen every time.” The solution seemed clear. By restoring snapshots stored in IndexedDB immediately with a boot script, you can display meaningful screens even before the main bundle arrives. Our goal was to provide a fast experience on every visit, whether it was your first or returning visit.<br />
+But I soon encountered my first contradiction. The first thing I noticed was that IndexedDB was empty on my first visit. Since there is no snapshot, there is nothing to restore, and in the end it has no choice but to show a blank screen. I thought, “Then wouldn’t it be possible to call the server API from the boot script?”, but in the end, it was no different from SSR. This meant giving up the advantage of CSR, “minimizing server infrastructure.”<br />
+A more fundamental question came to mind. “In the first place, is first-visit optimization really that important for the apps that FirstTx targets?” No SEO required means no landing through search engines. These are apps such as B2B tools, in-house dashboards, and CRM that require login. The characteristic of these apps is that they have a high frequency of repeat visits. I access it dozens of times a day and go back and forth to the same page repeatedly. Rather, the real problem was that it only lasted once for the first visit, and on hundreds of subsequent visits, I had to wait 2 seconds for it to load every time.<br />
+In the end, we redefined our target. FirstTx decided to **focus on the repeat visit experience**. The first visit shows the skeleton like a regular CSR app, but the second visit immediately restores the last state. With this definition, all design decisions became clear. The boot script only needs to run when there is a snapshot, and no server API calls are required. Rather, as a clear use case of “an app with many repeat visits” emerged, the target users also became clear.
+
+```typescript
+// Before: Complex logic to cover all visits
+if (hasSnapshot) {
+  restoreSnapshot();
+} else {
+  // First visit: Calling a server? Skeleton? Static template?
+  // can't decide
+}
+
+// After: Focus on revisiting
+if (hasSnapshot) {
+  restoreSnapshot(); // 0ms
+} else {
+  // First visit: Just a skeleton (same as regular CSR)
+}
+```
+
+There were three outcomes from this transition. First, technically the implementation is much simpler. There was no need for server communication logic or complex fallback strategies. Second, performance goals were specified. We now have a clear indicator: “0ms blank screen time on return visit.” Third, the marketing message has also become clearer. You can now quantitatively explain things like, “If your dashboard is revisited 50 times a day, FirstTx will save you 33 minutes per month.”
+
+## Second transition: complexity trade-off
+
+After redefining our targets, we were able to focus on core functionality. The structure of the three packages - Prepaint (snapshot restoration), Local-First (data management), and Tx (optimistic update rollback) - has been clarified and the roles of each have been defined. Prepaint in particular was the "face" of the project. This was the most notable feature, restoring the screen in 0ms when revisiting.<br />
+The goal was clear. “Let’s allow developers to use existing components almost as is.” I imagined a structure that would be automatically converted to boot script code at build time by simply adding the `'use prepaint'` directive to the top of the file. The goal was to support them all, regardless of whether they were React components, styled-components, or Tailwind. We wanted to keep the boot script to 2-5KB while keeping the developer experience as minimal as possible.<br />
+However, as the design became more concrete, realistic barriers began to appear. The first was CSS handling. styled-components injects styles at runtime, which required a full runtime (about 60KB) to include in the boot script. That defeats the goal of "2-5KB". Tailwind generates CSS at build time, but I wasn't sure how to integrate the boot script generation with the purge process to remove unused classes. CSS Modules, Emotion, Sass... each tool required a different approach.<br />
+The second was the complexity of the build pipeline. Detecting `'use prepaint'` directive, converting JSX to string renderer, extracting critical CSS, considering dark mode... We had to develop Vite plugin, esbuild plugin for each step. Additionally, we had to use different strategies depending on which CSS solution the user was using. The goal of “not compromising the developer experience” paradoxically required considerable complexity.<br />
+I thought about several directions to find a solution. How to include React by increasing the bundle size to 60KB, how to create a separate `.prepaint.tsx` file to write a simpler version, how to create a tier system for each CSS solution... but none of the approaches were satisfactory. As complexity increased, the value it provided was unclear. Rather than making the impossible possible like the "use server" directive, it just felt like it was increasing restrictions.<br />
+When I thought about it again, Prepaint was an “additional project” from the beginning. The real core of FirstTx was Local-First and Tx. Offline data management based on IndexedDB and atomic rollback of optimistic updates. These two alone were enough to provide differentiated value. Prepaint was a “nice-to-have” feature, not a “can’t-have” feature.<br />
+I've made a decision. We decided to postpone Prepaint to Phase 2 and complete Local-First and Tx first. Complex build pipelines or CSS processing strategies were a later issue. What we needed right now was to verify our core values.
+
+```typescript
+// Before: Everything at once
+FirstTx = Prepaint + Local-First + Tx
+  → Prepaint complexity blocks everything
+
+// After: Step-by-step approach
+Phase 1: Local-First + Tx (Core Value Verification)
+Phase 2: Addition of Prepaint (a nice feature to have)
+```
+
+The results of this transition were immediate. First, development has sped up. Instead of worrying about CSS handling or build tool integration, we could focus on data synchronization and transaction rollback logic. Second, the MVP scope has become clear. We now have measurable goals like “Eliminate 90% of server synchronization boilerplate with useSyncedModel” and “Ensure atomic rollback with Tx.” Third, technical risks have been reduced. We were able to avoid situations where the complexity of prepaint threatened the entire project.
+
+## Third transition: Architecture transition
+
+After deciding to focus on Local-First and Tx, Prepaint was put on the back burner for a while. But I didn't completely give up. We continued to think about ways to convey core values ​​while reducing complexity. Then, when we returned to Prepaint design, we discovered a fundamental problem with the v1 architecture.<br />
+The approach in v1 was "template execution". Converts components with the `'use prepaint'` directive into a form that can be executed in a boot script. If you make a React component a pure function, include it in a boot script and run it with data, the DOM will be created. Conceptually, it was similar to SSR, but it happened on the client.
+
+```typescript
+// v1 Architecture: Template Execution
+// Boot script runs components
+const data = await getFromIndexedDB('cart');
+const html = CartTemplate(data); // Run template
+document.body.innerHTML = html;
+```
+
+But there were two critical problems with this approach. The first was the CSS issue mentioned earlier. You need a runtime to properly handle CSS-in-JS or dynamic styles, which explodes your boot script size. Second was security. Data stored in IndexedDB is executed with a template, but what if it contains sensitive information (PII)? If a developer accidentally saved a social security number or credit card number, it was dangerous if it remained in the snapshot. Automatic detection and masking was nearly impossible, and responsibility was ambiguous.<br />
+While looking for an alternative, we also looked at a Service Worker-based approach. However, this was also not free from complexity issues. Then I asked a fundamental question again. **"Why run a template?"** The screen that will be shown on a return visit is already the same screen that the user last viewed. Is there really a need to re-render?<br />
+The answer was simple. All you have to do is “play”. When the user leaves the page, the DOM and CSS are saved as a snapshot and restored when the user returns. HTML playback, not template execution. We named this approach “Instant Replay.”
+
+```typescript
+// v3 Architecture: Instant Replay
+// Boot script replays snapshot
+const snapshot = await getFromIndexedDB('cart');
+if (snapshot) {
+  document.body.innerHTML = snapshot.html; // simple restore
+  injectStyles(snapshot.css);
+}
+```
+
+This transition solved several problems at once. First, the CSS issue is gone. No matter what CSS solution you use, the end result is just HTML and CSS. Since it stores already rendered results, no runtime is required. Second, security issues have also become clear. Sensitive data must be manually excluded or masked by developers. The framework does not do this automatically; it is the developer's responsibility. This was a clearer contract.<br />
+But new challenges also arose. What do you do when the snapshot DOM and React-rendered DOM are different? React's hydration attempts to reuse the existing DOM, but if there are any inconsistencies it issues a warning and re-renders the whole thing. How can I smooth out this "flicker"?<br />
+The answer was the ViewTransition API. By wrapping React's hydration with a ViewTransition, it automatically applies smooth animations when there are DOM changes. Even though the snapshot and actual data are different, visually it looks like a natural transition.
+
+```typescript
+// handoff wrapped in ViewTransition
+const strategy = handoff();
+if (strategy === 'has-prepaint' && document.startViewTransition) {
+  document.startViewTransition(() => {
+    hydrateRoot(root, <App />);
+  });
+} else {
+  hydrateRoot(root, <App />);
+}
+```
+
+The results of this architectural shift were dramatic. First, the boot script size has actually been reduced to less than 2KB. The template execution logic has disappeared, and only simple DOM injection and style application remain. Second, developer constraints are minimized. Regardless of CSS solution, the component structure is also flexible. Since we are saving already rendered results, it doesn't matter what we use. Third, 80% of hydration failure cases were smoothed out with ViewTransition. The remaining 20% ​​is unavoidable as it is a structural change, but this was outside the scope of Prepaint in the first place.
+
+## Finish
+
+Through three transitions, FirstTx has changed from what we first imagined. We narrowed our target to returning apps, postponed Prepaint to Phase 2, and switched to an Instant Replay architecture. Currently v0.2.1 reduces server synchronization boilerplate by 90% with Local-First's useSyncedModel, and Tx provides atomic rollback with ViewTransition. Prepaint implemented 0ms restoration on return visits with the Vite plugin.
+
+28 tests have been passed, and you can check the actual operation on the demo site (firsttx-demo.vercel.app). The next steps are multitap synchronization via BroadcastChannel, router integration, and stabilization of Prepaint. The plan may continue to change, but each transition has been a process of finding a clearer direction.

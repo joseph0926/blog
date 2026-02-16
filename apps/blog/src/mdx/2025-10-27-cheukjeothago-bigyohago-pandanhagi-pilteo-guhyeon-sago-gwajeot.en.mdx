@@ -1,0 +1,233 @@
+---
+slug: '2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot'
+title: 'Measure, Compare, Decide - Filter Implementation Thought Process'
+description: 'The process of thinking of anxiety as a question, question as measurement, and measurement as confidence while implementing the filter.'
+date: '2025-10-27'
+thumbnail: '/post/react.webp'
+tags: ['react', 'learn']
+---
+
+## Start: Vague anxiety
+
+When creating a log inquiry system in practice, I thought about how to implement filters. We had to decide whether to manage date ranges and search terms by URL, or by local storage or client state.
+
+At first, I thought the URL method was right, but I had vague concerns.
+
+“If you manage it by URL, won’t a lot of re-rendering happen every time you change the filter?”<br/>
+“Wouldn’t there be a performance issue if the URL changes every time you type a search term?”
+
+I couldn't explain specifically what the problem was, but I was worried about something.
+
+---
+
+## Step 1: Identify the identity of your anxiety
+
+We started by asking, “Why are we worried about re-rendering?”
+
+This is what I was actually worried about, rather than the re-rendering itself being the problem.
+
+- Treat multiple filters as one `useEffect`, which will be executed on each state change
+- If there are multiple `useEffect` dependency arrays, it may be inefficient.
+- I think there will be a problem if the number of server calls increases every time you type a search term.
+
+```tsx
+// I was worried about this code
+const [startDate, setStartDate] = useState('');
+const [endDate, setEndDate] = useState('');
+const [search, setSearch] = useState('');
+
+useEffect(() => {
+  const params = new URLSearchParams();
+  if (startDate) params.set('start', startDate);
+  if (endDate) params.set('end', endDate);
+  if (search) params.set('search', search);
+
+  window.history.pushState({}, '', `?${params}`);
+}, [startDate, endDate, search]);
+```
+
+In summary, the essence of my anxiety came from the stereotype that “re-rendering = failure to optimize performance.”
+
+---
+
+## Step 2: Actually Measure
+
+Instead of just guessing, we decided to measure. We checked actual performance with React Profiler and console.log.
+
+```tsx
+import { Profiler, ProfilerOnRenderCallback } from 'react';
+
+const onRenderCallback: ProfilerOnRenderCallback = (
+  id,
+  phase,
+  actualDuration,
+) => {
+  console.log('Profiler:', {
+    id,
+    phase,
+    actualDuration: `${actualDuration.toFixed(2)}ms`,
+  });
+};
+
+export default function App() {
+  return (
+    <Profiler id="UrlSection" onRender={onRenderCallback}>
+      <UrlSection />
+    </Profiler>
+  );
+}
+```
+
+```tsx
+export const UrlSection = () => {
+  console.log('Rendering UrlSection');
+
+  useEffect(() => {
+    console.log('execute useEffect:', { startDate, endDate, search });
+
+    const before = performance.now();
+    window.history.pushState({}, '', `?${params}`);
+    const after = performance.now();
+
+    console.log(`pushState time: ${(after - before).toFixed(3)}ms`);
+  }, [startDate, endDate, search]);
+
+  // ...
+};
+```
+
+<ProfilerResult />
+**Measurement results**
+
+- Rendering time: 1.6~1.8ms
+- pushState execution time: 0.4~0.6ms
+- Entire process: approximately 2ms
+
+Performance recognition criteria include:
+
+- More than 100ms: User perceives slowness
+- Above 16ms: falls below 60fps
+- 1~2ms: Can be ignored
+
+My worries were unfounded. `window.history.pushState()` only adds an object to the browser history stack; it is not a network request or DOM manipulation.
+
+What we learned here: “Re-rendering = bad” is not always true. Optimization is something you do when you have a measured problem.
+
+---
+
+## Step 3: Actual service research
+
+We checked how other services implemented it.
+
+**Carrot Market**
+
+```
+?in=Mulgeum-eup-3662&price=100__100000&search=Laptop
+```
+
+**Coupang**
+
+```
+?filterType=&rating=0&minPrice=680000&maxPrice=1360000
+&brand=257&q=laptop
+```
+
+**google**
+
+```
+?q=From ₩300,000 to +₩800,000+Laptop
+```
+
+All three services managed filters by URL. But I saw a pattern.
+
+<ServiceComparison />
+**Differences in UI layout**
+
+- Search box: Navigation bar (top, prominent location)
+- Filters: Sidebar (secondary location)
+
+Why was it separated like this? I tried an experiment.
+
+**Experiment at Coupang**
+
+1. Set price filter (KRW 500,000 - KRW 1 million)
+2. Enter “laptop” in the search box and search.
+3. Result: Price filter initialized
+
+Search has greater scope. A search is an action that changes the entire context, while a filter is a fine-tuning within the search results.
+
+What we learned here: Same category as “filter”, but different roles require different handling.
+
+---
+
+## Step 4: Switch to the user perspective
+
+I chose the URL method, but another problem arose. Should I use `pushState` or `replaceState`?
+
+```tsx
+// pushState: Add to history stack
+window.history.pushState({}, '', `?${params}`);
+
+// replaceState: Replace current item
+window.history.replaceState({}, '', `?${params}`);
+```
+
+I tested the difference.
+
+**pushState test**
+
+1. Type “Gold Item Bug” in the search box (8 characters)
+2. Click the back button
+3. Result: Must press 8 times to return to previous page
+
+**replaceState test**
+
+1. Type “Gold Item Bug” in the search box (8 characters)
+2. Click the back button
+3. Result: Click once to return to the previous page
+
+<BackButtonDemo />
+Which is better? I thought about the user's "intent".
+
+When the user presses back,
+
+- Would you like to go back to the typing process one by one?
+- Or do we want to bring back the very intention of “search”?
+
+Entering “Gold Item Bug” is the **means**, and “I will search for Gold Item Bug” is the **intent**. History must be built on an intent-by-intent basis.
+
+So the search term had to either apply debounce or explicitly mark completion via the Enter key/search button. I used `pushState` immediately because the date filter is done the moment it is selected.
+
+---
+
+## Reflection: Judgment principles learned
+
+These are the five principles we learned in this course.
+
+### 1. Turn vague anxiety into a concrete scenario
+
+“I’m worried about re-rendering” is vague. "I'm concerned that if useEffect is executed multiple times, it increases server calls" is specific. If you specify it, you can verify it.
+
+### 2. Don’t guess, measure
+
+It was just a guess until I checked 1.8ms with React Profiler. When measured, vague anxiety becomes concrete numbers.
+
+### 3. Don’t worry alone, do research
+
+There are patterns that Carrot, Coupang, and Google have already verified. There's no need to reinvent the wheel. However, it is important to infer why it was made that way.
+
+### 4. Optimization for a reason
+
+It's not "It's right to do it if you can," it's "Let's think about why it's needed now and apply it." If there is no measured problem, optimization is overoptimization.
+
+### 5. User perspective rather than technology
+
+The choice of pushState vs. replaceState was based more on “what the user expects when they hit back” than on technical differences. You need to think about your users before writing code.
+
+---
+
+## Finish
+
+I learned a lot from implementing one filter. Rather than simply “how to manage filters with URLs,” we practiced the thought process of turning anxiety into questions, questions into measurements, and measurements into confidence.
+
+The next time you find yourself on the fence about choosing another technology, remember these five principles.

@@ -1,32 +1,34 @@
 'use client';
 
 import { motion } from 'motion/react';
+import { useTranslations } from 'next-intl';
 import { staggerContainer, staggerItem } from '@/lib/motion-variants';
 import { SectionHeading } from '../ui/section-heading';
 
-const skillCategories = [
-  {
-    title: 'Core',
-    skills: ['React', 'TypeScript', 'Next.js'],
-  },
-  {
-    title: 'State/Data',
-    skills: ['TanStack Query', 'Zustand', 'React Router'],
-  },
-  {
-    title: 'Build/Test',
-    skills: ['Vite', 'Vitest', 'Playwright', 'ESLint'],
-  },
-  {
-    title: 'Backend',
-    skills: ['Node.js', 'Express', 'Fastify', 'Prisma', 'tRPC'],
-  },
-];
-
 export const SkillsGrid = () => {
+  const t = useTranslations('about.skills');
+  const skillCategories = [
+    {
+      title: t('categories.core'),
+      skills: ['React', 'TypeScript', 'Next.js'],
+    },
+    {
+      title: t('categories.stateData'),
+      skills: ['TanStack Query', 'Zustand', 'React Router'],
+    },
+    {
+      title: t('categories.buildTest'),
+      skills: ['Vite', 'Vitest', 'Playwright', 'ESLint'],
+    },
+    {
+      title: t('categories.backend'),
+      skills: ['Node.js', 'Express', 'Fastify', 'Prisma', 'tRPC'],
+    },
+  ];
+
   return (
     <section className="py-16">
-      <SectionHeading title="Skills" description="Tech stack" />
+      <SectionHeading title={t('title')} description={t('description')} />
 
       <motion.div
         variants={staggerContainer}

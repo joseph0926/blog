@@ -1,0 +1,195 @@
+---
+slug: '2026-02-01-why-do-people-say-map-set-are-more-efficient-than-array'
+title: 'Why Map and Set are known to have better performance than Array'
+description: 'We summarize the time complexity differences between hash table-based data structures (Map, Set) and Array, the operating principles of hash functions, and cache locality during traversal.'
+date: '2026-02-01'
+tags: ['javascript', 'data-structure', 'performance']
+thumbnail: '/post/js.webp'
+---
+
+# Optimized by using Map and Set instead of Array method
+
+When you say, “We optimized it by using Map and Set instead of Array methods,” the first question that comes to mind is why replacing it with Map and Set optimizes performance.
+
+for example
+
+```js
+someArr.indexOf();
+```
+
+When "searching" for a specific value using `indexOf` as in the example above, many books and articles say, "In that case, optimize using Map or Set."
+
+Then, I think that’s right and change it to Map and Set.
+
+But once in a while, this question arises. -> Why is using Map and Set optimized?
+
+## Hash Tables & Hash Functions: Finding Books in the Library
+
+Map & Set is a ‘hash table-based data structure’.
+
+A hash table is a data structure in which “empty spaces (buckets)” to store values ​​are prepared in advance.
+
+And a hash function is a function\*\* that receives a key and returns the storage location (number).
+
+To put this into real life, let's say we want to find a book titled "Harry Potter Volume 1" and there are two spaces where we can find that book.
+
+Space A is a space where 10,000 books are placed in order, starting with book number 0. The problem is that numbers 0, 1,... Since these numbers are assigned automatically, not by us, the only way we can find a book titled Harry Potter Volume 1 is to check in order, starting with book number 0.
+
+Space B is a library containing 10,000 books. When we look for books in the library, we usually don't take them out one by one and check them out.
+
+When we enter the first volume of Harry Potter we are looking for into the library's search system, the system tells us, "That book exists in location B-2." Then we just have to go there and take it out.
+
+Space A compared above is an Array, and space B is a hash table-based data structure.
+
+And this is why hash table-based data structures are faster than Array in checking value existence / retrieving value / deleting value.
+
+## Check with code
+
+Usually, when using Set and Map in js, the first thing to do is as follows:
+
+```js
+const set = new Set();
+const map = new Map();
+```
+
+It's about creating space. -> The space here is the hash table mentioned above.
+
+And now, when looking for a specific value, proceed as follows.
+
+```js
+const map = new Map();
+map.set('Harry Potter Volume 1', { location: 'B-2' });
+
+const bookName = 'Harry Potter Volume 1';
+
+// Existence check + lookup: O(1)
+if (map.has(bookName)) {
+  const book = map.get(bookName);
+}
+```
+
+On the other hand, Array proceeds as follows.
+
+```js
+const books = [
+  'The Lord of the Rings',
+  'The Chronicles of Narnia',
+  'Harry Potter Volume 1' /* ... 9997 more volumes */,
+];
+const bookName = 'Harry Potter Volume 1';
+
+// Existence check: Check in order starting from 0
+const exists = books.includes(bookName); // O(n)
+
+// Search: Check in order starting from 0
+const index = books.indexOf(bookName); // O(n)
+
+// Delete: Find + Remove
+const idx = books.indexOf(bookName);
+if (idx !== -1) {
+  books.splice(idx, 1); // O(n)
+}
+```
+
+Since Array doesn't know where "Harry Potter Volume 1" is, you have to check it one by one, starting from index 0.
+
+On the other hand, Map can be accessed immediately without traversal because the hash function immediately calculates the location of “Harry Potter Volume 1”.
+
+# But is it really optimized?
+
+According to the above explanation, it seems like a better way to use Map & Set.
+
+But what if, in the library example above, there were only 3 books instead of 10,000?
+
+Space A only needs to be checked 3 times, no matter how unlucky you are.
+
+In space B, you must enter the books you are looking for, whether 10,000 or 3, into the system, and the system will calculate the location and respond.
+
+For **small enough quantities** like this, Array can be faster because of the hash computation overhead.
+
+## Array is advantageous in traversal
+
+Here's another case: If you need to traverse all elements:
+
+```js
+// Array traversal
+for (const book of books) {
+  console.log(book);
+}
+
+// Map traversal
+for (const [key, value] of map) {
+  console.log(key, value);
+}
+```
+
+Both require visiting all elements in O(n). But Array is faster.
+
+The reason is **memory structure** difference.
+
+Arrays are stored contiguously in memory. When the CPU reads data, it fetches it in units of "cache lines" (usually 64 bytes), and if it is contiguous memory, multiple elements are loaded into the cache at once.
+
+On the other hand, Map/Set may have scattered memory due to the hash table structure. So you often have to read a new memory location each time.
+
+As an analogy:
+
+- Array = People standing in a row → Just scan from front to back
+- Map = People scatter after taking a number ticket → You have to search here and there
+
+## Real life example: TanStack Query PR
+
+I have also tried this optimization.
+
+We submitted a [PR](https://github.com/TanStack/query/pull/9467) to improve from O(n) → O(1) by replacing `indexOf()` with `WeakMap` in TanStack Query's `useQueries`.
+
+```js
+// Before: O(n) search
+const index = this.#observers.indexOf(observer);
+
+// After: O(1) lookup
+const index = this.#indexMap.get(observer);
+```
+
+In theory, it was definitely an improvement. However, the actual benchmark results were different.
+
+Even in extreme cases such as 10,000 queries, there was no meaningful difference, and in fact, the WeakMap version was slightly slower in some cases.
+
+Eventually the PR was closed, and from this experience I learned that **"improved theoretical time complexity ≠ improved real-world performance"**.
+
+## organize
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Situation</th>
+        <th>Recommended</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Frequent value search/existence check/deletion</td>
+        <td>Map / Set</td>
+      </tr>
+      <tr>
+        <td>Very little data (dozens or less)</td>
+        <td>Array</td>
+      </tr>
+      <tr>
+        <td>Full traversal is the main task</td>
+        <td>Array</td>
+      </tr>
+      <tr>
+        <td>Requires deduplication</td>
+        <td>Set</td>
+      </tr>
+      <tr>
+        <td>Order is important and index access is frequent</td>
+        <td>Array</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+“Optimized by changing to Map and Set” applies to **cases where search/existence
+check/delete are frequent**. Choosing an appropriate data structure according to
+the situation is true optimization.

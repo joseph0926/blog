@@ -1,10 +1,16 @@
+import type { AppLocale } from '@/i18n/routing';
 import { HydrateClient, serverTrpc } from '@/server/trpc/server';
 import { BlogList } from './blog-list';
 
-export async function BlogListServer() {
+type BlogListServerProps = {
+  locale: AppLocale;
+};
+
+export async function BlogListServer({ locale }: BlogListServerProps) {
   await serverTrpc.post.getPosts.prefetchInfinite(
     {
       limit: 10,
+      locale,
       filter: { category: undefined },
     },
     {

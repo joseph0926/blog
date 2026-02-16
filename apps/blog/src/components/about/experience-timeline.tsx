@@ -1,49 +1,51 @@
 'use client';
 
 import { motion } from 'motion/react';
+import { useTranslations } from 'next-intl';
 import { fadeInUp } from '@/lib/motion-variants';
 import { SectionHeading } from '../ui/section-heading';
 
-const experiences = [
-  {
-    company: 'EA Korea',
-    role: 'Frontend Engineer — FC 온라인 운영툴',
-    period: '2025.03 - 현재',
-    tech: 'React, Zustand, TanStack Query, React Router, Zod, nuqs',
-    highlights: [
-      'URL 상태 동기화로 QA 재현/로그 요청 문의 주간 10→3건 감소',
-      '아이템 버전 관리 플로우 재설계 후 동일 유형 배포 이슈 0건',
-      '운영툴 프론트엔드 전반 1인 담당 (스택 선정 ~ QA 협업 ~ 문서화)',
-    ],
-  },
-  {
-    company: 'NHN Injeinc',
-    role: 'Frontend Engineer — 티켓링크',
-    period: '2024.05 - 2025.03',
-    tech: 'React, Zustand, TanStack Query, React Router, i18next',
-    highlights: [
-      'KBO 개막전, 한국시리즈 등 대규모 트래픽 예매 플로우 개발',
-      'JSP 기반 다국어 페이지를 React + i18next 단일 코드베이스로 통합(2→1)',
-      '팬클럽 등급 × 구단 정책 필터링으로 비대상 유저 플로우 진입 차단',
-    ],
-  },
-  {
-    company: '판도라티비',
-    role: 'Frontend Engineer — 코박(암호화폐 커뮤니티)',
-    period: '2023.07 - 2024.05',
-    tech: 'React, Redux Toolkit, React Query, Next.js, Framer Motion, EJS',
-    highlights: [
-      'Lighthouse SEO 점수 56→82 개선 (EJS 템플릿 동적 메타 주입)',
-      '하이브리드 앱 WebView 개발 (커뮤니티 + 상품 구매 플로우)',
-      '@멘션 기능 제안 및 구현 (알림 연동까지 end-to-end)',
-    ],
-  },
-];
-
 export const ExperienceTimeline = () => {
+  const t = useTranslations('about.experience');
+  const experiences = [
+    {
+      company: t('items.ea.company'),
+      role: t('items.ea.role'),
+      period: t('items.ea.period'),
+      tech: 'React, Zustand, TanStack Query, React Router, Zod, nuqs',
+      highlights: [
+        t('items.ea.highlight1'),
+        t('items.ea.highlight2'),
+        t('items.ea.highlight3'),
+      ],
+    },
+    {
+      company: t('items.nhn.company'),
+      role: t('items.nhn.role'),
+      period: t('items.nhn.period'),
+      tech: 'React, Zustand, TanStack Query, React Router, i18next',
+      highlights: [
+        t('items.nhn.highlight1'),
+        t('items.nhn.highlight2'),
+        t('items.nhn.highlight3'),
+      ],
+    },
+    {
+      company: t('items.pandora.company'),
+      role: t('items.pandora.role'),
+      period: t('items.pandora.period'),
+      tech: 'React, Redux Toolkit, React Query, Next.js, Framer Motion, EJS',
+      highlights: [
+        t('items.pandora.highlight1'),
+        t('items.pandora.highlight2'),
+        t('items.pandora.highlight3'),
+      ],
+    },
+  ];
+
   return (
     <section className="py-16">
-      <SectionHeading title="Experience" description="Work history" />
+      <SectionHeading title={t('title')} description={t('description')} />
 
       <div className="space-y-10">
         {experiences.map((exp, index) => (

@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { revalidateTag, unstable_cache } from 'next/cache';
 import { z } from 'zod';
+import { defaultLocale } from '@/i18n/routing';
 import { perfTimer } from '@/lib/perf-log';
 import {
   getAllPosts,
@@ -10,6 +11,8 @@ import {
 } from '@/services/post.service';
 import { createPost } from '@/services/post/create-post.service';
 import { protectedProcedure, publicProcedure, router } from '../trpc';
+
+const localeSchema = z.enum(['ko', 'en']).default(defaultLocale);
 
 export const postRouter = router({
   createPost: protectedProcedure
@@ -26,8 +29,10 @@ export const postRouter = router({
         const post = await createPost(input);
 
         await Promise.all([
-          revalidateTag('all-posts', 'max'),
-          revalidateTag(`post-${post.slug}`, 'max'),
+          revalidateTag('all-posts-ko', 'max'),
+          revalidateTag('all-posts-en', 'max'),
+          revalidateTag(`post-ko-${post.slug}`, 'max'),
+          revalidateTag(`post-en-${post.slug}`, 'max'),
         ]);
 
         return {
@@ -52,6 +57,7 @@ export const postRouter = router({
   getPosts: publicProcedure
     .input(
       z.object({
+        locale: localeSchema,
         limit: z.number().min(1).max(100).default(10),
         cursor: z.string().optional(),
         filter: z
@@ -63,12 +69,12 @@ export const postRouter = router({
       }),
     )
     .query(async ({ input }) => {
-      const { limit, cursor, filter } = input;
+      const { locale, limit, cursor, filter } = input;
       const end = perfTimer('trpc:getPosts');
       const categoryFilter = filter?.category?.toLowerCase();
       const searchFilter = filter?.search?.toLowerCase().trim();
 
-      const cacheKey = ['posts'];
+      const cacheKey = ['posts', `locale:${locale}`];
       if (categoryFilter) {
         cacheKey.push(`cat:${categoryFilter}`);
       }
@@ -86,7 +92,7 @@ export const postRouter = router({
         async () => {
           cacheHit = false;
 
-          const allPosts = await getAllPosts();
+          const allPosts = await getAllPosts(locale);
 
           let filteredPosts = allPosts;
 
@@ -129,8 +135,10 @@ export const postRouter = router({
         cacheKey,
         {
           tags: [
-            'all-posts',
-            ...(categoryFilter ? [`posts-category:${categoryFilter}`] : []),
+            `all-posts-${locale}`,
+            ...(categoryFilter
+              ? [`posts-category:${locale}:${categoryFilter}`]
+              : []),
           ],
           revalidate: searchFilter ? 60 : cursor ? 60 : 300,
         },
@@ -145,6 +153,7 @@ export const postRouter = router({
           hasCursor: Boolean(cursor),
           hasCategory: Boolean(categoryFilter),
           hasSearch: Boolean(searchFilter),
+          locale,
           resultCount: result.posts.length,
           hasNextCursor: Boolean(result.nextCursor),
         });
@@ -164,6 +173,7 @@ export const postRouter = router({
           hasCursor: Boolean(cursor),
           hasCategory: Boolean(categoryFilter),
           hasSearch: Boolean(searchFilter),
+          locale,
           error: true,
         });
         throw new TRPCError({
@@ -176,6 +186,7 @@ export const postRouter = router({
   getPostBySlug: publicProcedure
     .input(
       z.object({
+        locale: localeSchema,
         slug: z.preprocess(
           (val) => (typeof val === 'string' ? decodeURIComponent(val) : val),
           z.string().regex(/^[\p{L}\p{N}\-._~]+$/u, {
@@ -185,7 +196,7 @@ export const postRouter = router({
       }),
     )
     .query(async ({ input }) => {
-      const { slug } = input;
+      const { slug, locale } = input;
       const end = perfTimer('trpc:getPostBySlug');
 
       let cacheHit = true;
@@ -194,7 +205,7 @@ export const postRouter = router({
         async () => {
           cacheHit = false;
 
-          const post = await getPostBySlugFromMdx(slug);
+          const post = await getPostBySlugFromMdx(slug, locale);
 
           if (!post) {
             throw new TRPCError({
@@ -205,9 +216,9 @@ export const postRouter = router({
 
           return post;
         },
-        ['post', slug],
+        ['post', locale, slug],
         {
-          tags: [`post-${slug}`],
+          tags: [`post-${locale}-${slug}`],
           revalidate: 3600,
         },
       );
@@ -215,7 +226,7 @@ export const postRouter = router({
       try {
         const post = await cachedFn();
 
-        end({ cacheHit, slug, found: true });
+        end({ cacheHit, slug, locale, found: true });
 
         return {
           post,
@@ -224,11 +235,11 @@ export const postRouter = router({
         };
       } catch (e) {
         if (e instanceof TRPCError) {
-          end({ cacheHit, slug, error: e.code });
+          end({ cacheHit, slug, locale, error: e.code });
           throw e;
         }
 
-        end({ cacheHit, slug, error: 'INTERNAL_SERVER_ERROR' });
+        end({ cacheHit, slug, locale, error: 'INTERNAL_SERVER_ERROR' });
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: '글을 불러오는 중 오류가 발생했습니다.',
@@ -236,26 +247,35 @@ export const postRouter = router({
       }
     }),
 
-  getTags: publicProcedure.query(async () => {
-    const end = perfTimer('trpc:getTags');
-    try {
-      const tags = (await getAllTags()).map((tag) => ({
-        id: tag,
-        name: tag,
-      }));
-      end({ count: tags.length });
-      return {
-        tags,
-        message: '태그를 불러왔습니다.',
-      };
-    } catch {
-      end({ error: true });
-      throw new TRPCError({
-        code: 'INTERNAL_SERVER_ERROR',
-        message: '태그를 불러오는 중 오류가 발생했습니다.',
-      });
-    }
-  }),
+  getTags: publicProcedure
+    .input(
+      z
+        .object({
+          locale: localeSchema.optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      const locale = input?.locale ?? defaultLocale;
+      const end = perfTimer('trpc:getTags');
+      try {
+        const tags = (await getAllTags(locale)).map((tag) => ({
+          id: tag,
+          name: tag,
+        }));
+        end({ count: tags.length, locale });
+        return {
+          tags,
+          message: '태그를 불러왔습니다.',
+        };
+      } catch {
+        end({ error: true, locale });
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: '태그를 불러오는 중 오류가 발생했습니다.',
+        });
+      }
+    }),
 
   update: protectedProcedure
     .input(
@@ -276,8 +296,10 @@ export const postRouter = router({
         const post = await updatePostMeta({ slug, payload });
 
         await Promise.all([
-          revalidateTag('all-posts', 'max'),
-          revalidateTag(`post-${slug}`, 'max'),
+          revalidateTag('all-posts-ko', 'max'),
+          revalidateTag('all-posts-en', 'max'),
+          revalidateTag(`post-ko-${slug}`, 'max'),
+          revalidateTag(`post-en-${slug}`, 'max'),
         ]);
 
         return {

@@ -11,27 +11,29 @@ thumbnail: '/post/bundler.webp'
 
 면접에서 "ESM과 CJS의 차이가 뭔가요?"라는 질문을 받았습니다. "ESM은 비동기이고, CJS는 동기적입니다"라고 답했습니다. 틀린 답은 아니었지만, 돌아와서 정리하다 보니 한 가지가 걸렸습니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>항목</th>
-      <th>CJS</th>
-      <th>ESM</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>로딩</td>
-      <td>동기</td>
-      <td>비동기</td>
-    </tr>
-    <tr>
-      <td>정적 분석</td>
-      <td>제한적</td>
-      <td>가능</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>항목</th>
+        <th>CJS</th>
+        <th>ESM</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>로딩</td>
+        <td>동기</td>
+        <td>비동기</td>
+      </tr>
+      <tr>
+        <td>정적 분석</td>
+        <td>제한적</td>
+        <td>가능</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 비동기로 로드하는데, 정적 분석이 가능하다? 비동기라면 실행 시점에 모듈을 가져온다는 뜻이고, 정적 분석이란 실행 전에 구조를 파악한다는 뜻입니다. 모순처럼 보였습니다.
 
@@ -142,27 +144,29 @@ ESM은 모듈을 3단계로 로드합니다. 건물의 배관 공사에 비유�
 
 이 3단계를 처음 의문과 연결하면 이렇게 됩니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>의문의 키워드</th>
-      <th>해당 단계</th>
-      <th>시점</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>정적 분석</td>
-      <td>Construction</td>
-      <td>코드 실행 전</td>
-    </tr>
-    <tr>
-      <td>비동기 로딩</td>
-      <td>Construction 내 파일 fetch</td>
-      <td>런타임</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>의문의 키워드</th>
+        <th>해당 단계</th>
+        <th>시점</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>정적 분석</td>
+        <td>Construction</td>
+        <td>코드 실행 전</td>
+      </tr>
+      <tr>
+        <td>비동기 로딩</td>
+        <td>Construction 내 파일 fetch</td>
+        <td>런타임</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 "정적 분석"과 "비동기 로딩"은 같은 Construction 단계 안에서 각각 다른 일을 합니다. `import` 문을 파싱해서 그래프를 구축하는 건 정적이고, 그 그래프에 따라 파일을 가져오는 건 비동기입니다.
 

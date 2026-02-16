@@ -2,13 +2,15 @@
 
 import { ArrowDown, ArrowRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { Link } from '@/i18n/navigation';
 import { staggerContainer, staggerItem } from '@/lib/motion-variants';
 
 const techStack = ['React', 'Next.js', 'TypeScript', 'Web'];
 
 export function HeroSection() {
+  const t = useTranslations('home');
   const [currentTech, setCurrentTech] = useState(0);
 
   useEffect(() => {
@@ -36,13 +38,13 @@ export function HeroSection() {
         <motion.div className="mb-6" variants={staggerItem}>
           <span className="text-muted-foreground inline-flex items-center gap-2 text-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-            Frontend Developer
+            {t('badge')}
           </span>
         </motion.div>
 
         <motion.h1 variants={staggerItem} className="relative">
           <span className="text-foreground block text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-            Deep Dive into
+            {t('headlineTop')}
           </span>
           <span className="relative mt-2 block h-[1.2em] text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl">
             <AnimatePresence mode="wait">
@@ -70,8 +72,7 @@ export function HeroSection() {
           className="text-muted-foreground mx-auto mt-8 max-w-lg text-base sm:text-lg"
           variants={staggerItem}
         >
-          React와 TypeScript로 문제를 해결하며
-          <br className="hidden sm:block" /> 배운 것들을 기록합니다
+          {t('description')}
         </motion.p>
 
         <motion.div
@@ -82,14 +83,14 @@ export function HeroSection() {
             onClick={handleScrollToContent}
             className="bg-foreground text-background inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-medium transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]"
           >
-            최신 포스트
+            {t('latestPosts')}
             <ArrowDown className="h-4 w-4" />
           </button>
           <Link
             href="/about"
             className="border-border text-foreground hover:bg-muted inline-flex items-center gap-2 rounded-full border px-6 py-3 text-sm font-medium transition-colors duration-150"
           >
-            About
+            {t('about')}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </motion.div>
@@ -104,7 +105,7 @@ export function HeroSection() {
           opacity: { duration: 0.5, delay: 0.8 },
           y: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
         }}
-        aria-label="Scroll to content"
+        aria-label={t('scrollToContent')}
       >
         <ArrowDown className="h-5 w-5" />
       </motion.button>

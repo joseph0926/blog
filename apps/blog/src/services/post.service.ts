@@ -2,6 +2,8 @@ import 'server-only';
 import matter from 'gray-matter';
 import fs from 'node:fs';
 import path from 'node:path';
+import type { AppLocale } from '@/i18n/routing';
+import { defaultLocale } from '@/i18n/routing';
 import { perfTimer } from '@/lib/perf-log';
 
 type PostMeta = {
@@ -13,6 +15,8 @@ type PostMeta = {
   readingTime: number;
   thumbnail?: string | null;
   updatedAt?: string;
+  resolvedLocale: AppLocale;
+  isFallback: boolean;
 };
 
 export type PostListItem = {
@@ -24,6 +28,19 @@ export type PostListItem = {
   readingTime: number;
   createdAt: Date;
   tags: { id: string; name: string }[];
+  resolvedLocale: AppLocale;
+  isFallback: boolean;
+};
+
+type VariantMapEntry = {
+  slug: string;
+  files: Partial<Record<AppLocale, string>>;
+};
+
+type ResolvedVariant = {
+  fileName: string;
+  resolvedLocale: AppLocale;
+  isFallback: boolean;
 };
 
 const mdxDir = path.join(process.cwd(), 'src/mdx');
@@ -57,10 +74,83 @@ const getReadingTimeFromMdx = (mdxContent: string) => {
   return Math.max(1, Math.ceil(words / wordsPerMinute));
 };
 
+const parseMdxFileName = (
+  fileName: string,
+): { slug: string; locale: AppLocale } | null => {
+  if (!fileName.endsWith('.mdx')) return null;
+  const withoutExt = fileName.replace(/\.mdx$/, '');
+
+  if (withoutExt.endsWith('.en')) {
+    return {
+      slug: withoutExt.replace(/\.en$/, ''),
+      locale: 'en',
+    };
+  }
+
+  return {
+    slug: withoutExt,
+    locale: 'ko',
+  };
+};
+
+const readVariantMap = async (): Promise<Map<string, VariantMapEntry>> => {
+  const files = await fs.promises.readdir(mdxDir);
+  const map = new Map<string, VariantMapEntry>();
+
+  files.forEach((fileName) => {
+    const parsed = parseMdxFileName(fileName);
+    if (!parsed) return;
+
+    const current = map.get(parsed.slug) ?? {
+      slug: parsed.slug,
+      files: {},
+    };
+    current.files[parsed.locale] = fileName;
+    map.set(parsed.slug, current);
+  });
+
+  return map;
+};
+
+const resolveVariantForLocale = (
+  variants: VariantMapEntry['files'],
+  locale: AppLocale,
+): ResolvedVariant | null => {
+  if (locale === 'en') {
+    if (variants.en) {
+      return {
+        fileName: variants.en,
+        resolvedLocale: 'en',
+        isFallback: false,
+      };
+    }
+    if (variants.ko) {
+      return {
+        fileName: variants.ko,
+        resolvedLocale: 'ko',
+        isFallback: true,
+      };
+    }
+    return null;
+  }
+
+  if (variants.ko) {
+    return {
+      fileName: variants.ko,
+      resolvedLocale: 'ko',
+      isFallback: false,
+    };
+  }
+
+  return null;
+};
+
 const normalizeMeta = (
   data: Record<string, unknown>,
   slug: string,
-  mdxContent = '',
+  mdxContent: string,
+  resolvedLocale: AppLocale,
+  isFallback: boolean,
 ): PostMeta => {
   const fileDate = getFileDate(slug);
   const date =
@@ -79,6 +169,8 @@ const normalizeMeta = (
     readingTime: getReadingTimeFromMdx(mdxContent),
     thumbnail: typeof data.thumbnail === 'string' ? data.thumbnail : null,
     updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : undefined,
+    resolvedLocale,
+    isFallback,
   };
 };
 
@@ -91,100 +183,187 @@ const toPostListItem = (meta: PostMeta): PostListItem => ({
   readingTime: meta.readingTime,
   createdAt: new Date(meta.date),
   tags: meta.tags.map((tag) => ({ id: tag, name: tag })),
+  resolvedLocale: meta.resolvedLocale,
+  isFallback: meta.isFallback,
 });
 
-export const getPostContent = async (slug: string) => {
+const resolveSlugVariant = async ({
+  slug,
+  locale,
+}: {
+  slug: string;
+  locale: AppLocale;
+}): Promise<(ResolvedVariant & { filePath: string }) | null> => {
+  const map = await readVariantMap();
+  const entry = map.get(slug);
+  if (!entry) return null;
+
+  const resolved = resolveVariantForLocale(entry.files, locale);
+  if (!resolved) return null;
+
+  return {
+    ...resolved,
+    filePath: path.join(mdxDir, resolved.fileName),
+  };
+};
+
+const sortByDateDesc = (a: PostListItem, b: PostListItem) => {
+  const diff = b.createdAt.getTime() - a.createdAt.getTime();
+  if (diff !== 0) return diff;
+  return b.slug.localeCompare(a.slug);
+};
+
+export const getPostContent = async (
+  slug: string,
+  locale: AppLocale = defaultLocale,
+) => {
   const end = perfTimer('mdx:getPostContent');
   const decodedSlug = decodeURIComponent(slug);
-  const postPath = path.join(mdxDir, `${decodedSlug}.mdx`);
-  const source = fs.readFileSync(postPath, 'utf-8');
-  end({ slug: decodedSlug, bytes: source.length });
-  return { source };
+  const resolved = await resolveSlugVariant({ slug: decodedSlug, locale });
+
+  if (!resolved) {
+    end({ slug: decodedSlug, found: false, locale });
+    throw new Error('Post not found');
+  }
+
+  const source = fs.readFileSync(resolved.filePath, 'utf-8');
+  end({
+    slug: decodedSlug,
+    bytes: source.length,
+    locale,
+    resolvedLocale: resolved.resolvedLocale,
+    isFallback: resolved.isFallback,
+  });
+
+  return {
+    source,
+    resolvedLocale: resolved.resolvedLocale,
+    isFallback: resolved.isFallback,
+  };
 };
 
 export const getAllPostSlugs = async (): Promise<string[]> => {
   const end = perfTimer('mdx:getAllPostSlugs');
-  const files = fs.readdirSync(mdxDir);
-  const slugs = files
-    .filter((file) => file.endsWith('.mdx'))
-    .map((file) => file.replace(/\.mdx$/, ''));
+  const map = await readVariantMap();
+  const slugs = Array.from(map.keys()).sort((a, b) => b.localeCompare(a));
   end({ count: slugs.length });
   return slugs;
 };
 
-const getAllPostMeta = async (): Promise<PostMeta[]> => {
+const getAllPostMeta = async (locale: AppLocale): Promise<PostMeta[]> => {
   const end = perfTimer('mdx:getAllPostMeta');
-  const files = await fs.promises.readdir(mdxDir);
-  const mdxFiles = files.filter((file) => file.endsWith('.mdx'));
+  const map = await readVariantMap();
+
   const entries = await Promise.all(
-    mdxFiles.map(async (file) => {
-      const filePath = path.join(mdxDir, file);
+    [...map.values()].map(async (entry) => {
+      const resolved = resolveVariantForLocale(entry.files, locale);
+      if (!resolved) return null;
+
+      const filePath = path.join(mdxDir, resolved.fileName);
       const source = await fs.promises.readFile(filePath, 'utf-8');
       const { data, content } = matter(source);
-      const slug = file.replace(/\.mdx$/, '');
+
       return {
-        meta: normalizeMeta(data, slug, content),
+        meta: normalizeMeta(
+          data,
+          entry.slug,
+          content,
+          resolved.resolvedLocale,
+          resolved.isFallback,
+        ),
         bytes: source.length,
       };
     }),
   );
-  const totalBytes = entries.reduce((sum, entry) => sum + entry.bytes, 0);
-  const posts = entries.map((entry) => entry.meta);
-  end({ fileCount: mdxFiles.length, count: posts.length, bytes: totalBytes });
+
+  const filtered = entries.filter(
+    (entry): entry is { meta: PostMeta; bytes: number } => entry !== null,
+  );
+  const totalBytes = filtered.reduce((sum, entry) => sum + entry.bytes, 0);
+  const posts = filtered.map((entry) => entry.meta);
+
+  end({
+    fileCount: filtered.length,
+    count: posts.length,
+    bytes: totalBytes,
+    locale,
+  });
+
   return posts;
 };
 
-export const getAllPosts = async (): Promise<PostListItem[]> => {
+export const getAllPosts = async (
+  locale: AppLocale = defaultLocale,
+): Promise<PostListItem[]> => {
   const end = perfTimer('mdx:getAllPosts');
-  const metas = await getAllPostMeta();
-  const posts = metas.map(toPostListItem).sort((a, b) => {
-    const diff = b.createdAt.getTime() - a.createdAt.getTime();
-    if (diff !== 0) return diff;
-    return b.slug.localeCompare(a.slug);
-  });
-  end({ count: posts.length });
+  const metas = await getAllPostMeta(locale);
+  const posts = metas.map(toPostListItem).sort(sortByDateDesc);
+  end({ count: posts.length, locale });
   return posts;
 };
 
 export const getPostMetaBySlug = async (
   slug: string,
+  locale: AppLocale = defaultLocale,
 ): Promise<PostMeta | null> => {
   const end = perfTimer('mdx:getPostMetaBySlug');
   const decodedSlug = decodeURIComponent(slug);
-  const filePath = path.join(mdxDir, `${decodedSlug}.mdx`);
+  const resolved = await resolveSlugVariant({ slug: decodedSlug, locale });
+
+  if (!resolved) {
+    end({ slug: decodedSlug, found: false, locale });
+    return null;
+  }
 
   try {
-    const source = await fs.promises.readFile(filePath, 'utf-8');
+    const source = await fs.promises.readFile(resolved.filePath, 'utf-8');
     const { data, content } = matter(source);
-    end({ slug: decodedSlug, found: true, bytes: source.length });
-    return normalizeMeta(data, decodedSlug, content);
+    end({
+      slug: decodedSlug,
+      found: true,
+      locale,
+      resolvedLocale: resolved.resolvedLocale,
+      isFallback: resolved.isFallback,
+      bytes: source.length,
+    });
+    return normalizeMeta(
+      data,
+      decodedSlug,
+      content,
+      resolved.resolvedLocale,
+      resolved.isFallback,
+    );
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      end({ slug: decodedSlug, found: false });
+      end({ slug: decodedSlug, found: false, locale });
       return null;
     }
-    end({ slug: decodedSlug, error: true });
+
+    end({ slug: decodedSlug, error: true, locale });
     throw error;
   }
 };
 
 export const getPostBySlug = async (
   slug: string,
+  locale: AppLocale = defaultLocale,
 ): Promise<PostListItem | null> => {
-  const meta = await getPostMetaBySlug(slug);
+  const meta = await getPostMetaBySlug(slug, locale);
   if (!meta) return null;
   return toPostListItem(meta);
 };
 
-export const getAllTags = async (): Promise<string[]> => {
+export const getAllTags = async (
+  locale: AppLocale = defaultLocale,
+): Promise<string[]> => {
   const end = perfTimer('mdx:getAllTags');
-  const metas = await getAllPostMeta();
+  const metas = await getAllPostMeta(locale);
   const tags = new Set<string>();
   metas.forEach((meta) => {
     meta.tags.forEach((tag) => tags.add(tag));
   });
   const results = Array.from(tags).sort((a, b) => a.localeCompare(b));
-  end({ count: results.length });
+  end({ count: results.length, locale });
   return results;
 };
 
@@ -223,6 +402,6 @@ export const updatePostMeta = async ({
   const nextSource = matter.stringify(content, nextData);
   await fs.promises.writeFile(filePath, nextSource);
 
-  const normalized = normalizeMeta(nextData, decodedSlug, content);
+  const normalized = normalizeMeta(nextData, decodedSlug, content, 'ko', false);
   return toPostListItem(normalized);
 };

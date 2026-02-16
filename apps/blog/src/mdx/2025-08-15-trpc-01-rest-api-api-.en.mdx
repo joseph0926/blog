@@ -1,0 +1,209 @@
+---
+slug: '2025-08-15-trpc-01-rest-api-api-'
+title: 'tRPC 01: Type-safe API communication that eliminates repetitive tasks in REST APIs'
+description: 'Learn about problems that occur when using REST API and learn about tRPC, which magically solves them.'
+date: '2025-08-15'
+tags: ['trpc']
+---
+
+## Problems with existing REST API method
+
+When constructing many web projects, communication between the client and server is inevitably necessary, and from the client's perspective, this process can be controlled in several ways, starting with `fetch`, `axios`, and `@tanstack/react-query`.
+
+However, what all of the above processes have in common is that they require more **repetitive work** than expected.  
+The repetitive work we're talking about here is a really small but important part. → This can be directly creating endpoints, defining types, etc.
+
+In fact, one of the many reasons to proceed with TS rather than simple JS when developing is improved stability and development experience through type inference.  
+However, the server response cannot be type inferred without additional processing.  
+The obvious reason is that the server response is data coming from outside the client code, and unless this is separately reported, the code has no way of knowing this.
+
+```ts
+const fetchTodoList = async () => {
+  const res = await fetch('/api/todo');
+  const data = await res.json(); // Here, the data type is any
+};
+```
+
+Therefore, to solve this problem, the server's response type is usually shared (Swagger, Postman, etc.) and a separate type is defined on the client and made inferable.
+
+```ts
+const fetchWrapper = async <T = unknown>(url: string, opt?: RequestInit) => {
+  const res = await fetch(url, opt);
+  const data = (await res.json()) as T;
+  return data; // Reasoning with T
+};
+
+const fetchTodoList = async () => {
+  const data = await fetchWrapper<string[]>('/api/todo');
+  // The type of data is inferred as string[].
+};
+```
+
+Similarly, it is not a problem if there is only one endpoint like now, `/api/todo`, but if the number increases to tens or hundreds, repetitive tasks and the probability of mistakes increase.
+
+```ts
+const END_POINT = {
+  TODOS: '/api/todos',
+  TODO: (todoId: string) => `/api/todos/${todoId}`,
+  // ...
+};
+```
+
+And the most core problem is that there is a **possibility** of a runtime error occurring here.  
+Of course, in practice, the client can respond through communication before the response field in the backend changes.  
+Or, the client may have loosely coupled the backend in the first place.  
+However, if one of the server fields is deleted and the service is started without knowing this, a runtime error will occur where that field is referenced.
+
+## Practical comparison: Before vs After
+
+```typescript
+// Before (REST API)
+// 1. Type definition (manual)
+interface Todo {
+  id: number;
+  text: string;
+  completed: boolean;
+}
+
+// 2. Define endpoints (manual)
+const API_URL = '/api/todos';
+
+// 3. Write fetch function (manually)
+const getTodos = async (): Promise<Todo[]> => {
+  const res = await fetch(API_URL);
+  if (!res.ok) throw new Error('Failed to fetch');
+  return res.json();
+};
+
+// 4. Error handling (manual)
+try {
+  const todos = await getTodos();
+} catch (error) {
+  // Error handling logic
+}
+
+// After (tRPC)
+const todos = await trpc.getTodos.query();
+// tRPC -> Automatic type and built-in error handling
+```
+
+## What is tRPC?
+
+> What if you could use API functions just like you use local functions?
+
+It starts with the question:
+
+```ts
+// The ideal figure you dream of
+// Server
+const todos = ['1', '2', '3'];
+const getTodos = async () => {
+  return todos;
+};
+
+// Client
+import { getTodos } from '@/server/todo';
+
+const fetchTodos = async () => {
+  const todos = await getTodos();
+  return todos; // todos is automatically inferred as string[]!
+};
+```
+
+As shown above, if you define (or infer) the type on the server → write service logic using it → simply import and use it on the client, most of the problems mentioned above will be solved.
+
+In fact, you can achieve this effect by using `tRPC`.
+
+```ts
+// Server
+import { initTRPC } from '@trpc/server';
+import { z } from 'zod';
+
+const t = initTRPC.create();
+
+const todoSchema = z.object({
+  id: z.number(),
+  text: z.string(),
+  completed: z.boolean(),
+});
+
+export const appRouter = t.router({
+  getTodos: t.procedure.query(() => {
+    return todos; // Todo[] type is automatically inferred
+  }),
+
+  addTodo: t.procedure
+    .input(z.object({ text: z.string() }))
+    .mutation(({ input }) => {
+      const newTodo = {
+        id: Date.now(),
+        text: input.text,
+        completed: false,
+      };
+      todos.push(newTodo);
+      return newTodo;
+    }),
+});
+
+export type AppRouter = typeof appRouter;
+
+// Client
+import { createTRPCProxyClient } from '@trpc/client';
+import type { AppRouter } from '../server/trpc';
+
+const trpc = createTRPCProxyClient<AppRouter>({
+  links: [
+    httpLink({
+      url: 'http://localhost:3000/api/trpc',
+    }),
+  ],
+});
+
+async function TodoApp() {
+  const todos = await trpc.getTodos.query();
+  //    ^^^^^ { id: number; text: string; completed: boolean }[]
+
+  const newTodo = await trpc.addTodo.mutate({ text: 'Learn tRPC' });
+  // ^^^^^^^ Type is automatically inferred
+}
+```
+
+## But how is this possible?
+
+You may be wondering, “It sounds like magic, but how does it actually work?”
+
+### 1. Compile time: Utilizing the TypeScript type system
+
+```typescript
+// Export type from server
+export type AppRouter = typeof appRouter;
+
+// Only import types from the client (disappear at runtime)
+import type { AppRouter } from '../server/trpc';
+```
+
+TypeScript's `type` import disappears completely after compilation. That means nothing is left at runtime.  
+However, during development it provides perfect type inference and autocompletion.
+
+### 2. Runtime: General HTTP communication
+
+If you actually open your browser developer tools:
+
+```
+POST http://localhost:3000/api/trpc/getTodos
+POST http://localhost:3000/api/trpc/addTodo
+
+Request Body: {
+  "0": {
+    "json": {
+      "text": "Learn tRPC"
+    }
+  }
+}
+```
+
+In the end, a normal HTTP request is thrown away at runtime. tRPC just handles this automatically.
+
+Although tRPC is not a perfect solution for all situations, it is a truly powerful tool for TypeScript-based full-stack projects or monorepo environments. It can significantly improve productivity, especially when developing rapid prototyping or internal management tools.<br/>
+Therefore, I plan to improve the `Blog` project to `tRPC`.<br/>
+After these improvements are made, I plan to use it myself and write about the improvements I have made in the next article.

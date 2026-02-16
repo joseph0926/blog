@@ -10,17 +10,23 @@ import {
 import { cn } from '@joseph0926/ui/lib/utils';
 import { Menu } from 'lucide-react';
 import { motion } from 'motion/react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
-import { navbarItems } from '@/constants/navbar';
+import { Link, usePathname } from '@/i18n/navigation';
 import { LogoIcon } from '../ui/icons';
 import { ThemeToggle } from '../ui/theme-toggle';
+import { LocaleSwitcher } from './locale-switcher';
 
 export const Navbar = () => {
+  const t = useTranslations('nav');
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+
+  const navbarItems = [
+    { href: '/blog', label: t('blog') },
+    { href: '/about', label: t('about') },
+  ];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -44,9 +50,9 @@ export const Navbar = () => {
           ? 'border-border/40 bg-background/80 border-b backdrop-blur-md'
           : 'bg-background',
       )}
-      aria-label="Main navigation"
+      aria-label={t('mainNavigation')}
     >
-      <Link href="/" aria-label="Home">
+      <Link href="/" aria-label={t('home')}>
         <LogoIcon textColor="var(--foreground)" />
       </Link>
 
@@ -77,23 +83,27 @@ export const Navbar = () => {
           </li>
         ))}
         <li className="ml-2">
+          <LocaleSwitcher />
+        </li>
+        <li className="ml-2">
           <ThemeToggle />
         </li>
       </ul>
 
       <div className="flex items-center gap-2 md:hidden">
+        <LocaleSwitcher />
         <ThemeToggle />
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger
             className="hover:bg-muted rounded-md p-2 transition-colors duration-100"
-            aria-label="Open menu"
+            aria-label={t('openMenu')}
             aria-expanded={isOpen}
           >
             <Menu className="h-5 w-5" />
           </SheetTrigger>
           <SheetContent side="right" className="w-72">
             <SheetHeader>
-              <SheetTitle>Navigation</SheetTitle>
+              <SheetTitle>{t('menu')}</SheetTitle>
             </SheetHeader>
             <nav className="mt-6 flex flex-col gap-1">
               {navbarItems.map((item) => (

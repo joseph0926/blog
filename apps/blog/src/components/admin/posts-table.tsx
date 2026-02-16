@@ -46,6 +46,7 @@ export function PostsTable({ searchQuery }: PostsTableProps) {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
 
   const { data, isLoading, refetch } = trpc.post.getPosts.useQuery({
+    locale: 'ko',
     limit: 100,
   });
 

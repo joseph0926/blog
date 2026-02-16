@@ -1,0 +1,448 @@
+---
+slug: '2025-08-24-nextjs-cache'
+title: 'Next.js Cache The two faces of caching: between fast speed and accurate data.'
+description: 'Learn from basic caching strategies on the web to caching strategies in Next.js.'
+date: '2025-08-24'
+thumbnail: '/post/next.webp'
+tags: ['nextjs', 'cache']
+---
+
+> Have you tried turning on developer tools and refreshing the website?<br/>
+> Looking at the Network tab, some requests return 200, others return 304. Even if I force refresh (Ctrl+Shift+F5), I see x-vercel-cache: HIT pop up and think, "What is this again?" Have you ever wanted to?<br/>
+> When developing with Next.js, these questions sometimes arise. “I obviously modified the data, but why isn’t it reflected on the screen?”<br/>
+> Is caching really a necessary evil? Or is it because I don't understand it properly?
+
+## Why isn't my data changing?
+
+Let's assume you've created a simple product listing page with Next.js 15.
+
+```tsx
+export default async function ProductsPage() {
+  const response = await fetch('https://api.mystore.com/products');
+  const products = await response.json();
+
+  return (
+    <div>
+      <h1>Product List</h1>
+      {products.map((product) => (
+        <div key={product.id}>
+          <h2>{product.name}</h2>
+          <p>{product.price}won</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+In a development environment (`npm run dev`), changes to API data are reflected immediately on each refresh.
+But in production (`npm run build && npm run start`)... the changes are not reflected even if you refresh.
+
+### What's the difference?
+
+There is an important point here. The default behavior of `fetch` changed in Next.js 15.
+
+- **Next.js 14**: fetch is cached by default (cache: 'force-cache')
+- **Next.js 15**: fetch is not cached by default (cache: 'no-store')
+
+“Then why doesn’t the data change if caching doesn’t work in v15?”
+
+Starting with these questions, we'll slowly dive into the intricacies of Next.js caching. Just to mention, `fetch` caching is just one of **four caching mechanisms** that Next.js has.
+
+## Network response codes 304 and 200
+
+First, let's experiment with how the browser caches.
+
+<CacheDescription>
+### Experiment 1: Observing the browser cache
+
+1. Open any website and open Developer Tools (F12) → Turn on the Network tab.
+2. Try a regular refresh (F5)
+3. Try a force refresh (Ctrl+Shift+F5)
+
+What's different?
+
+</CacheDescription>
+You've probably noticed these differences:
+
+- **General Refresh**: Some requests have status `304 Not Modified`
+- **Force Refresh**: All requests have `200 OK` status
+
+### What is 304?
+
+`304 Not Modified` means the server is saying “It’s the same version you have, use that!”
+
+```
+Browser: "I have this file, version 2025-08-24"
+Server: "Checked it, nothing changed. I'll return 304."
+Browser: "Then I'll use it from the cache."
+```
+
+At this time, no actual data is transmitted. This is why the Size in the Network tab is as small as 0.1KB.
+
+## Web Caching Basics: Why Do You Need It?
+
+What would happen if there was no caching on the web?
+
+```
+User: Naver logo please (3MB)
+Server: Naver logo delivery (3MB transfer)
+User: (0.1 seconds later) Please give me the Naver logo again.
+Server: Naver logo delivered (also 3MB transferred)
+```
+
+How inefficient would it be to transmit like this every time?
+
+### Understanding the convenience store analogy
+
+Caching is similar to convenience stores
+
+- **Headquarters (Server)**: Original storage of all products
+- **Convenience store (CDN)**: Store frequently used products in the neighborhood
+- **Fridge (Browser Cache)**: Store frequently eaten items at home
+
+The pros and cons of each level are listed below.
+
+- Refrigerator: The fastest, but only I can use it
+- Convenience store: shared with local people, pretty fast
+- Headquarters: Always has the latest products, but is slow due to the distance
+
+## Cache verification: How do you know it's "unchanged"?
+
+<NetworkSimulator />
+As you can see in the simulator above, a 304 response involves significantly
+less data transfer. But how does the server know that the file hasn't changed?
+
+### ETag and Last-Modified
+
+Browsers and servers check file versions in two ways:
+
+1. **Last-Modified / If-Modified-Since**
+
+```
+First request:
+Server → Browser: “Last-Modified: 2025-08-24 10:00:00”
+Re-request:
+Browser → Server: “If-Modified-Since: 2025-08-24 10:00:00”
+Server: (Check file modification time) "304 Not Modified"
+```
+
+2. **ETag / If-None-Match**
+
+```
+First request:
+Server → Browser: "ETag: abc123" (hash value of file contents)
+Re-request:
+Browser → Server: “If-None-Match: abc123”
+Server: (Check current file hash) "304 Not Modified"
+```
+
+### Why do we need two methods?
+
+- **When the date alone is not enough**: What if the file was modified and then returned to its original state?
+- **When hash alone is not enough**: Cost of reading the entire file each time and calculating the hash
+
+## CDN Cache: Why does HIT appear even after a forced refresh?
+
+Now let's go back to the first question. What is the reason why `x-vercel-cache: HIT` appears even when I force refresh?”
+
+### Experiment 2: Observing Vercel Cache
+
+1. Open [Next.js official documentation](https://nextjs.org/docs)
+2. Developer Tools → Open Network tab
+3. Execute force refresh (Ctrl+Shift+F5)
+4. Check the `x-vercel-cache` value in Response Headers
+
+What did you discover?
+
+- `HIT`: fetched from cache
+- `MISS`: not in cache, retrieved from origin server
+- `STALE`: It is old, but provided for now, being updated in the background.
+
+Forced refresh only ignores **browser cache**. But there is another cache layer between the browser and the server. It is **CDN (Content Delivery Network)**.
+
+```
+[Browser] ← Ignore force refresh only here → [CDN cache] ← → [Next.js server]
+↑
+x-vercel-cache: HIT
+```
+
+### Why is CDN needed?
+
+What if 100 Korean users request the same page from a US server at the same time?
+
+**Without CDN**
+100 people → Across the Pacific → US server (processed 100 times)
+
+**If you have a CDN**
+1 person → Across the Pacific → US server → Save to Seoul CDN
+Remaining 99 people → Seoul CDN responds immediately
+
+## Four caching layers in Next.js
+
+Now, let’s take a closer look at Next.js’ caching system. Next.js provides a total of 4 caching mechanisms.
+
+### 1. Request Memoization
+
+Deduplicates identical requests in the same rendering cycle.
+
+```tsx
+// What if these components are on the same page?
+async function Header() {
+  const user = await fetch('/api/user'); // first call
+  // ...
+}
+
+async function Sidebar() {
+  const user = await fetch('/api/user'); // duplication! (0ms, using cache)
+  // ...
+}
+
+async function MainContent() {
+  const user = await fetch('/api/user'); // duplication! (0ms, using cache)
+  // ...
+}
+```
+
+The characteristics of `Request Memoization` are as follows.
+
+- Lifetime: Single rendering cycle (only for one page request)
+- Scope: Only during server-side rendering
+- Automatic: Operates automatically without separate settings
+
+2. Data Cache
+   The results of the fetch request are stored on the server.
+
+```tsx
+// Next.js 15 default: no caching
+const data = await fetch('https://api.example.com/data');
+
+// Explicitly enable caching
+const data = await fetch('https://api.example.com/data', {
+  cache: 'force-cache', // or next: { revalidate: 3600 }
+});
+```
+
+The features of `Data Cache` are as follows.
+
+- Lifetime: depending on settings (unlimited or revalidate time)
+- Scope: Shared by all users
+- Change in v15: Default value changed to ‘no-store’
+
+3. Full Route Cache
+   Cache the entire HTML generated at build time.
+
+```tsx
+// This page is built statically
+export default async function StaticPage() {
+  const data = await fetch('...', { cache: 'force-cache' });
+  return <div>{data}</div>;
+}
+
+// This page is dynamic (rendered on every request)
+export default async function DynamicPage() {
+  const data = await fetch('...', { cache: 'no-store' });
+  return <div>{data}</div>;
+}
+```
+
+The features of `Full Route Cache` are as follows.
+
+- Static pages: HTML generation and caching at build time
+- Dynamic pages: no caching
+- fetch option affects the entire page
+
+4. Router Cache
+   Cache for client-side navigation.
+
+```tsx
+// Pages moved to the link are cached in the browser memory.
+<Link href="/about">About</Link>
+
+// Why does it load immediately when you go back?
+```
+
+The features of `Router Cache` are as follows.
+
+- Lifetime: For a session (browser memory)
+- Scope: Individual user
+- Use: Quick navigation
+
+## Practice: When and which cache to use?
+
+### Scenario 1: E-commerce site
+
+Let's say you're creating a product listing page. Think about the characteristics of each data.
+
+- **Product Information**: Does not change often
+- **Inventory Quantity**: Changes in real time
+- **Reviews**: Added occasionally
+- **Recommended Products**: Varies by user
+
+<CacheStrategyQuiz />
+### Scenario 2: Real-time auction site
+
+The situation is more complicated this time. Both real-time and performance must be considered.
+
+<AuctionSimulator />
+## Caching tradeoff: speed vs accuracy
+
+Is caching always good? That's not true.
+
+### SWR (Stale-While-Revalidate) pattern
+
+`revalidate` in Next.js works in an interesting way.
+
+```tsx
+// revalidate: 60 = update every 60 seconds
+const data = await fetch('/api/data', {
+  next: { revalidate: 60 },
+});
+```
+
+How will it behave after 60 seconds?
+
+```
+13:00:00 - User 1 connects → Cache creation
+13:00:30 - User 2 connects → Use cache (fresh)
+13:01:00 - User 3 connects → uses cache (60 seconds have passed, stale state)
+         → Start importing new data in the background at the same time
+13:01:01 - User 4 connects → uses new cache
+```
+
+User 3 receives outdated data but receives an **immediate** response. This is the core of SWR.
+
+### When should you use SWR?
+
+**Suitable for:**
+
+- Number of blog views and likes
+- Number of product reviews
+- Weather information
+
+**If not suitable:**
+
+- bank balance
+- Quantity in stock (at time of payment)
+- Real-time bidding
+
+## Practical optimization pattern
+
+### Pattern 1: Hierarchical caching
+
+```tsx
+// Page level: static generation
+export default async function ProductPage({ params }) {
+  // Product information: long caching
+  const product = await fetch(`/api/products/${params.id}`, {
+    next: { revalidate: 3600 },
+  });
+
+  // Review: Medium Caching
+  const reviews = await fetch(`/api/products/${params.id}/reviews`, {
+    next: { revalidate: 300 },
+  });
+
+  return (
+    <>
+      <ProductInfo data={product} />
+      <Reviews data={reviews} />
+      <StockStatus productId={params.id} /> {/* Client component */}
+    </>
+  );
+}
+
+// Client component: real-time data
+('use client');
+function StockStatus({ productId }) {
+  // Real-time inventory is processed by the client
+  const { data } = useSWR(`/api/stock/${productId}`, fetcher, {
+    refreshInterval: 5000,
+  });
+  return <div>Inventory: {data?.quantity} units</div>;
+}
+```
+
+### Pattern 2: Cache Invalidation Strategy
+
+```tsx
+// Invalidate cache with server action
+async function updateProduct(productId: string, data: any) {
+  await db.products.update({ id: productId, ...data });
+
+  // Invalidate specific tags
+  revalidateTag(`product-${productId}`);
+  // or invalidate a specific path
+  revalidatePath(`/products/${productId}`);
+}
+```
+
+## Common mistakes
+
+### Mistake 1: Caching everything
+
+```tsx
+// ❌ Bad example: caching user-specific data
+const userData = await fetch('/api/me', {
+  next: { revalidate: 3600 }, // Same data for other users?
+});
+
+// ✅ Good example: do not cache user-specific data
+const userData = await fetch('/api/me', {
+  cache: 'no-store',
+});
+```
+
+### Mistake 2: Ignoring cache dependencies
+
+```tsx
+// ❌ Bad example: Associative data cache inconsistency
+const product = await fetch(`/api/products/${id}`, {
+  next: { revalidate: 3600 },
+});
+const category = await fetch(`/api/categories/${product.categoryId}`, {
+  next: { revalidate: 86400 }, // What if the category changes?
+});
+
+// ✅ Good example: synchronizing associative data
+const [product, category] = await Promise.all([
+  fetch(`/api/products/${id}`, { next: { tags: [`product-${id}`] } }),
+  fetch(`/api/categories/${categoryId}`, {
+    next: { tags: [`category-${categoryId}`] },
+  }),
+]);
+```
+
+## Conclusion: Caching is just a tool
+
+Caching is not a panacea. You need an appropriate strategy for your situation.
+
+### Principles to remember
+
+1. **Understand the characteristics of the data**
+   - How often does it change?
+   - How important is accuracy?
+   - What is the cost of bad data?
+
+2. **Put user experience first**
+   - Fast loading vs accurate data
+   - In most cases both are needed
+
+3. **Measure and Improve**
+   - Cache hit rate monitoring
+   - Collect user feedback
+   - Continuous optimization
+
+### What’s changed in Next.js 15
+
+```tsx
+// v14: Default caching (explicitly turned off by developer)
+// v15: Default no-cache (explicitly turned on by developer)
+
+// Now you need to clearly express your intentions
+const cachedData = await fetch('/api/data', {
+  cache: 'force-cache', // “I want caching”
+});
+```
+
+This change is a decision that prioritizes “predictable behavior.” The philosophy is that it is safer to explicitly enable it when needed, rather than causing chaos due to caching.

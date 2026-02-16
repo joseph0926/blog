@@ -89,7 +89,9 @@ export function PostDialog({
     },
   });
 
-  const { data: tagsData, refetch: refetchTags } = trpc.post.getTags.useQuery();
+  const { data: tagsData, refetch: refetchTags } = trpc.post.getTags.useQuery({
+    locale: 'ko',
+  });
   const tagOptions = tagsData?.tags.map((tag) => tag.name) || [];
 
   useEffect(() => {

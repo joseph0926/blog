@@ -2,8 +2,10 @@
 
 import { Badge } from '@joseph0926/ui/components/badge';
 import { format } from 'date-fns';
+import { enUS, ko } from 'date-fns/locale';
 import Image from 'next/image';
-import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { ENV } from '@/lib/env';
 import { PostResponse } from '@/types/post.type';
 
@@ -12,6 +14,10 @@ type BlogPostCardProps = {
 };
 
 export const BlogPostCard = ({ post }: BlogPostCardProps) => {
+  const t = useTranslations('blog');
+  const locale = useLocale();
+  const dateLocale = locale === 'ko' ? ko : enUS;
+
   return (
     <article className="group h-full">
       <Link
@@ -32,9 +38,15 @@ export const BlogPostCard = ({ post }: BlogPostCardProps) => {
 
           <div className="p-5">
             <div className="text-muted-foreground mb-3 flex items-center gap-2 text-xs">
-              <span>{format(new Date(post.createdAt), 'MMM dd, yyyy')}</span>
+              <span>
+                {format(
+                  new Date(post.createdAt),
+                  locale === 'ko' ? 'yyyy.MM.dd' : 'MMM dd, yyyy',
+                  { locale: dateLocale },
+                )}
+              </span>
               <span className="bg-muted-foreground/50 h-1 w-1 rounded-full" />
-              <span>{post.readingTime} min read</span>
+              <span>{t('readTime', { minutes: post.readingTime })}</span>
             </div>
 
             <h3 className="text-foreground group-hover:text-primary mb-2 line-clamp-2 text-lg font-semibold tracking-tight transition-colors duration-150">

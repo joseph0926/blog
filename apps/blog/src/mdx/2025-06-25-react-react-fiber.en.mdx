@@ -1,0 +1,232 @@
+---
+slug: '2025-06-25-react-react-fiber'
+title: 'React: React Fiber'
+description: 'Let’s explore Fiber, introduced starting with React v16.'
+date: '2025-06-25'
+thumbnail: '/post/react.webp'
+tags: ['react']
+---
+
+# React Fiber Architecture
+
+## React’s Internal Mechanism Before Fiber
+
+React previously used a mechanism called the `Stack Reconciler`.
+Put simply, it detects changes through **recursion** and applies updates **all at once**.
+This approach is very intuitive, but it had a few problems.
+
+### Frame Drops During Large-Scale Updates
+
+If we describe React v15’s approach in a bit more detail, it largely proceeds in two phases.
+
+1. Render phase: a pure, function-like section that only computes **what to change** - e.g., `render`
+2. Commit phase: applies the computed result to the actual DOM/Refs/Effects while triggering side effects - e.g., `componentDidMount`
+
+In other words, step 1 computes what should be reflected in the DOM -> step 2 actually applies it and runs side effects.
+
+The biggest issue with this approach is that the entire sequence runs **synchronously**.
+React is ultimately a JavaScript library, which means it runs on a single thread.
+With that in mind, an approach that **updates all changes at once** is bound to run into problems.
+Because applying updates—reflecting UI changes—means occupying the call stack.
+And if that work is large, it also means other tasks are blocked during that time.
+
+Quantitatively, browsers are generally said to need to process an update within 60fps (about 16.7ms) for users to perceive it as smooth and uninterrupted.
+
+> Reference: [dev.to](https://dev.to/bnevilleoneill/a-deep-dive-into-react-fiber-internals-5cld?comments_sort=latest#:~:text=Having%20said%20that,drop%20that%20frame.)
+
+But if the work is so large that it exceeds this budget, users experience a kind of stutter (janky) behavior.
+
+Also, because this mechanism did not support priority updates—which later became central to Concurrent Mode—more important updates could not be processed first.
+For example, important updates that require immediate feedback, like user input, could be blocked.
+
+```md
+Start user input
+|
+v
+Initiating a large DOM update
+|
+v
+User input is blocked until the large DOM update is complete.
+```
+
+<StackReconciler />
+
+## Introducing Fiber
+
+The React team was also aware of how serious these issues were, and to solve them and build a better React, they introduced a new reconciler starting with v16.
+The core goals the React team set were as follows:
+
+> Reference: [React member GitHub](https://github.com/acdlite/react-fiber-architecture)
+
+- Process work according to appropriate **priorities** (run urgent work such as animations first)
+  - For priority comparison, React uses the **Lanes model** rather than simple numeric comparison.
+    - A bitmask that represents priority in 1-bit units
+
+  - Thanks to the bitmask, multiple priorities can be preserved simultaneously within a single integer.
+  - Even if there are many pending updates, React can determine the highest-priority work to run now in constant time.
+
+- **Pause work** and resume it later (to avoid exceeding the browser’s frame budget)
+- **Abort/cancel** work that is no longer needed
+- **Reuse** previously completed work results (to reduce unnecessary computation)
+
+The core of Fiber is splitting render work into small units of work and delegating each unit to a Lanes-based scheduler to avoid blocking the main thread.
+By slicing work into multiple pieces and yielding control back to the browser between units, React approaches solving the issues above.
+
+More specifically, **instead of traversing the entire tree all the way down in one go, Fiber repeats a process of going down in small steps and then coming back up while performing work.**
+When I first read this sentence, I had two questions.
+
+1. If it repeatedly goes down and up, wouldn’t that be slower than running recursion all at once?
+2. Then wouldn’t it exceed 16ms anyway?
+
+To understand this better, you need to know exactly what “going down” and “coming back up” mean.
+
+- Going down (begin phase)
+  - This literally means starting at the top of the component tree and moving downward, doing work one component at a time.
+
+- Coming back up (complete phase)
+  - After finishing one unit of work, instead of immediately continuing to the next, React briefly pauses to evaluate the current state—checking whether there is “enough time remaining” or whether there is “more urgent work” to handle first.
+
+An everyday analogy is **like cleaning a house: instead of cleaning the whole house in one go, you clean one room at a time, pausing to check if a guest has arrived, or if an urgent phone call comes in, you handle that first.**
+
+In summary, it’s not just reading a unit by going down and then up—it reads while going down, and once that work is done, it considers whether it should proceed to the next unit (whether enough time remains, whether there is higher-priority work, etc.).
+This way, rather than continuously occupying the main thread by immediately running the next unit, React yields control back to the browser in between. That allows the browser to handle interactions or higher-priority work first, improving perceived performance for users.
+
+So we can answer question 1 like this:
+
+1. Total time may increase (very slightly..?), but perceived time (responsiveness) improves.
+2. The work may not complete within 16ms. However, as mentioned earlier, because the work is split into very small units, even if the entire work does not finish within 16ms, it can still transition smoothly rather than causing jank.
+
+## Taking a Closer Look at Fiber
+
+Summarizing the above, Fiber operates based on two core ideas:
+
+1. Split a single task into small units of work
+2. With priorities, urgent (important) units are processed first
+
+In this section, we’ll take a closer look at how Fiber is structured and how it operates.
+
+A fiber node (one unit of work) is implemented as a JavaScript object and contains information about a specific component (or DOM element).
+Fiber nodes form a tree in the shape of a linked list, expressing parent-child and sibling relationships via pointers such as child, sibling, and return.
+Thanks to this structure, React can traverse the tree using iteration or traversal algorithms instead of recursion, and it can pause or resume work at the necessary times.
+
+A fiber node is structured as follows.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Field</th>
+        <th>Type</th>
+        <th>Role / Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>type</code>
+        </td>
+        <td>
+          <code>Function | string</code>
+        </td>
+        <td>
+          Component function/class or host tag like <code>"div"</code>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <code>key</code>
+        </td>
+        <td>
+          <code>string | null</code>
+        </td>
+        <td>Unique sibling identifier during list diff</td>
+      </tr>
+      <tr>
+        <td>
+          <code>child</code> / <code>sibling</code> / <code>return</code>
+        </td>
+        <td>
+          <code>Fiber | null</code>
+        </td>
+        <td>
+          DFS traversal pointers:
+          <br />- <code>child</code>: descend (begin)
+          <br />- <code>sibling</code>: move across same level
+          <br />- <code>return</code>: ascend to parent (complete)
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <code>lanes</code>
+        </td>
+        <td>
+          <code>Lanes</code> (bitmask)
+        </td>
+        <td>Priority bits assigned to this node</td>
+      </tr>
+      <tr>
+        <td>
+          <code>childLanes</code>
+        </td>
+        <td>
+          <code>Lanes</code>
+        </td>
+        <td>
+          OR'ed lanes of subtree for <strong>O(1)</strong> skip checks
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <code>flags</code> / <code>subtreeFlags</code>
+        </td>
+        <td>
+          <code>SideEffectFlags</code>
+        </td>
+        <td>Side effects to run in commit phase</td>
+      </tr>
+      <tr>
+        <td>
+          <code>memoizedProps</code> / <code>memoizedState</code>
+        </td>
+        <td>
+          <code>any</code>
+        </td>
+        <td>Cache of previous render result</td>
+      </tr>
+      <tr>
+        <td>
+          <code>pendingProps</code>
+        </td>
+        <td>
+          <code>any</code>
+        </td>
+        <td>New props for current render</td>
+      </tr>
+      <tr>
+        <td>
+          <code>alternate</code>
+        </td>
+        <td>
+          <code>Fiber | null</code>
+        </td>
+        <td>
+          Double buffering structure:
+          <br />
+          Current tree <code>&lt;-&gt;</code> Work-In-Progress tree
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+> **참고**
+> React 18부터 기존 `pendingWorkPriority` 숫자 필드는 사라지고,
+> **`lanes`·`childLanes` 비트마스크**가 모든 우선순위 정보를 담습니다.
+
+> Below is a very simple visualization of Fiber’s mechanism.
+
+<FiberWrapper />
+
+---
+
+In summary, the React Fiber architecture is a crucial improvement introduced by React to enhance user experience and optimize performance. In particular, Fiber splits work into small pieces and assigns priorities so that urgent work can be processed first. It also minimizes frame drops even when handling long tasks, providing a smoother UI.

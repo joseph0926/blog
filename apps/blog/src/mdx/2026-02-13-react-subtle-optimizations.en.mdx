@@ -1,0 +1,714 @@
+---
+slug: '2026-02-13-react-subtle-optimizations'
+title: 'Minor optimizations found in React source code'
+description: 'We summarize one-line level optimization techniques such as V8 Hidden Class, Object.freeze, and branch order discovered while directly reading React source code.'
+date: '2026-02-13'
+tags: ['react']
+thumbnail: '/post/react.webp'
+---
+
+These days, I am studying React by directly reading the source code.
+
+The method is to fork the React repo, place it locally, and open each file one by one to dig into “Why was this code written this way?” You can directly check the internal implementation that cannot be known from the official documentation alone, and if you have any questions, trace the Git history or PR to find evidence.
+
+When reading source material like this, there are times when you notice small choices at the level of one line or word, rather than big topics such as algorithms or architecture.
+
+```js
+this.actualDuration = -0;
+this.actualStartTime = -1.1;
+```
+
+Why is it `-0` and not `0` and `-1.1` and not `-1`?
+
+```js
+if (typeof type === 'function') {
+  // ...
+} else if (typeof type === 'string') {
+  // ...
+} else {
+  // ...
+}
+```
+
+Why is this if/else sequence like this? Can't it be done in reverse?
+
+If you dig deeper, there was a reason for each. This article is a record of the “minor optimizations” discovered while reading the source code.
+
+---
+
+## Object.freeze — Why only apply in DEV
+
+In React, props are immutable (read-only). This is a rule that is emphasized in the official documentation and all React developers know.
+
+But how is this rule enforced? Is it simply a “promise” or is it blocked by code?
+
+The answer can be found by looking at the ReactElement function in `ReactJSXElement.js`.
+
+```js
+// packages/react/src/jsx/ReactJSXElement.js:276-279
+if (__DEV__) {
+  // ...
+  if (Object.freeze) {
+    Object.freeze(element.props);
+    Object.freeze(element);
+  }
+}
+```
+
+The props object and the element itself are locked with `Object.freeze()`. Adding, deleting, or modifying properties of a frozen object becomes impossible.
+
+What happens if you break this rule?
+
+```jsx
+function BadComponent({ items }) {
+  items.push(newItem); // TypeError: Cannot add property 3, object is not extensible
+  items.sort(); // TypeError: Cannot assign to read only property '0'
+}
+
+function AnotherBad() {
+  const el = <div className="a" />;
+  el.props.className = 'b'; // TypeError: "className" is read-only
+  el.type = 'span'; // TypeError: "type" is read-only
+}
+```
+
+In development mode, this immediately throws a TypeError. It means catching mistakes early.
+
+But the important thing here is that this code is inside a `__DEV__` block. In production builds, `Object.freeze()` is not executed at all.
+
+Why is it missing from production?
+
+Comparing the DEV and PROD branches of the same file shows the intent.
+
+```js
+// DEV — element creation (lines 188-200)
+element = {
+  $$typeof: REACT_ELEMENT_TYPE,
+  type,
+  key,
+  props,
+  _owner: owner, // DEV only
+};
+// + _store, _debugInfo, _debugStack, _debugTask (defineProperty No. 4)
+// + Object.freeze(element.props)
+// + Object.freeze(element)
+
+// PROD — element creation (lines 227-237)
+element = {
+  $$typeof: REACT_ELEMENT_TYPE,
+  type,
+  key,
+  ref,
+  props, // This is everything
+};
+```
+
+The PROD element is a plain object with 5 properties. In DEV, `Object.defineProperty` number 4 + `Object.freeze` number 2 are added.
+
+In React, at least one Element is created per component. In an app with 1,000 components, more than 1,000 elements are created for each render, and freeze is called twice each time. As can be seen from V8's Hidden Class optimization issue (GitHub issue [#14365](https://github.com/facebook/react/issues/14365), which will be discussed later in Section 6, the React team is very sensitive to the performance of the object creation path.
+
+The React team's decision is this: If you catch enough mistakes in DEV, you can safely do it in production without freezing. If you run the same mutation code in production, it will just be silently ignored without an error.
+
+However, this is also a double-edged sword. If a props mutation occurs in a code path that has not been tested in DEV, it can be a bug that is difficult to find because it is silently ignored in production without an error.
+
+---
+
+## What the compiler guarantees
+
+### Should I copy or reuse props objects?
+
+When you write JSX, the compiler (Babel/SWC) automatically translates it into a `jsx()` function call.
+
+```jsx
+// the code we wrote
+<MyComponent name="hello" age={25} />;
+
+// Results converted by the compiler
+jsx(MyComponent, { name: 'hello', age: 25 });
+```
+
+If you look at the internals of this `jsx()` function, there is an interesting branch.
+
+```js
+// packages/react/src/jsx/ReactJSXElement.js:322-345
+let props;
+if (!('key' in config)) {
+  // If key was not spread in, we can reuse the original props object. This
+  // only works for `jsx`, not `createElement`, because `jsx` is a compiler
+  // target and the compiler always passes a new object.
+  props = config;
+} else {
+  // We need to remove reserved props (key, prop, ref). Create a fresh props
+  // object and copy over all the non-reserved props. We don't use `delete`
+  // because in V8 it will deopt the object to dictionary mode.
+  props = {};
+  for (const propName in config) {
+    if (propName !== 'key') {
+      props[propName] = config[propName];
+    }
+  }
+}
+```
+
+If the key is not spread, it is **reused** as is with `props = config`. It doesn't create a new object.
+
+The reason this is possible is stated directly in the comments: **"jsx is a compiler target and the compiler always passes a new object."** Since the compiler generates a `{ ... }` object literal every time, you are guaranteed to always have a new object at runtime. So it is safe to use it as is without copying.
+
+But a question arose here. What happens if you use createElement() instead of jsx()? Both are functions that create Elements, what is the difference?
+
+<div className="my-4 overflow-x-auto">
+<table className="min-w-[720px]">
+<thead>
+<tr>
+<th>
+</th>
+<th>
+<code>jsx()</code> / <code>jsxs()</code>
+</th>
+<th>
+<code>createElement()</code>
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<strong>Who is calling?</strong>
+</td>
+<td>Compiler (Babel/SWC) only</td>
+<td>Humans can call directly</td>
+</tr>
+<tr>
+<td>
+<strong>When to use it</strong>
+</td>
+<td>When using JSX syntax (automatic conversion)</td>
+<td>When creating elements manually without JSX</td>
+</tr>
+<tr>
+<td>
+<strong>Current status</strong>
+</td>
+<td>Modern JSX Transform (default)</td>
+<td>Legacy Compatible</td>
+</tr>
+</tbody>
+</table>
+</div>
+Because `createElement()` can be called directly by humans, dangerous patterns of reusing the same config object are possible, as shown below.
+```js
+const sharedConfig = { name: 'hello' };
+createElement(MyComponent, sharedConfig);
+sharedConfig.name = 'world'; // Edit config!
+createElement(MyComponent, sharedConfig); // Same object!
+```
+So `createElement()` always creates a new props object and copies it.
+```js
+// packages/react/src/jsx/ReactJSXElement.js:631
+const props = {}; // Always create new object
+```
+In summary, the reason props copying can be omitted in `jsx()` is because the conversion rule itself guarantees that "the compiler always passes a new object." The JSX → JS conversion is mechanical, the compiler inserts a `{ ... }` object literal into your code each time, so a new object is always created at runtime.
+
+### Reasons for not using delete
+
+In the `jsx()` code above, if the key is spread, you must remove the key from props. It would be simple to use `delete config.key` at this time, but React does not do that and copies everything except the key to a new object.
+
+The reason is stated in the comments: **"We don't use `delete` because in V8 it will deopt the object to dictionary mode."**
+
+V8 manages objects by default in a Hidden Class (Shape)-based quick mode. However, if you remove a property with `delete`, this structure cannot be maintained and it switches to dictionary mode. Dictionary mode is slower because property access becomes hash table-based.
+
+### Normalize the inlet of ref
+
+There is also code like this in the same `ReactElement` function.
+
+```js
+// packages/react/src/jsx/ReactJSXElement.js:177-179
+// An undefined `element.ref` is coerced to `null` for
+// backwards compatibility.
+const ref = refProp !== undefined ? refProp : null;
+```
+
+It is a line that changes `undefined` to `null`, and the question that came to mind when I first saw this was, "If you check `ref != null` (loose equality), both undefined and null will be filtered out. Is there really a need to convert it?"
+
+In fact, the React codebase also allows `!=` only in null comparisons with `eqeqeq: [ERROR, 'allow-null']` in `.eslintrc.js`, and also uses `config != null` in `createElement()` (`ReactJSXElement.js:635`).
+
+However, the **real reason** for unifying to null was the consistency of Reconciler as a whole.
+
+Reconciler handles refs in dozens of places. If the "empty value" of a ref is a mixture of both `undefined` and `null`, you must use `ref != null` (loose equality) at **all** checkpoints. If you write `ref !== null` (strict equality) even in one place, a bug will occur where an `undefined` ref will be treated as an “existing ref”.
+
+**If you unify it as null at the entrance, all downstream code will be safely treated as a single `ref !== null`.** This is a pattern of normalizing upstream to simplify downstream code.
+
+---
+
+## Monomorphic Call — Why didn’t they create a common function?
+
+All Hooks in React follow the same pattern.
+
+```js
+// packages/react/src/ReactHooks.js
+export function useState(initialState) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useState(initialState);
+}
+
+export function useReducer(reducer, initialArg, init) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useReducer(reducer, initialArg, init);
+}
+
+export function useRef(initialValue) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useRef(initialValue);
+}
+```
+
+Call `resolveDispatcher()` → delegate `dispatcher.useXxx()`. All 22 hooks have this pattern.
+
+When I first saw this, I thought, “Why not bundle this into a common function?”
+
+```js
+// Can't we do it this way?
+function callHook(name, ...args) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher[name](...args);
+}
+
+export function useState(initialState) {
+  return callHook('useState', initialState);
+}
+```
+
+No. There are three reasons.
+
+**First, V8 inlining is broken.** Static property access, such as `dispatcher.useState()`, can be inlined by V8 because it recognizes it as a monomorphic call. However, when you access dynamic properties like `dispatcher[name]()`, V8 cannot predict which method will be called each time, so it gives up on inlining.
+
+The comment in the `resolveDispatcher()` function directly states this intent.
+
+```js
+// packages/react/src/ReactHooks.js:38-41
+// Will result in a null access error if accessed outside render phase. We
+// intentionally don't throw our own error because this is in a hot path.
+// Also helps ensure this is inlined.
+return ((dispatcher: any): Dispatcher);
+```
+
+**"Also helps ensure this is inlined"** — The reason for not throwing an error directly is for inlining.
+
+**Second, type inference is broken.** Flow/TypeScript cannot infer the return type of `callHook('useState', init)`. This is because the signature and return type of each Hook are different.
+
+**Third, the DEV guard of each Hook is different.** Each Hook has its own verification logic, such as useEffect checking for null of the create argument, useContext warning of Consumer use, and useDebugValue executing for DEV only.
+
+One more thing — when I first looked at the source, I also thought, "Why not just cache it globally in the module instead of calling `resolveDispatcher()` every time?"
+
+```js
+// ❌ Executes only once at module load time
+const dispatcher = resolveDispatcher();
+
+export function useState(initialState) {
+  return dispatcher.useState(initialState); // null.useState() → crash
+}
+```
+
+No. This is because the value of the H slot keeps changing during rendering.
+
+```
+[Start App] H = null
+[Start rendering] H = HooksDispatcherOnMount ← mountState execution
+[Render Complete] H = ContextOnlyDispatcher
+[Start re-render] H = HooksDispatcherOnUpdate ← run updateState
+[Re-render completed] H = ContextOnlyDispatcher
+```
+
+The module is only evaluated once at app startup, so the dispatcher captured at that point will be null forever. For each Hook call, we need to re-read "what H is now" so we can delegate to the correct implementation.
+
+---
+
+## Branch order — why typeof === 'function' is first
+
+When React receives an Element and creates a Fiber node, it uses a function called `createFiberFromTypeAndProps()`. The key to this function is to determine what type of fiber to create by looking at the `type` of the element.
+
+```js
+// packages/react-reconciler/src/ReactFiber.js:569-601
+let fiberTag = FunctionComponent;
+let resolvedType = type;
+
+if (typeof type === 'function') {
+  if (shouldConstruct(type)) {
+    fiberTag = ClassComponent;
+  }
+} else if (typeof type === 'string') {
+  fiberTag = HostComponent;
+} else {
+  switch (type) {
+    case REACT_FRAGMENT_TYPE: // ...
+    case REACT_SUSPENSE_TYPE: // ...
+    // ...
+    default: {
+      if (typeof type === 'object' && type !== null) {
+        switch (type.$$typeof) {
+          case REACT_MEMO_TYPE:
+            fiberTag = MemoComponent;
+            break;
+          case REACT_FORWARD_REF_TYPE:
+            fiberTag = ForwardRef;
+            break;
+          case REACT_LAZY_TYPE:
+            fiberTag = LazyComponent;
+            break;
+          // ...
+        }
+      }
+    }
+  }
+}
+```
+
+The first question I had when looking at this code was, "Things like memo and forwardRef that take the else branch are more special cases. Can't we check that first and process the rest as function components?"
+
+For example, what if we change the structure to this?
+
+```js
+// Suggestion: Check special cases first
+if (typeof type === 'object' && type !== null) {
+  // Processing memo, forwardRef, lazy, etc.
+} else if (typeof type === 'string') {
+  fiberTag = HostComponent;
+} else {
+  // The rest are function components
+  fiberTag = FunctionComponent;
+}
+```
+
+Logically, it works. However, the current structure is **Frequency Based Optimization**.
+
+<div className="my-4 overflow-x-auto">
+<table className="min-w-[720px]">
+<thead>
+<tr>
+<th>Order</th>
+<th>Current structure</th>
+<th>Proposed structure</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1st check</td>
+<td><code>typeof === 'function'</code> (most common case, exits immediately)</td>
+<td><code>typeof === 'object'</code> (function components also hit this fail path first)</td>
+</tr>
+<tr>
+<td>2nd check</td>
+<td><code>typeof === 'string'</code> (only when not a function)</td>
+<td><code>typeof === 'string'</code> (function components still pass here after failing object check)</td>
+</tr>
+<tr>
+<td>3rd</td>
+<td><code>else</code> (rare branch)</td>
+<td>remaining case -> <code>FunctionComponent</code></td>
+</tr>
+</tbody>
+</table>
+</div>
+Most components in real React apps are function components. Wrapper types such as memo, forwardRef, and lazy are relatively rare, followed by HostComponent types such as `<div>` and `<span>`.
+
+In the current structure, the most frequent function component is **immediately terminated in the first `typeof === 'function'` check.** In the proposed structure, the function component is processed in the third branch only after it fails the object check and also fails the string check. This adds two unnecessary comparisons.
+
+Considering that every Element goes through this function on every render, putting the hot pass in the first branch is by design.
+
+---
+
+## Property access depth — from level 3 to level 1
+
+In Section 3, we said that all Hooks access `ReactSharedInternals.H` through `resolveDispatcher()`. However, this one-letter property called `H` was not originally named like this.
+
+```js
+// Existing (up to React 18)
+ReactSharedInternals.ReactCurrentDispatcher.current;
+// → 3 steps to access properties
+
+// Currently (React 19+, PR #28783)
+ReactSharedInternals.H;
+// → Step 1 of property access
+```
+
+Considering that every Hook call goes through this path, reducing it from 3 steps to 1 makes sense for hot passing.
+
+If you look at the current actual structure of SharedInternals, it looks like this.
+
+```js
+// packages/react/src/ReactSharedInternalsClient.js:24-29
+export type SharedStateClient = {
+  H: null | Dispatcher,           // Hooks
+  A: null | AsyncDispatcher,      // Cache
+  T: null | Transition,           // Transitions
+  S: null | onStartTransitionFinish,
+  G: null | onStartGestureTransitionFinish,
+};
+```
+
+The first question that came to mind when reading the source material was “H, A, T, S, G — why did they put things with so different personalities into one object?” H is a Hook Dispatcher, A is an Async Dispatcher, T is a Transition state, and S and G are renderer callbacks. I wondered if there was a reason to store them in one object.
+
+The reason we initially assumed was bundle size savings. Combining multiple objects into one reduces import/export overhead. But I actually tracked down the PR to see if there was any basis for it.
+
+### Actual basis for change
+
+**[PR #28783](https://github.com/facebook/react/pull/28783) "Flatten ReactSharedInternals" (April 2024)**
+
+This PR is the PR on which flattening was performed. The existing nested structure was changed to a flat structure of one letter key.
+
+```js
+// Before
+ReactSharedInternals.ReactCurrentDispatcher.current; // Hook Dispatcher
+ReactSharedInternals.ReactCurrentCache.current; // Cache Dispatcher
+
+// After
+ReactSharedInternals.H; // Hook Dispatcher
+ReactSharedInternals.A; // Cache Dispatcher
+```
+
+Bundle size change measured in [PR #28771](https://github.com/facebook/react/pull/28771), **-0.76 kB** in react-dom. It was insignificant compared to the overall size. Sebastian Markbåge describes this change as **"the first step to makeover the Dispatcher"**.
+
+The description, “First step in Dispatcher overhaul,” seemed abstract, so I followed up the follow-up PR further.
+
+**[PR #28912](https://github.com/facebook/react/pull/28912) / [#28798](https://github.com/facebook/react/pull/28798) "Move Current Owner (and Cache) to an Async Dispatcher"**
+
+This PR was flatten's **real destination**. The problem we were trying to solve was specific:
+
+In synchronous components, you can track the "currently rendering component (owner)" with a global variable (stack-based). Before rendering component A, you can set A in a global variable and restore it when you're done.
+
+However, this method breaks in async components (Server Components, etc.). This is because if execution is interrupted in `await`, global variables will be overwritten as other components are rendered.
+
+```
+[Start rendering component A] owner = A
+[await meeting at A] → Stop execution
+[Start rendering component B] owner = B ← owner of A disappears
+[A's await completion] owner is still B ← Wrong tracking
+```
+
+The solution was to use `AsyncLocalStorage` to track an independent owner for each async execution context. Original PR description: **"Current Owner inside an Async Component will need to be tracked using AsyncLocalStorage. This is similar to how cache() works."**
+
+To achieve this, the role of the existing A slot had to change:
+
+```
+Legacy A slot: CacheDispatcher — Simple cache dispatcher with just one getCacheForType()
+After: AsyncDispatcher — A general-purpose asynchronous dispatcher that also includes async-related methods, such as getOwner().
+```
+
+If the existing nested structure (`ReactCurrentCache.current`) had remained the same, changing the role and name of the slot could have broken third-party code. In fact, React DevTools and some libraries depended on internal paths such as `ReactSharedInternals.ReactCurrentDispatcher.current`.
+
+Flattening breaks this dependency at once and creates a structure that allows subsequent changes to be made freely.
+
+### Summary
+
+The real evidence-based priorities are:
+
+1. **Dispatcher structure reorganization to track async component owner** — Pre-arrangement to expand A slot from CacheDispatcher to AsyncDispatcher (PR #28783 → #28912)
+2. **Block internal third-party dependencies** — Obfuscate readable pathnames with H/A/T, breaking the connection with external code that relies on `ReactCurrentDispatcher.current`
+3. **Bundle size + access depth reduction** — react-dom -0.76 kB reduction, property access in hot path 3 steps → 1 step
+
+In keeping with the topic of this article, “Minor Optimizations,” reducing the property access depth was a side effect rather than the main goal. However, in that the path is repeated for each Hook call, it was a change that had practical benefits.
+
+---
+
+## Hidden Class — Why declare 30 fields in advance?
+
+Looking at the constructor of FiberNode, React's core data structure, there are only 4 arguments (tag, pendingProps, key, mode), but nearly 30 fields are declared.
+
+```js
+// packages/react-reconciler/src/ReactFiber.js:138-211
+function FiberNode(tag, pendingProps, key, mode) {
+  // Instance
+  this.tag = tag;
+  this.key = key;
+  this.elementType = null;
+  this.type = null;
+  this.stateNode = null;
+
+  // Fiber
+  this.return = null;
+  this.child = null;
+  this.sibling = null;
+  this.index = 0;
+
+  this.ref = null;
+  this.refCleanup = null;
+
+  this.pendingProps = pendingProps;
+  this.memoizedProps = null;
+  this.updateQueue = null;
+  this.memoizedState = null;
+  this.dependencies = null;
+
+  this.mode = mode;
+
+  // Effects
+  this.flags = NoFlags;
+  this.subtreeFlags = NoFlags;
+  this.deletions = null;
+
+  this.lanes = NoLanes;
+  this.childLanes = NoLanes;
+
+  this.alternate = null;
+  // ...
+}
+```
+
+The first question I had was, “Why do I pre-declare the rest as null or 0 when I only need the 4 I need?” Wouldn't it be possible to add it later when needed?
+
+No. It has a direct basis in the source code.
+
+```js
+// packages/react-reconciler/src/ReactFiber.js:180-191
+// Note: The following is done to avoid a v8 performance cliff.
+//
+// Initializing the fields below to smis and later updating them with
+// double values will cause Fibers to end up having separate shapes.
+// This behavior/bug has something to do with Object.preventExtension().
+// Fortunately this only impacts DEV builds.
+// Unfortunately it makes React unusably slow for some applications.
+// To work around this, initialize the fields below with doubles.
+//
+// Learn more about this here:
+// https://github.com/facebook/react/issues/14365
+// https://bugs.chromium.org/p/v8/issues/detail?id=8538
+```
+
+**"makes React unusably slow for some applications"** — Some even say that it becomes unusably slow.
+
+When V8 creates an object, it assigns a Hidden Class (Shape) based on the set and order of properties. Objects that share the same Hidden Class have very fast property access. This is because V8 knows "there will always be the same property at this location", so direct access based on offset is possible.
+
+However, if you add properties dynamically later, the Hidden Class will change. When every FiberNode has a different shape, V8 gives up on inline caching and switches to the slow path.
+
+This issue was actually reported in [GitHub issue #14365](https://github.com/facebook/react/issues/14365). The phenomenon of extremely slow `getHostSibling()` function in profiling mode occurred only in Chrome, and V8 engineers (@bmeurer, @mathiasbynens) directly diagnosed and confirmed the cause: `Object.preventExtensions()` combined with Double field migration resulted in all FiberNodes having different shapes.
+
+If you pre-declare all fields in the constructor, all FiberNodes will share the same Hidden Class, avoiding this problem.
+
+---
+
+## Smi vs Double — Why is it -0 and not 0?
+
+Let's look again at the Profiler field in the FiberNode constructor we saw just above.
+
+```js
+// packages/react-reconciler/src/ReactFiber.js:193-196
+this.actualDuration = -0;
+this.actualStartTime = -1.1;
+this.selfBaseDuration = -0;
+this.treeBaseDuration = -0;
+```
+
+Why is it `-0` and not `0` and `-1.1` and not `-1`? The source code comment only says "Initialize with a Double value" and does not explain why these values ​​are used.
+
+V8 stores numbers internally in two forms:
+
+- **Smi (Small Integer)**: `0`, `1`, `-1` → Encode directly inside the pointer (very fast)
+- **Double (HeapNumber)**: `-0`, `3.14`, `-1.1` → Allocated as a separate object on the heap.
+
+`0` and `-0` are completely different types inside V8, although `0 === -0` is `true` in JavaScript.
+
+If you compare it to a filing cabinet, it goes like this.
+
+- Initialize to `0` → **Install the small drawer (Smi)**. If you want to add measurements like `3.14` later, you will need to tear out the small drawer and **replace it with a large drawer (Double)**. The cabinet layout (shape) changes.
+- Initialize to `-0` → **Install a large drawer (Double) from the beginning**. You can just enter `3.14`. The layout remains the same.
+
+The problem is this “layout change”. If you initialize it to `0` (Smi) and later enter a measurement value such as `3.14` (Double), V8 must convert the internal representation of that field from Smi to Double. When this transition occurs, the Shape changes and, as we saw earlier, there is a performance penalty. If you initialize it to `-0` (Double) from the beginning, this transition will not occur.
+
+So why is only `actualStartTime` `-1.1` and not all `-0`?
+
+This must be inferred from the usage code of each field.
+
+- `actualDuration` determines “not measured” with `!== 0`. `-0 !== 0` is `false` in JavaScript, so `-0` is correctly evaluated as "not measured".
+- `actualStartTime` determines "not measured" as `< 0` (`ReactProfilerTimer.js:593`). But `-0 < 0` is `false` in JavaScript. This is because `-0` is treated equally as `0`.
+
+```js
+// packages/react-reconciler/src/ReactProfilerTimer.js:593
+if (((fiber.actualStartTime: any): number) < 0) {
+  fiber.actualStartTime = profilerStartTime;
+}
+```
+
+So `actualStartTime` requires a value where `< 0` becomes `true` and is also of type Double. `-1.1` is a value that satisfies both of these conditions. `-1` also satisfies `< 0`, but is not allowed because it is Smi.
+
+### Optimization that has been broken for years
+
+There were no comments for these values, so I tried tracing the Git history. Sebastian Markbåge's [PR #30942](https://github.com/facebook/react/pull/30942) "[Fiber] Set profiler values ​​to doubles" provides some background.
+
+Commit message core:
+
+> "At some point this trick was added to initialize the value first to NaN and then replace them with zeros and negative ones."
+> "However, this fix has been long broken and has deopted the profiling build for years because closure compiler optimizes out the first write."
+
+Originally, it was a two-step method of first writing NaN and then overwriting it with 0/-1, but the Closure Compiler judged the first NaN write to be unnecessary code and removed it. So this optimization was left broken for years, and Sebastian fixed it by manually initializing it to `-0` and `-1.1`.
+
+What's interesting is that Sebastian himself admits: **"I'm not sure because I haven't A/B-tested this in the JIT yet but I think..."** — This was an empirical judgment on the internal workings of V8, not verified by a benchmark.
+
+---
+
+## Finish
+
+The optimizations covered in this article can be summarized as follows.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Optimization</th>
+        <th>Location</th>
+        <th>Rationale</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Object.freeze DEV only</td>
+        <td>ReactJSXElement.js</td>
+        <td>DEV/PROD branch, issue #14365</td>
+      </tr>
+      <tr>
+        <td>Reusing jsx() props</td>
+        <td>ReactJSXElement.js</td>
+        <td>Source comment: "compiler always passes a new object"</td>
+      </tr>
+      <tr>
+        <td>avoid delete</td>
+        <td>ReactJSXElement.js</td>
+        <td>Source comment: "V8 will deopt to dictionary mode"</td>
+      </tr>
+      <tr>
+        <td>Normalize ref null</td>
+        <td>ReactJSXElement.js</td>
+        <td>Source comment: "coerced to null"</td>
+      </tr>
+      <tr>
+        <td>Maintain individual Hook functions</td>
+        <td>ReactHooks.js</td>
+        <td>Source comment: "helps ensure this is inlined"</td>
+      </tr>
+      <tr>
+        <td>typeof branch order</td>
+        <td>ReactFiber.js</td>
+        <td>Frequency-based hot pass optimization</td>
+      </tr>
+      <tr>
+        <td>SharedInternals Flattening</td>
+        <td>ReactSharedInternalsClient.js</td>
+        <td>PR #28783 → #28912</td>
+      </tr>
+      <tr>
+        <td>Pre-declare fields</td>
+        <td>ReactFiber.js</td>
+        <td>issue #14365, Chromium bug #8538</td>
+      </tr>
+      <tr>
+        <td>-0 / -1.1 initial value</td>
+        <td>ReactFiber.js</td>
+        <td>PR #30942</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+Each one is trivial. However, these codes are executed thousands to tens of
+thousands of times per render. Looking at the comments and PR history left by
+the React team throughout the source code, you can see that these choices are
+not simple style differences, but intentional design based on measurement and
+experience.

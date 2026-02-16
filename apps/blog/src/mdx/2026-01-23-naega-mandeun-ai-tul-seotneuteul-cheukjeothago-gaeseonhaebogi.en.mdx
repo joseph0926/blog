@@ -1,0 +1,167 @@
+---
+slug: '2026-01-23-naega-mandeun-ai-tul-seotneuteul-cheukjeothago-gaeseonhaebogi'
+title: 'Measure and improve the performance of the AI ​​tool you created'
+description: 'Rather than judging the quality of AI tools solely by feel, we have a record of quantifying the extent of improvement through datasets and automatic scoring.'
+date: '2026-01-23'
+thumbnail: '/post/ai.webp'
+tags: ['ai', 'prompt-smith']
+---
+
+## What is prompt-smith?
+
+prompt‑smith is a tool that checks your prompts and suggests points for improvement.  
+It provides a flow to organize requirements, check missing elements, and create improvement plans.
+
+[prompt-smith GitHub](https://github.com/joseph0926/prompt-smith)
+
+## Why I decided to take the test
+
+I was using prompt‑smith quite well in practice, but at some point a thought occurred to me. “Does it really work?”  
+There was a feeling of improvement, but I needed numbers to explain it to the team or determine the next direction for improvement.  
+So this time, I decided to check **by measurement** rather than by feeling.
+
+## Experiment target: Fintech customer support routing
+
+We chose a form that frequently appears in practice. The input is the query + context, and the output is the JSON needed for routing.
+
+```json
+{
+  "category": "...",
+  "priority": "...",
+  "needs_human": true,
+  "language": "ko|en",
+  "action": "...",
+  "confidence": 0.0,
+  "injection_detected": false
+}
+```
+
+The domain is Fintech, but this is just an example. There were 50 data (ko:en = 7:3), including 3 injection cases. PII is not included.  
+Please note that since this is a **synthetic dataset** rather than actual user logs, there may be differences in distribution.
+
+## Test design
+
+The goal is simple. **To check if the improved prompts with prompt‑smith actually improve performance**.  
+So we compared **P0 (normal prompt) and P1 (improved prompt)** on the same dataset and same model.
+
+The evaluation indicators were simplified to PASS/FAIL, and the reasons for failure were collected separately as an automatic scoring log.  
+In other words, the judgment was made not by “it looks good” but by “how many were correct?”
+
+## Evaluation Pipeline
+
+Model output was collected as CSV and PASS/FAIL calculated using an automated scoring script.  
+This experiment was conducted with gpt‑4.1‑mini. The choice was made considering the balance between cost and performance.
+
+```bash
+python automation/scripts/ps_run_openai.py \
+  --dataset ps_fintech_router_dataset_v1.json \
+  --model gpt-4.1-mini \
+  --prompt-file ps_fintech_router_prompt_p0.md \
+  --out automation/outputs/ps_fintech_runs_filled_41mini_p0.csv
+
+python automation/scripts/taskpack_cli.py ps-grade \
+  --dataset ps_fintech_router_dataset_v1.json \
+  --runs automation/outputs/ps_fintech_runs_filled_41mini_p0.csv \
+  --out automation/outputs/ps_fintech_runs_graded_41mini_p0.csv
+```
+
+Automatic scoring is performed by comparing the correct answer (JSON) and model output (JSON), and missing keys/format errors/value mismatches are processed as FAIL.
+
+## Progress
+
+First, we created a baseline by running the entire dataset using the **P0 prompt**.  
+Looking at the results, we summarized the failure pattern and reflected the criteria in the prompt‑smith improvement plan to create **P1 prompt**.  
+We ran it again under the same conditions and compared the two results.
+
+Although the design is simple, we focused on maintaining the principle of “comparing under the same conditions.”
+
+## Baseline(P0) → Improvement(P1)
+
+P0 wrote it shallowly at the level of “basic instructions + schema guidance.” Afterwards, based on prompt‑smith, we created P1, which **specified the decision rules** and specified the routing criteria.
+
+### result
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Prompt</th>
+        <th align="right">PASS</th>
+        <th align="right">FAIL</th>
+        <th align="right">Improvement</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>P0</td>
+        <td align="right">12</td>
+        <td align="right">38</td>
+        <td align="right">—</td>
+      </tr>
+      <tr>
+        <td>P1</td>
+        <td align="right">47</td>
+        <td align="right">3</td>
+        <td align="right">
+          <strong>+35</strong>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+Rather than simply refining sentences, **clearly including decision rules**
+significantly improved performance.
+
+<img
+  src="/content/prompt-smith-p0-p1-bars.svg"
+  alt="PASS/FAIL comparison bar chart of P0 and P1"
+  width="960"
+  height="540"
+/>
+
+## Hints from failure patterns
+
+The reasons for many failures in P0 were similar. needs_human Underjudgment, priority under/overjudgment, confusion in some categories.  
+At P1, we stated this rule **in advance** and the results improved dramatically. It is correct to view this change not because “the model has become smarter,” but because **the criteria for judgment have been clearly provided**.
+
+The table below shows the most common reasons for failure in automatic scoring based on P0.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Cause</th>
+        <th align="right">Number of cases</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Needs_human underestimation</td>
+        <td align="right">13</td>
+      </tr>
+      <tr>
+        <td>priority high → medium</td>
+        <td align="right">8</td>
+      </tr>
+      <tr>
+        <td>priority urgent → high</td>
+        <td align="right">5</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+### Improvement task: Token increase
+
+As P1 added more detailed rules, **the length of the prompt increased significantly**. Based on this experiment, the input tokens increased by approximately **3.6 times** and the total tokens increased by approximately **3.2 times**. Performance has improved, but **reducing token efficiency remains as the next improvement task**.
+
+---
+
+## Conclusion: Was prompt‑smith “effective?”
+
+**At least in this experiment, it worked.** The improvement was significant, the results were reproducible under the same conditions, and the failure pattern was noticeably reduced.  
+However, this conclusion depends on **synthetic dataset + specific domain + specific model**. Holdout/replay testing is required for application to practical logs.
+
+Next, we plan to further strengthen the rules for remaining failure cases (customer complaints/security priorities) in P2. We also plan to compare cost/performance with gpt‑4o‑mini and re-verify with a more realistic/large-scale log-based dataset.
+
+Instead of approaching prompt improvement solely by feel, I switched to **measurable improvement**, and the direction became much clearer. Because the numbers show where the next improvement needs to be made.  
+I hope this article helps those who want to quantify the progress of improving their prompts.

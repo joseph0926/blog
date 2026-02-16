@@ -1,0 +1,165 @@
+---
+slug: '2025-07-13-learn-react-02-suspense-'
+title: 'Learn React 02: Why was Suspense introduced?'
+description: 'Learn why asynchronous functions are used for data fetching and why Suspense is introduced even though existing loading handling strategies exist.'
+date: '2025-07-13'
+thumbnail: '/post/react.webp'
+tags: ['react', 'learn_react', 'suspense']
+---
+
+## 1. Why asynchrony is essential
+
+The **fetch** logic that receives data from the server on the web, etc. is basically an asynchronous function. This statement may seem obvious, but it's also good to ask the question, "Why **must** be an asynchronous function?"
+
+When implementing a web/app, there are parts that the developer can control and parts that he cannot.
+
+For example, developers can freely control whether to press a button to open an 'alert' window, but they cannot control whether data arrival is delayed or fails due to a problem with a network request.
+
+<SyncVsAsyncDemo />
+Let's assume that these uncontrollable parts operate synchronously.
+
+Neither developers nor users want their web or app to freeze during data patching. Even if it stops, it should be so short that the user cannot feel it (usually 100 to 200 ms or less).
+
+However, writing synchronously takes this control out of the developer's hands.
+
+Each person has a different environment and device for accessing web/apps, and in some places, the network may be unstable and the speed may be very slow. In this case, the web/app will not work for a considerable period of time.
+
+This is because in single-threaded JS, if network I/O is synchronous, the main thread cannot empty the call stack and the event loop does not run.
+
+Therefore, to circumvent this problem, data patching should be done asynchronously. That is, data fetching logic should not block other logic.
+
+---
+
+## 2. Treat it like a synchronous flow with async/await
+
+Because asynchronous logic alone makes the UI complex, JS has provided high-level syntax in the following order: **callback → `.then()` → `async/await`**.
+
+EX
+
+```javascript
+const data = await asynchronous function();
+```
+
+- Return **Promise** just before `await`
+- The current execution context is **removed from the call stack**
+- When the results are ready, register a callback in **Micro-task Queue**
+- event loop runs again
+
+Asynchronously avoids blocking problems and allows you to write synchronous logic using `async/await`.
+
+---
+
+## 3. Traditional method of loading state management
+
+The next thing to consider is how to handle the UI while the data fetching logic is waiting for data, i.e. `await`.
+
+<TraditionalLoadingDemo />
+React itself does not have a **general data suspension API**, so I used the
+following method:
+
+- Track loading state directly with `useState`
+- Utilize flags such as `isPending` provided by React Query
+- Data suspension dependent on framework (Next.js 13+, Relay, etc.)
+
+```javascript
+// traditional way
+const [loading, setLoading] = useState(false);
+const [data, setData] = useState(null);
+
+useEffect(() => {
+  setLoading(true);
+  fetchData()
+    .then(setData)
+    .finally(() => setLoading(false));
+}, []);
+
+if (loading) return <Spinner />;
+return <div>{data}</div>;
+```
+
+**Note**: As of React 17, `<Suspense>` for code splitting existed, but Suspense for data fetching was only supported at the framework level.
+
+---
+
+## 4. Background of introduction of Suspense and React philosophy
+
+However, the React team introduced the concept of **`Suspense`** (initially it had a narrow use, only used for `lazy` loads, etc.) and recommends it.
+
+<SuspenseDemo />
+When I first encountered `Suspense`, I wondered, “Why do we need another concept
+when we can already control the loading state?” So, I looked for the [RFC
+document](https://github.com/reactjs/rfcs/blob/main/text/0213-suspense-in-react-18.md)
+that explains the background of `Suspense` introduction.
+
+The core of `Suspense` is connected to the philosophy of React. React has the philosophy that “we just declare, and React performs the internal control.”
+
+However, defining a loading flag directly and patterns such as “If loading is done in this part, this must be shown…” is somewhat at odds with the core concept of React.
+
+According to the React philosophy, it makes more sense to declare "When loading occurs in this component, show this `fallback` UI." The concept that satisfies this is ‘Suspense’.
+
+```javascript
+// Declarative approach using Suspense
+<Suspense fallback={<Spinner />}>
+  <DataComponent />
+</Suspense>;
+
+// Example of use() API usage in React 19
+function DataComponent() {
+  const data = use(fetchData()); // Reading Promises Directly
+  return <div>{data}</div>;
+}
+```
+
+### Restrictions on using Suspense
+
+According to React official documentation, **only Suspense-enabled data sources are supported**
+
+- Components loaded with React.lazy
+- Suspense support frameworks such as Next.js and Relay
+- React 19’s `use()` API
+- Directly throwing generic Promises is not officially supported.
+
+---
+
+## 5. Additional Benefits of Suspense
+
+According to [React `Suspense` official documentation](https://react.dev/reference/react/Suspense#caveats), `Suspense` has the following advantages:
+
+### Maintain state only for committed components
+
+Consistency is guaranteed because incomplete trees are not committed.
+
+### Integration with startTransition
+
+You can prepare a new UI while maintaining the old UI.
+
+<SuspenseTransitionDemo />
+### Natural integration with server components
+
+Provides advantages for server-side rendering, such as streaming SSR.
+
+---
+
+## 6. Performance comparison: Traditional method vs Suspense
+
+Let's visually compare how Suspense actually benefits you in terms of performance.
+
+<PerformanceComparisonDemo />
+### Key performance differences
+
+1. **Rendering Optimization**
+   - Traditional method: Re-render the entire component every time the loading state changes.
+   - Suspense: React delays rendering to prevent unnecessary rendering of intermediate states.
+
+2. **Reduce code complexity**
+   - Traditional method: Requires loading state management for each component
+   - Suspense: Simplify code by reducing loading flag state distribution
+
+3. **Code Splitting**
+   - Suspense integrates naturally with `lazy` to optimize bundle size
+
+## So in the end, why do we recommend using Suspense?
+
+There are many reasons discussed above, but in fact, the key that I felt was most meaningful was to use it like React.<br/>
+In the end, the core of React is “You (developer) just declare and I (React) will handle the rest.”<br/>
+I think that the expansion of the concept of Suspense is innovative in that loading is not something I directly control, but all I have to do is declare "Show me this fallback UI if loading is in the part where loading exists."

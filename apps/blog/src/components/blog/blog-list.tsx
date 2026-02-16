@@ -3,11 +3,15 @@
 import { Button } from '@joseph0926/ui/components/button';
 import { BookX } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
+import type { AppLocale } from '@/i18n/routing';
 import { trpc } from '@/lib/trpc';
 import { BlogPostCard } from './blog-post-card';
 
 export const BlogList = () => {
+  const t = useTranslations('blog');
+  const locale = useLocale() as AppLocale;
   const searchParams = useSearchParams();
   const category = searchParams.get('category') ?? undefined;
   const search = searchParams.get('q') ?? undefined;
@@ -17,6 +21,7 @@ export const BlogList = () => {
     trpc.post.getPosts.useInfiniteQuery(
       {
         limit: 10,
+        locale,
         filter: { category, search },
       },
       {
@@ -62,9 +67,9 @@ export const BlogList = () => {
       <div className="container mx-auto px-4 py-16">
         <div className="flex flex-col items-center justify-center text-center">
           <BookX className="text-muted-foreground mb-4 h-12 w-12" />
-          <h3 className="mb-2 text-lg font-semibold">No posts found</h3>
+          <h3 className="mb-2 text-lg font-semibold">{t('noPostsTitle')}</h3>
           <p className="text-muted-foreground text-sm">
-            Try adjusting your filters or check back later
+            {t('noPostsDescription')}
           </p>
         </div>
       </div>
@@ -85,7 +90,7 @@ export const BlogList = () => {
         className="sr-only"
         role="status"
       >
-        {posts.length > 0 && `${posts.length}개의 글이 로드되었습니다.`}
+        {posts.length > 0 && t('postsLoaded', { count: posts.length })}
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {posts.map((post) => (
@@ -97,7 +102,7 @@ export const BlogList = () => {
         <div
           className="mt-8 flex justify-center"
           role="status"
-          aria-label="로딩 중"
+          aria-label={t('loading')}
         >
           <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
         </div>
@@ -107,9 +112,9 @@ export const BlogList = () => {
           <Button
             variant="outline"
             onClick={handleLoadMore}
-            aria-label="더 많은 글 불러오기"
+            aria-label={t('loadMoreAria')}
           >
-            더 보기
+            {t('loadMore')}
           </Button>
         </div>
       )}

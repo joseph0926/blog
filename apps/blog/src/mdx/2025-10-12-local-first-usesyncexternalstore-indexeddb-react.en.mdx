@@ -1,0 +1,641 @@
+---
+slug: '2025-10-12-local-first-usesyncexternalstore-indexeddb-react'
+title: 'Server synchronization of the Local-First library: Connecting IndexedDB and React with useSyncExternalStore and memory cache'
+description: 'IndexedDB is asynchronous, but React requires synchronous state.  We bridge this gap with useSyncExternalStore and the memory cache pattern, and share how we reduced server synchronization boilerplate by 90%.'
+date: '2025-10-12'
+thumbnail: '/post/react.webp'
+tags: ['react', 'opensource', 'firsttx']
+---
+
+## Entering
+
+[Previous post](/post/2025-10-11-csr-ssr) shared FirstTx's planning history. We narrowed down the target to returning apps, postponed Prepaint to Phase 2, and even covered the decision to focus on Local-First and Tx. In this article, we will cover the implementation process of the Local-First layer. In particular, it focuses on the problem of connecting IndexedDB (asynchronous) and React (synchronous) and the process of simplifying server synchronization with useSyncedModel.<br />
+Local-First's core mission was clear. IndexedDB is an inherently asynchronous API. Returns a Promise when reading or writing data, and does not block the main thread. React, on the other hand, requires synchronous state. Whether from `useState` or an external store, the getSnapshot function must return a value immediately. How to bridge this gap was the first technical challenge.<br />
+The second challenge was server synchronization. Local-First means local data is the “source of truth,” but that doesn’t mean it can be completely isolated from the server. Data changed by users on other devices or information updated in the backend must be synchronized. But traditional server synchronization code is a lot of boilerplate. isSyncing status, error handling, manual refetch... complexity that is difficult to handle without React Query.<br />
+This article covers four key design decisions: First, the reason for choosing useSyncExternalStore and the implementation of the memory cache pattern. Second, the process of reducing server synchronization boilerplate by 90% with useSyncedModel. Third, refactoring from autoSync to syncOnMount. Fourth, this is the rationale for choosing 'stale' as the default. Share the background and tradeoffs of each decision along with the code.
+
+## Connecting IndexedDB and React: 3 approaches
+
+Local-First's first task was to connect IndexedDB and React. The problem was clear. IndexedDB provides an asynchronous API, while React requires a synchronous getSnapshot. To fill this gap, we reviewed three approaches.
+
+### Approach 1: useState + useEffect (early draft)
+
+The most intuitive way is to combine useState and useEffect. When the component is mounted, it reads IndexedDB and updates it with setState when data arrives.
+
+```typescript
+function useModel(model) {
+  const [state, setState] = useState(null);
+  const [history, setHistory] = useState({ updatedAt: 0, isStale: true });
+
+  useEffect(() => {
+    model.getSnapshot().then(setState);
+    model.getHistory().then(setHistory);
+  }, [model]);
+
+  const patch = async (mutator) => {
+    await model.patch(mutator);
+    const newState = await model.getSnapshot();
+    setState(newState);
+  };
+
+  return [state, patch, history];
+}
+```
+
+The problem with this approach was clear. First, if you change data in another component or tab, the current component won't know. This is because there is no subscription mechanism. Second, you need to manually call getSnapshot again after patching. Inefficient and vulnerable to human error. Third, it's not compatible with React 18's concurrent rendering. useState has no way to detect changes in the external store.
+
+### Approach 2: React 19’s use hook
+
+React 19 can handle promises directly with the use hook. It was attractive in that it could utilize the asynchronous characteristics of IndexedDB.
+
+```typescript
+function useModel(model) {
+  const data = use(model.getSnapshot());
+  const history = use(model.getHistory());
+  return [data, model.patch, history];
+}
+```
+
+However, this approach had two limitations. First, React 19 is required. This excludes React 18 users. Second, you need a Suspense boundary. All components must be wrapped in Suspense, which requires significant changes to the existing code base. It didn't fit our goal of "an easy library to add to existing apps."
+
+### Approach 3: useSyncExternalStore + memory cache (optional)
+
+The method ultimately chosen was a combination of React 18's useSyncExternalStore and a memory cache. This pattern is a proven approach in major state management libraries such as Zustand, Redux, and React Query.
+
+```typescript
+useSyncExternalStore(
+  subscribe: (onStoreChange) => unsubscribe,
+  getSnapshot: () => State  // Synchronous function!
+)
+```
+
+The core idea is simple. Data read from IndexedDB is cached in memory and read from this cache synchronously. When data changes, we notify subscribers and force React to re-render.<br />
+There were three reasons for choosing this approach. First, it is the React 18 standard. No need for separate libraries or the latest React version. Second, it is safely compatible with concurrent rendering. useSyncExternalStore is designed with concurrent rendering in mind. Third, it is a proven pattern. Many libraries already use it, and the React team also recommends it.
+
+## Implementing memory cache pattern
+
+Now that we've decided to use useSyncExternalStore, we need to implement a memory cache. The key is to convert IndexedDB's asynchronous data into a form that can be read synchronously in memory.
+
+### CacheState type design
+
+The first decision was how to represent the cache state. Simply `cache: T | null` was not enough. This is because you cannot tell whether it is loading or an error has occurred. We divided it into three states by referring to React Query's state model.
+
+```typescript
+type CacheState<T> =
+  | { status: 'loading' }
+  | { status: 'success'; data: T }
+  | { status: 'error'; error: FirstTxError };
+```
+
+loading is in the initial state or reading IndexedDB. success indicates that the data has been loaded into the cache, and error indicates a read failure. This distinction makes it clear what UI to show in each state. When loading, it is a skeleton, success is actual data, and error is an error message or retry button.
+
+### subscribe and notifySubscribers
+
+The second key is the subscription mechanism. When data changes, all subscribers need to be notified so React can re-render. I managed my subscribers using Set.
+
+```typescript
+const subscribers = new Set<() => void>();
+
+const notifySubscribers = () => {
+  subscribers.forEach((fn) => fn());
+};
+
+const subscribe = (callback: () => void) => {
+  subscribers.add(callback);
+
+  if (subscribers.size === 1 && cacheState.status === 'loading') {
+    model
+      .getSnapshot()
+      .then((data) => {
+        if (data) {
+          cacheState = { status: 'success', data };
+        }
+        notifySubscribers();
+      })
+      .catch((error) => {
+        cacheState = { status: 'error', error };
+        notifySubscribers();
+      });
+  }
+
+  return () => subscribers.delete(callback);
+};
+```
+
+IndexedDB starts reading when the first subscriber is registered. When data arrives, we update cacheState and call notifySubscribers. Then useSyncExternalStore calls getCachedSnapshot again, and React re-renders.<br />
+The reason I chose Set is simple. Duplicate subscriptions are automatically removed and O(1) addition/deletion is possible. Zustand and React Query also use the same pattern.
+
+### getCachedSnapshot: Return synchronous snapshot
+
+The third is the synchronous snapshot function. useSyncExternalStore expects getSnapshot to return a value immediately. Since we have a memory cache, this is simple.
+
+```typescript
+const getCachedSnapshot = (): T | null => {
+  return cacheState.status === 'success' ? cacheState.data : null;
+};
+```
+
+In loading or error state, it returns null. The React component can then handle this with `if (!data) return <Skeleton />`. It returns actual data only in success state.<br />
+The important thing here is **reference stability**. If getCachedSnapshot returns a new object each time, you'll end up with an infinite loop. This is because useSyncExternalStore compares the previous value with Object.is and triggers a re-render if it is different. This issue was later fixed in v0.2.2 (covered later).
+
+### patch and replace: changing data
+
+The last one is the data change method. A patch is a partial update, and replace is a complete replacement. Both methods write to IndexedDB, update the cache, and notify subscribers.
+
+```typescript
+const patch = async (mutator: (draft: T) => void) => {
+  let current = await getSnapshot();
+  if (!current) {
+    current = options.initialData;
+  }
+
+  const next = structuredClone(current);
+  mutator(next);
+
+  const parseResult = options.schema.safeParse(next);
+  if (!parseResult.success) {
+    throw new ValidationError('Invalid data', name, parseResult.error);
+  }
+
+  await storage.set(name, {
+    _v: options.version ?? 1,
+    updatedAt: Date.now(),
+    data: parseResult.data,
+  });
+
+  cacheState = { status: 'success', data: parseResult.data };
+  notifySubscribers();
+};
+```
+
+Perform a deep copy with structuredClone and change it with the mutator function. After verifying with the Zod schema, save it to IndexedDB and update the cache. Finally, notify React by calling notifySubscribers.<br />
+The key to this pattern is that **the cache is always up to date**. As soon as the IndexedDB write is complete, the cache is also updated, so the next call to getCachedSnapshot returns new data. React automatically re-renders, and the UI updates immediately.
+
+## Implementing the useModel hook
+
+Now that we have implemented the memory cache pattern, we need to wrap it in a React hook. useModel takes a Model and returns state, patch, and history. It's simple with useSyncExternalStore.
+
+```typescript
+export function useModel<T>(model: Model<T>) {
+  const state = useSyncExternalStore(
+    model.subscribe,
+    model.getCachedSnapshot,
+    model.getCachedSnapshot,
+  );
+
+  const [history, setHistory] = useState<ModelHistory>({
+    updatedAt: 0,
+    age: Infinity,
+    isStale: true,
+    isConflicted: false,
+  });
+
+  useEffect(() => {
+    model.getHistory().then(setHistory);
+  }, [model]);
+
+  const patch = async (mutator: (draft: T) => void) => {
+    await model.patch(mutator);
+  };
+
+  return [state, patch, history] as const;
+}
+```
+
+The state is managed with useSyncExternalStore. If you pass subscribe and getCachedSnapshot, React will automatically subscribe and re-render. History is managed separately with useState. There is no need to calculate TTL or freshness per render, so they only need to be read once asynchronously.<br />
+patch is a simple wrapper. Calling model.patch calls notifySubscribers internally, and useSyncExternalStore automatically triggers a re-render. History can be updated manually, but in most cases this is not necessary. This is because it is enough to know that the data has changed.<br />
+Now the user can write like this:
+
+```typescript
+function CartPage() {
+  const [cart, patch, history] = useModel(CartModel);
+
+  if (!cart) return <Skeleton />;
+
+  return (
+    <div>
+      {history.isStale && <Badge>Stale data</Badge>}
+      {cart.items.map(item => <CartItem key={item.id} {...item} />)}
+    </div>
+  );
+}
+```
+
+The asynchronous nature of IndexedDB is completely hidden. Users can just use it like a synchronous state. When you call patch, the UI is updated immediately, and you can check the freshness with history.isStale.
+
+## Server Synchronization: Designing useSyncedModel
+
+Local data management was solved with useModel, but server synchronization was still a lot of boilerplate. The traditional pattern is like this:
+
+```typescript
+function CartPage() {
+  const [cart, patch] = useModel(CartModel);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const sync = async () => {
+    setIsSyncing(true);
+    try {
+      const data = await fetchCart();
+      await CartModel.replace(data);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    sync();
+  }, []);
+
+  if (error) return <ErrorBanner error={error} onRetry={sync} />;
+  if (isSyncing && !cart) return <Skeleton />;
+
+  return (
+    <div>
+      {isSyncing && <SyncIndicator />}
+      {/* ... */}
+    </div>
+  );
+}
+```
+
+It's over 15 lines of code. isSyncing state, error handling, try-catch, useEffect... must be repeated in all components. Although it becomes simpler when using React Query, the goal was to be a “library that can be used even without React Query.”<br />
+The solution was to create a separate hook called useSyncedModel. UseModel is called internally and additional server synchronization logic is provided.
+
+```typescript
+export function useSyncedModel<T>(
+  model: Model<T>,
+  fetcher: Fetcher<T>,
+  options?: SyncOptions<T>,
+): SyncedModelResult<T> {
+  const [state, patch, history] = useModel(model);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<Error | null>(null);
+
+  const sync = useCallback(async () => {
+    setIsSyncing(true);
+    setSyncError(null);
+
+    try {
+      const currentData = model.getCachedSnapshot();
+      const data = await fetcher(currentData);
+
+      if ('startViewTransition' in document) {
+        await document.startViewTransition(() => model.replace(data)).finished;
+      } else {
+        await model.replace(data);
+      }
+
+      options?.onSuccess?.(data);
+    } catch (e) {
+      const error = e as Error;
+      setSyncError(error);
+      options?.onError?.(error);
+      throw error;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [model, fetcher, options]);
+
+  return {
+    data: state,
+    patch,
+    sync,
+    isSyncing,
+    error: syncError,
+    history,
+  };
+}
+```
+
+Now the user can write like this:
+
+```typescript
+function CartPage() {
+  const {
+    data: cart,
+    sync,
+    isSyncing,
+    error,
+    history
+  } = useSyncedModel(CartModel, fetchCart, {
+    onSuccess: (data) => console.log('Synced:', data),
+    onError: (err) => toast.error(err.message)
+  });
+
+  if (!cart) return <Skeleton />;
+  if (error) return <ErrorBanner error={error} onRetry={sync} />;
+
+  return (
+    <div>
+      {isSyncing && <SyncIndicator />}
+      {history.isStale && <Badge>Updating...</Badge>}
+      {cart.items.map(item => <CartItem key={item.id} {...item} />)}
+    </div>
+  );
+}
+```
+
+The 15 rows of boilerplate were reduced to 3 rows. The isSyncing, error, and sync functions are provided automatically. Additional logic can be injected with onSuccess/onError callbacks.<br />
+ViewTransition integration is also something to note. By wrapping model.replace in a ViewTransition, you get a smooth animation when transitioning from snapshot data to the latest server data. Users can naturally notice changes in data.
+
+## From autoSync to syncOnMount: A journey of API clarification
+
+Early versions (v0.2.x) of useSyncedModel had an `autoSync` option.
+
+```typescript
+// v0.2.x - Initial design
+useSyncedModel(CartModel, fetchCart, {
+  autoSync: true, // Automatically sync... When?
+});
+```
+
+However, this API had three problems:
+
+### Problem 1: Ambiguous meaning
+
+It wasn't clear exactly "when" `autoSync: true` would run sync. Mount Si? When data becomes stale? Every 5 minutes? Users, code reviewers, and even the library author were confused.
+
+```typescript
+// Looking at this code, can you tell when sync occurs?
+const { data } = useSyncedModel(Model, fetcher, { autoSync: true });
+```
+
+### Problem 2: Differences from React Query
+
+React Query provides a clear refetch trigger.
+
+```typescript
+// React Query - clarity
+useQuery(key, fetcher, {
+  refetchOnMount: true, // mount city
+  refetchOnWindowFocus: true, // focus city
+  refetchInterval: 5000, // interval
+});
+```
+
+FirstTx's `autoSync`, on the other hand, didn't have this clarity. The initial implementation ran sync every time `history.isStale` changed, which was unpredictable.
+
+```typescript
+// v0.2.x implementation - difficult to predict
+useEffect(() => {
+  if (options?.autoSync && history.isStale && !isSyncing) {
+    sync();
+  }
+}, [history.isStale, history.updatedAt, isSyncing, sync]);
+```
+
+### Problem 3: Difficulties in testing and debugging
+
+To test the behavior of `autoSync` I had to wait for the TTL to expire. It was also difficult to answer the question "Why didn't sync happen?" This is because several variables in the dependency array were complicatedly intertwined.
+
+### Solved: Refactoring to syncOnMount
+
+Refactored `autoSync` to `syncOnMount` in v0.3.1. The key idea was **Specifying “When”**.
+
+```typescript
+// v0.3.1 - Clear meaning
+export type SyncOptions<T> = {
+  /**
+   * When to sync on component mount
+   * @default 'stale'
+   */
+  syncOnMount?: 'always' | 'stale' | 'never';
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
+};
+```
+
+We clearly differentiated between three strategies:
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>strategy</th>
+        <th>meaning</th>
+        <th>Use cases</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>'always'</code>
+        </td>
+        <td>always sync on mount</td>
+        <td>Stock prices, real-time data</td>
+      </tr>
+      <tr>
+        <td>
+          <code>'stale'</code> (default)
+        </td>
+        <td>If stale when mounted, sync</td>
+        <td>In most cases, synergy with Prepaint</td>
+      </tr>
+      <tr>
+        <td>
+          <code>'never'</code>
+        </td>
+        <td>No sync when mounted</td>
+        <td>Fully manual control, draft</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Implementation has also become clearer.
+
+```typescript
+// v0.3.1 Implementation - Predictable
+useEffect(() => {
+  const syncOnMount = optionsRef.current?.syncOnMount ?? 'stale';
+
+  if (syncOnMount === 'never') return;
+
+  if (
+    syncOnMount === 'always' ||
+    (syncOnMount === 'stale' && history.isStale)
+  ) {
+    sync().catch(() => {});
+  }
+}, []); // Runs only when mounted!
+```
+
+The dependency array is `[]`. As the name suggests, **"on Mount"** - Checked only when mounting. Afterwards, even if `history.isStale` changes, sync will not be executed again. This is by design.
+
+### Predictable behavior
+
+The behavior of each scenario is now clear.
+
+```typescript
+// Scenario 1: First visit (IndexedDB empty)
+// → history.isStale = true
+// → syncOnMount: 'stale' (default)
+// → sync() call ✅
+
+// Scenario 2: Refresh (within 5 minutes, fresh)
+// → history.isStale = false
+// → syncOnMount: 'stale'
+// → sync() is not called ❌
+
+// Scenario 3: Refresh (TTL passed, stale)
+// → history.isStale = true
+// → syncOnMount: 'stale'
+// → sync() call ✅
+
+// Scenario 4: Stocks app (always needs to be up to date)
+// → syncOnMount: 'always'
+// → Always call sync() ✅
+```
+
+### Synergy with Prepaint
+
+The default `syncOnMount: 'stale'` creates perfect synergy with Prepaint.
+
+```
+[Revisit Scenario]
+1. Prepaint Restore: Yesterday’s snapshot (24 hours ago)
+2. React mount
+3. Check history.isStale:
+   - age: 86400000ms (24 hours)
+   - isStale: true (TTL exceeds 5 minutes)
+4. syncOnMount: 'stale' (default)
+5. Condition met → sync() automatically executed ✅
+6. Smooth updates with ViewTransition
+```
+
+Users can view something immediately (Prepaint) and it is automatically updated with the latest data. Developers don't need to do anything.
+
+### Breaking Change Decision
+
+This refactoring was Breaking Change. But I decided to change it immediately for the following reasons:
+
+1. **Still before v1.0.0**: Breaking Change is less burdensome
+2. **Low number of users**: Only early adopters are using
+3. **API ambiguity**: The ambiguity of `autoSync` is a bigger problem in the long run
+4. **Deprecated Cost**: The cost of maintaining two APIs at the same time is not worth it.
+
+We wrote a migration guide and released it to v0.3.1.
+
+```typescript
+// Before (v0.3.0)
+useSyncedModel(Model, fetcher, { autoSync: true });
+useSyncedModel(Model, fetcher, { autoSync: false });
+useSyncedModel(Model, fetcher); // autoSync: false (default)
+
+// After (v0.3.1)
+useSyncedModel(Model, fetcher); // syncOnMount: 'stale' (new default!)
+useSyncedModel(Model, fetcher, { syncOnMount: 'always' });
+useSyncedModel(Model, fetcher, { syncOnMount: 'never' });
+```
+
+### Results: DX improvements
+
+As a result of the refactoring, the readability and predictability of the code has been significantly improved.
+
+```typescript
+// Now the behavior of this code is clear
+const { data } = useSyncedModel(Model, fetcher);
+// "sync if stale on mount" - clear!
+
+const { data } = useSyncedModel(Model, fetcher, { syncOnMount: 'always' });
+// "always sync on mount" - clear!
+```
+
+Testing has also become simpler. It only checks at mount time, so there is no need for time-based testing. All 28 tests passed, and new edge cases were clearly covered.<br />
+This process taught us that “clarity is more important than flexibility”\*\*. `autoSync` was flexible but ambiguous, `syncOnMount` was restrictive but clear. In most cases, clarity is the better choice.
+
+## Resolving history auto-renewal issue
+
+I found a problem while implementing and testing useSyncedModel. Even if you call sync(), the history is not updated.
+
+```typescript
+const { history, sync } = useSyncedModel(CartModel, fetchCart);
+
+await sync();
+console.log(history.updatedAt); // Still the old values!
+```
+
+The cause was simple. In useModel, history is only loaded in the initial useEffect. Even if model.replace is called later, history is not updated. Even if sync succeeds, history.isStale is still true.<br />
+The solution was to utilize model.subscribe. model.replace() → notifySubscribers() → history automatic update.
+
+```typescript
+useEffect(() => {
+  const unsubscribe = model.subscribe(() => {
+    model
+      .getHistory()
+      .then(setHistory)
+      .catch(() => {});
+  });
+  return unsubscribe;
+}, [model]);
+```
+
+If you read history again in the subscribe callback, the history will be automatically updated whenever the data changes. There is no need to handle it separately in useSyncedModel. Consistency has also improved. Calling model.replace anywhere will update history.
+
+## Infinite loop bug: reference stability issue
+
+Shortly after deploying v0.2.1, serious bug reports came in. The problem is that under certain conditions React goes into infinite re-render. When I ran the profiler, I noticed that useSyncExternalStore was continuously triggering re-render.<br />
+The cause was reference instability in getCachedSnapshot. The initial implementation was like this:
+
+```typescript
+const getCachedSnapshot = () => ({
+  data: cacheState.status === 'success' ? cacheState.data : null,
+  error: cacheState.status === 'error' ? cacheState.error : null,
+  history: cachedHistory,
+});
+```
+
+It creates a new object every time. useSyncExternalStore compares the old value with Object.is, the new object is always different. So infinite re-render occurs.<br />
+For the solution, I referred to the TanStack Query pattern. The idea is to cache snapshots and create new objects only when they actually change.
+
+```typescript
+let cachedSnapshot = {
+  data: null,
+  error: null,
+  history: { updatedAt: 0, age: Infinity, isStale: true, isConflicted: false },
+};
+
+const updateSnapshot = () => {
+  const newData = cacheState.status === 'success' ? cacheState.data : null;
+  const newError = cacheState.status === 'error' ? cacheState.error : null;
+
+  if (
+    cachedSnapshot.data === newData &&
+    cachedSnapshot.error === newError &&
+    cachedSnapshot.history === cachedHistory
+  ) {
+    return;
+  }
+
+  cachedSnapshot = {
+    data: newData,
+    error: newError,
+    history: cachedHistory,
+  };
+};
+
+const getCachedSnapshot = () => cachedSnapshot;
+```
+
+Shallow compare compares to the previous value and creates a new object only when it actually changes. Then useSyncExternalStore determines that the value has not changed and skips the re-render.<br />
+Additionally, the patch function of useModel is also wrapped in useCallback. The fact that the patch function was regenerated every render also caused unnecessary unsubscription/resubscription.
+
+```typescript
+const patch = useCallback(
+  async (mutator: (draft: T) => void) => {
+    await model.patch(mutator);
+  },
+  [model],
+);
+```
+
+These two improvements completely solved the infinite loop and reduced the number of subscribers from 3 to 1 (TanStack Query pattern). We deployed the v0.2.2 patch and all 28/28 tests passed.
+
+## Finish
+
+The problem of connecting IndexedDB and React was ultimately a problem of bridging the “gap between synchronous and asynchronous.” We addressed this gap with useSyncExternalStore and the memory cache pattern, and reduced server synchronization boilerplate by 90% with useSyncedModel. The refactoring from autoSync to syncOnMount greatly improved the clarity of the API, and the default 'stale' satisfies both the Local-First philosophy and Prepaint synergy.<br />
+Currently, v0.3.1 has passed all 28 tests, and ReactSyncLatency has achieved the target (less than 50ms) with 42ms. Infinite loop issues were also solved with TanStack Query's reference stability pattern. The next step is multitap synchronization through BroadcastChannel and stabilization of Prepaint.<br />
+Technical decisions always involve trade-offs. Choosing useSyncExternalStore instead of useState, giving up React 19's use hook, changing autoSync to syncOnMount, and setting the default value to 'stale'. It was important to clarify the basis for each decision and reflect that basis in code and documentation. I hope this article will be helpful to developers facing similar problems.

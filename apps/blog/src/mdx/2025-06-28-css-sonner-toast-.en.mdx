@@ -1,0 +1,65 @@
+---
+slug: '2025-06-28-css-sonner-toast-'
+title: 'Implementing Sonner Toast with CSS'
+description: 'Recreating the Sonner toast package using CSS.'
+date: '2025-06-28'
+tags: ['css', 'motion']
+---
+
+When building web apps, you almost always need to provide feedback for user actions, and for that you typically need a `toast`.<br/>
+Of course, browsers come with built-in `alert` and `confirm`, but those are essentially for confirmation even though they provide feedback. They also aren’t very polished from a UI/UX perspective.<br/>
+
+So in practice, you either implement toast yourself, use the toast that comes with your design library, or use a toast package.<br/>
+Among those, I use a toast package called `sonner`.<br/>
+There are multiple reasons, but the biggest ones are its clean design and natural animations.<br/>
+
+> [sonner](https://sonner.emilkowal.ski/)
+
+<SonnerSample />
+
+If you look at the toasts that appear when you press the button above, you’ll see they stack up like neatly overlapped cards.<br/>
+In this post, I’ll implement that behavior in a simple way.<br/>
+
+## Implementing Sonner Animations
+
+First, let’s build a toast component similar to Sonner.<br/>
+
+<SonnerImpl1 />
+
+This example already works, but compared to the original Sonner there are a few differences.<br/>
+First, there are no animations. -> the animation when a toast appears after clicking the button, the animation as toasts stack up, etc.,<br/>
+
+Let’s add those animations step by step.<br/>
+
+If you look at Sonner, it doesn’t move each toast upward one by one like the CodeSandbox example—it stacks them as if cards are overlapping.<br/>
+To implement that, we likely need to change `.toast` from `position: relative` to `position: absolute`.<br/>
+
+<SonnerImpl2 />
+
+Now they appear overlapped, but the problem is that every toast renders at the same absolute position, so it doesn’t overlap like Sonner.<br/>
+To fix this, we need relative positioning—more specifically, relative positioning based on each card’s order.<br/>
+For example, the 1st card should sit slightly above the 2nd card.<br/>
+
+To control relative positions based on order, it seems we can solve it by combining two ideas.<br/>
+
+- Order => use the index
+- Position changes by order => `translateY` based on the index
+
+Then the question becomes: how do we bring `index` into CSS? -> A great tool for this is **CSS variables**.<br/>
+
+> CSS variables store and use values in CSS using `--xxx` syntax.
+
+<SonnerImpl3 />
+
+Looking at only the key changes,
+
+- `index = toasts - (i + 1)`: the lowest index in `toasts` means it’s the oldest toast, so it should go to the very back. -> so we compute the index in reverse order.
+- `style={{"--index": index}}`: pass the index to CSS as a CSS variable so it can be used in styles.
+- `transform: translateY(calc(var(--index) * (5% + var(--gap)) * -1))`: since we need to move the cards upward based on the index, we multiply `--index` by the amount we want to move up (`(5% + var(--gap))`) and move it up (`-1`)
+
+  > 5% is just an arbitrary number I chose. It may differ from the real value.
+
+Now we’ve implemented the “cards stacking as if overlapped” behavior like Sonner.<br/>
+From here, if we add `transition` and control the mount state to adjust the initial `opacity` and the `opacity` after mount, we get smooth animations.<br/>
+
+<SonnerImpl4 />

@@ -1,8 +1,15 @@
+import { getTranslations } from 'next-intl/server';
+import type { AppLocale } from '@/i18n/routing';
 import { createTRPCContext } from '@/server/trpc/context';
 import { appRouter } from '@/server/trpc/root';
 import { BlogPostCard } from '../blog/blog-post-card';
 
-export const RecentBlogPosts = async () => {
+type RecentBlogPostsProps = {
+  locale: AppLocale;
+};
+
+export const RecentBlogPosts = async ({ locale }: RecentBlogPostsProps) => {
+  const t = await getTranslations({ locale, namespace: 'home' });
   const ctx = await createTRPCContext({ headers: new Headers() });
 
   let posts = null;
@@ -10,7 +17,7 @@ export const RecentBlogPosts = async () => {
   try {
     const result = await appRouter
       .createCaller(ctx)
-      .post.getPosts({ limit: 3 });
+      .post.getPosts({ limit: 3, locale });
 
     posts = result.posts;
     message = result.message;
@@ -21,7 +28,7 @@ export const RecentBlogPosts = async () => {
   if (!posts) {
     return (
       <div className="text-muted-foreground py-12 text-center">
-        게시글을 불러오는 중 에러가 발생했습니다. ({message})
+        {t('loadPostsError')} ({message})
       </div>
     );
   }
@@ -29,7 +36,7 @@ export const RecentBlogPosts = async () => {
   if (posts.length === 0) {
     return (
       <div className="text-muted-foreground py-12 text-center">
-        아직 등록된 게시글이 없습니다.
+        {t('emptyRecentPosts')}
       </div>
     );
   }

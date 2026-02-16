@@ -1,0 +1,286 @@
+---
+slug: '2025-09-02-2025-09-02-react-query-usequeries-combine-pr-merge'
+title: 'React Query useQueries combine function bug fix From PR to Merge'
+description: 'Process of solving an issue where combine is not executed with data deserialized in StoragePersister. We improve testing through maintainer reviews and share our experiences contributing to the v5.85.9 release.'
+date: '2025-09-02'
+thumbnail: '/post/react-query.webp'
+tags: ['react-query']
+---
+
+[Issue #9586](https://github.com/TanStack/query/issues/9586)
+
+[PR #9592](https://github.com/TanStack/query/pull/9592)
+
+[Releases v5.85.9](https://github.com/TanStack/query/releases/tag/v5.85.9)
+
+## Problem found
+
+> [Issue #9586](https://github.com/TanStack/query/issues/9586)
+
+A bug has been reported when using React Query's `useQueries` and `StoragePersister` together. When the page was refreshed, the `combine` function was not called even though there was cached data, so the combined result remained in the `isPending: true` state.
+
+Reproduction conditions were as follows
+
+1. Use `combine` function in `useQueries`
+2. Maintain cache with `staleTime` setting
+3. Save data to localStorage with `StoragePersister`
+
+```ts
+const ids = [1, 2, 3];
+
+const combine = useCallback((results: UseQueryResult<number, Error>[]) => {
+  return results;
+}, []);
+
+const combinedQueries = useQueries({
+  queries: ids.map((id) => ({
+    queryKey: ['post', id],
+    queryFn: () => Promise.resolve(id),
+    staleTime: 30_000,
+  })),
+  combine,
+});
+```
+
+It worked fine on the first load, but when I restored data from localStorage after a refresh, `combine` did not run.
+
+## Cause analysis
+
+While analyzing the repro code, I noticed something interesting.
+
+The gist of this bug was that it only occurred when the `combine` function was wrapped with `useCallback`. When I removed `useCallback` it worked fine.
+
+```ts
+const combine = useCallback((results: UseQueryResult<number, Error>[]) => {
+  return results;
+}, []);
+```
+
+Checking the official documentation, [useQueries reference](https://tanstack.com/query/latest/docs/framework/react/reference/useQueries) recommends wrapping the `combine` function with `useCallback`.
+
+> "This means that an inlined combine function, as shown above, will run on every render. To avoid this, you can wrap the combine function in useCallback, or extract it to a stable function reference if it doesn't have any dependencies."
+
+There was a conflict between the document's recommendations and actual behavior.
+
+I dug deeper and found the root cause in the `#combineResult` method of the `QueriesObserver` class
+
+```ts
+if (
+  !this.#combinedResult ||
+  this.#result !== this.#lastResult ||
+  combine !== this.#lastCombine
+) {
+  this.#lastCombine = combine;
+  this.#lastResult = this.#result;
+  this.#combinedResult = replaceEqualDeep(this.#combinedResult, combine(input));
+}
+```
+
+On the first render after restoring from localStorage:
+
+- `!this.#combinedResult` is `true` (since it is a new instance)
+- `combine` is executed, but the passed `input` has `isPending: true` and `data: undefined`
+- Even though `{ status: 'success', data: {...} }` exists in the actual cache,
+
+The problem came from the behavior of `QueryObserver.getOptimisticResult`. When `_optimisticResults` was set to `'isRestoring'`, cached data could not be read and a pending result was generated.
+
+Since the `combine` wrapped by `useCallback` has a stable reference, this initial incorrect result persists. An inline `combine` function, on the other hand, could be regenerated and re-executed with each render and fetch new data.
+
+So, I conveyed my opinion to the issue reporter, and at first I thought it would be okay to simply add something like "Do not use useCallback in combine when using StoragePersister in the document."
+
+However, the reporter of the issue pointed out an important point:
+
+> "I believe the latter is barely an option - due to the React Compiler. With RC, code that wasn't memoized by the developer could still be memoized by the compiler. Not fixing this would require putting "use no memo" into every component."
+
+React Compiler can automatically optimize code even if the developer has not memoized it. Therefore, stating "Do not use useCallback" in the documentation was not a fundamental solution. As React Compiler becomes more common, this problem will occur more frequently.
+
+## First PR attempt
+
+> [PR #9592](https://github.com/TanStack/query/pull/9592)
+
+I modified the `setQueries` method of the `QueriesObserver` class to solve the problem.
+
+original code
+
+```ts
+if (prevObservers.length === newObservers.length && !hasIndexChange) {
+  return; // Just early return
+}
+```
+
+This code did nothing and returned if the observer count and index did not change. This was the cause of the problem. After restoring data from localStorage, `isRestoring` was changed to `false` and `setQueries` was called, but the observer remained the same, so `combine` was not re-executed due to this condition.
+
+modified code
+
+```ts
+if (prevObservers.length === newObservers.length && !hasIndexChange) {
+  const resultChanged = newResult.some((result, index) => {
+    const prev = this.#result[index];
+    return (
+      !prev || result.data !== prev.data || result.isPending !== prev.isPending
+    );
+  });
+
+  if (resultChanged) {
+    this.#result = newResult;
+    this.#notify();
+  }
+
+  return;
+}
+```
+
+Even if the observer does not change, we check whether the actual result (`data`, `isPending`) has changed, and if so, we call `#notify()` to re-execute `combine`.
+
+This approach solved the problem with minimal changes. Only specific properties are compared to ensure updates occur only when necessary.
+
+## Feedback from maintainer
+
+TkDodo gave us two important pieces of feedback.
+
+The first was about how to compare
+
+> "checking for these 3 props seems a bit random. I think we'd want to use our `shallowEqualObjects` helper from the query-core to just compare `result` with `prev`."
+
+It was pointed out that it is more consistent to compare entire objects using `shallowEqualObjects` rather than comparing only specific properties. The same method was used inside `QueryObserver`.
+
+At first, I was concerned that `shallowEqualObjects` would compare metadata such as `dataUpdatedAt`, causing unnecessary updates. But TkDodo's explanation made sense
+
+> "but if `dataUpdatedAt` changes, we need to inform observers about it, right? A component could render `dataUpdatedAt` on the screen so it will want that information to be correct"
+
+Since the component may also render metadata, we needed to detect any property changes.
+
+The second was feedback on the code structure
+
+> "I don't really like the early returns here and the duplicated assignment to #result as well as calls to #notify, makes it kinda hard to read what is going on."
+
+It was pointed out that early returns and overlapping code harmed readability. suggested a clearer flow
+
+1. Check `hasIndexChange` → Regenerate observer
+2. Check `hasResultChange` → update result
+3. Notify if there are any changes
+
+## Code refactoring
+
+We've reorganized the code to reflect your feedback. First I changed it to use `shallowEqualObjects`
+
+```ts
+const hasResultChange =
+  prevObservers.length === newObservers.length && !hasIndexChange
+    ? newResult.some((result, index) => {
+        const prev = this.#result[index];
+        return !prev || !shallowEqualObjects(result, prev);
+      })
+    : true;
+```
+
+There was one concern during this process. `shallowEqualObjects`, unlike `replaceEqualDeep`, compares only the first level. `combine` will be rerun every time metadata changes, and I was concerned that this would affect performance.
+
+However, when I looked again at React Query's property tracking system, I found that only the properties actually used through Proxy were being tracked in the `#notify()` method.
+
+```ts
+#notify(): void {
+  if (this.hasListeners()) {
+    const previousResult = this.#combinedResult
+    const newTracked = this.#trackResult(this.#result, this.#observerMatches)
+    const newResult = this.#combineResult(newTracked, this.#options?.combine)
+
+    if (previousResult !== newResult) {
+      // Actual re-rendering is determined here
+    }
+  }
+}
+```
+
+This means that even if `combine` is rerun, the component will not be re-rendered unless the tracked properties actually change. Thanks to this, we determined that there would be no major performance issues.
+
+Next, we improved the code structure. Originally, there was code that overlapped with early return, but this has been cleaned up.
+
+```ts
+// Early return if there are no changes
+if (!hasIndexChange && !hasResultChange) return;
+
+// Observer update when index changes
+if (hasIndexChange) {
+  this.#observers = newObservers;
+}
+
+// Results are always updated (only reaches this point when hasResultChange is true)
+this.#result = newResult;
+
+if (!this.hasListeners()) return;
+
+// Observer resubscription when index changes
+if (hasIndexChange) {
+  difference(prevObservers, newObservers).forEach((observer) => {
+    observer.destroy();
+  });
+  difference(newObservers, prevObservers).forEach((observer) => {
+    observer.subscribe((result) => {
+      this.#onUpdate(observer, result);
+    });
+  });
+}
+
+this.#notify();
+```
+
+By organizing it like this, the processing according to each condition has become clearer. Observer-related processing is performed only in `hasIndexChange`, and only the result is updated in `hasResultChange`.
+
+## Modify tests
+
+My existing tests started failing when I used `shallowEqualObjects`. In particular, I ran into a problem with the "should optimize combine if it is a stable reference" test.
+
+Analyzing the test, I found that when I call `refetchQueries()`, the data is the same, but metadata like `dataUpdatedAt` is changed. `shallowEqualObjects` will detect this change and rerun `combine`.
+
+TkDodo explained that this is the correct behavior
+
+> "yeah that test seems slightly off, and actually shows the bug: we get new metadata (dataUpdatedAt), which is part of results passed to combine, but we don't run it"
+
+Unlike `select`, `combine` receives all result objects, so it must be re-executed even when metadata changes. Modified the expected value of the test
+
+```ts
+// existing
+expect(spy).toHaveBeenCalledTimes(3);
+
+// Fix - Additional calls due to metadata changes.
+expect(spy).toHaveBeenCalledTimes(4);
+```
+
+And following TkDodo's suggestion, I added a new case to test unrelated re-rendering:
+
+```ts
+it('should not re-run stable combine on unrelated re-render', async () => {
+  // ...
+  const [unrelatedState, setUnrelatedState] = React.useState(0);
+
+  const queries = useQueries({
+    // ...
+    combine: React.useCallback((results) => {
+      // ...
+    }, []), // stable reference
+  });
+
+  // Re-rendering with unrelated state changes
+  fireEvent.click(rendered.getByRole('button', { name: /increment/i }));
+
+  // Verify that combine is not rerun
+  expect(spy).toHaveBeenCalledTimes(3); // still number 3
+});
+```
+
+This test verifies that the stable combine is not rerun when the metadata is not changed and the component is simply re-rendered.
+
+## Final Merge
+
+> [Releases v5.85.9](https://github.com/TanStack/query/releases/tag/v5.85.9)
+
+All tests passed, the PR was merged with maintainer approval. This fix is ​​included in the v5.85.9 release.
+
+## Finish
+
+This PR was so difficult that it consisted of about 20 simple review comments.
+
+However, while conducting this PR, I learned that even if my initial approach is not perfect, I can reach a better solution by clearly explaining the problem and maintaining an attitude of accepting feedback. The maintainers' perspective considers the consistency and long-term direction of the entire library, so their feedback was not just feedback, but a learning opportunity.
+
+I also deeply understood the importance of testing. Sometimes the test itself may be making incorrect assumptions. As you modify your implementation, you should also reexamine the intent of your tests. As in this case, where tests written to ignore metadata changes were actually hiding bugs, I felt that there are cases where it is necessary to review existing tests without blindly trusting them.

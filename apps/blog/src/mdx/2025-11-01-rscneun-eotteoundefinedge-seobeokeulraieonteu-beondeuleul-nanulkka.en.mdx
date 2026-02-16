@@ -1,0 +1,391 @@
+---
+slug: '2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka'
+title: 'How does RSC split server/client bundles?'
+description: "We knew that using React Server Components would reduce the client bundle size, but it wasn't clear by what mechanism the bundles were actually separated. We traced the actual code in the Next.js repository and saw the process from build time to runtime."
+date: '2025-11-01'
+thumbnail: '/post/next.webp'
+tags: ['nextjs', 'react']
+---
+
+## They say the bundle will be reduced, how?
+
+We know that RSC reduces bundle size, but the actual implementation mechanism was unclear. We traced the Next.js repository code and confirmed the bundle separation process from build time to runtime.
+
+The key question was: **What does it mean for the same file to be bundled differently on the server and client?**
+
+```tsx
+// components/Button.tsx
+'use client';
+
+export default function Button() {
+  return <button onClick={() => alert('clicked')}>Click</button>;
+}
+
+// app/page.tsx
+import Button from '@/components/Button';
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <Button />
+    </div>
+  );
+}
+```
+
+In this simple code, how would `Button.tsx` be included in the server bundle and client bundle respectively? And where does the server component `Page` go?
+
+---
+
+## 1. Identity of ‘use client’
+
+First, we traced how the `'use client'` directive is processed during the build process.
+
+### Role of webpack loader
+
+Next.js analyzes files in `next-swc-loader`,
+
+```typescript
+// packages/next/src/build/webpack/loaders/next-swc-loader.ts
+const FORCE_TRANSPILE_CONDITIONS =
+  /next\/font|next\/dynamic|use server|use client|use cache/;
+
+async function loaderTransform(
+  this: LoaderContext<SWCLoaderOptions>,
+  source?: string,
+  inputSourceMap?: any,
+) {
+  // Check if 'use client' exists
+  if (shouldMaybeExclude && !FORCE_TRANSPILE_CONDITIONS.test(source)) {
+    return [source, inputSourceMap];
+  }
+
+  // Convert to SWC
+  return transform(source as any, programmaticOptions);
+}
+```
+
+When this loader finds the string `'use client'`, it asks the Rust compiler (SWC) to translate it.
+
+### Conversion of SWC
+
+SWC converts `'use client'` to a comment,
+
+```typescript
+// Before conversion
+'use client'
+export default function Button() { ... }
+
+// After conversion (conceptual)
+/* __next_internal_client_entry_do_not_use__ default auto */
+export default function Button() { ... }
+```
+
+This comment acts as a marker in later steps to indicate that the file is a Client Component.
+
+### Handling of next-flight-loader
+
+Next, `next-flight-loader` detects this annotation and processes it differently for each bundle,
+
+```typescript
+// packages/next/src/build/webpack/loaders/next-flight-loader/index.ts
+export default function transformSource(
+  this: LoaderContext<undefined>,
+  source: string,
+  sourceMap: any,
+) {
+  const buildInfo = getModuleBuildInfo(module);
+  buildInfo.rsc = getRSCModuleInformation(source, true);
+
+  // In case of Client Component
+  if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
+    const stringifiedResourceKey = JSON.stringify(resourceKey);
+
+    // For server bundles: replace actual code with reference
+    if (assumedSourceType === 'module') {
+      let esmSource = `
+import { registerClientReference } from "react-server-dom-webpack/server";
+
+export default registerClientReference(
+  function() { 
+    throw new Error(\`Attempted to call the default export of \${stringifiedResourceKey} from the server\`);
+  },
+  ${stringifiedResourceKey},
+  "default",
+);
+`;
+      return this.callback(null, esmSource, sourceMap);
+    }
+  }
+
+  // If it is not a Client Component, leave it as the original.
+  return this.callback(null, source, sourceMap);
+}
+```
+
+<CodeTransformAnimation />
+The key here is that **the same file is processed twice**.
+
+- Server bundle: Replaced with `registerClientReference` call.
+- Client bundle: Original code intact
+
+---
+
+## 2. Structure of reference objects
+
+What does `registerClientReference` return?
+
+Looking at React’s code,
+
+```typescript
+// packages/react-server-dom-webpack/src/ReactFlightWebpackReferences.js
+export function registerClientReference(proxyImplementation, id, exportName) {
+  return Object.defineProperties(proxyImplementation, {
+    $$typeof: { value: CLIENT_REFERENCE },
+    $$id: { value: id },
+    $$async: { value: false },
+    // ...
+  });
+}
+```
+
+The returned object is a **reference object** with a special `$$typeof` property.
+
+```typescript
+{
+  $$typeof: Symbol.for('react.client.reference'),
+  $$id: '/absolute/path/to/Button.tsx#default',
+  $$async: false
+}
+```
+
+This object is not an actual component, but rather a marker that says "here is a client component."
+
+---
+
+## 3. Serialization on the server
+
+When rendering a component on the server, what happens when it encounters this reference object?
+
+```tsx
+// app/page.tsx (Server Component)
+export default function Page() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <Button /> {/* Actually a reference object */}
+    </div>
+  );
+}
+```
+
+React traverses the tree and when it finds a reference object, it serializes it as an RSC Payload.
+
+```typescript
+// packages/react-server/src/ReactFlightServer.js (conceptual)
+function renderElement(element) {
+  if (element.$$typeof === CLIENT_REFERENCE) {
+    // Serialize reference information
+    return serializeClientReference(element);
+  }
+  // Normal elements are rendered as is
+}
+```
+
+The final generated RSC Payload,
+
+```
+M1: {"id":"./src/components/Button.tsx","name":"default","chunks":["client123"]}
+0: ["$","div",null,{"children":[
+0:   ["$","h1",null,{"children":"Welcome"}],
+0:   ["$","@1"]
+0: ]}]
+```
+
+<RSCPayloadVisualization />
+Here,
+
+- `M1`: Client Component definition (file path, export name, chunk ID)
+- `@1`: Placeholder for "Render M1 here"
+
+---
+
+## Step 4: Restore on the client
+
+When the browser receives this data,
+
+```html
+<!DOCTYPE html>
+<html>
+  <body>
+    <div>
+      <h1>Welcome</h1>
+    </div>
+
+    <script>
+      self.__next_f.push([
+        1,
+        'M1:{"id":"./Button.tsx","chunks":["client123"]}',
+      ]);
+      self.__next_f.push([1, '0:["$","div",null,{"children":...}]']);
+    </script>
+    <script src="/_next/static/chunks/client-123.js" async></script>
+  </body>
+</html>
+```
+
+processing process,
+
+1. **HTML parsing**: `<h1>Welcome</h1>` is immediately displayed on the screen
+2. **Save RSC Payload**: Accumulated in `self.__next_f` array
+3. **Chunk Load**: Import the actual Button component from `client-123.js`
+4. **Hydration**: Connect the actual component to the `@1` position.
+
+<HydrationTimeline />
+the actual contents of the client bundle;
+```javascript
+// client-chunk-123.js
+export default function Button() {
+  return React.createElement(
+    'button',
+    {
+      onClick: () => alert('clicked'),
+    },
+    'Click',
+  );
+}
+```
+The original code is included. Unlike server bundles, this is actual executable code.
+
+---
+
+## Summary: Mechanism of bundle separation
+
+To summarize the entire process,
+
+### Build time
+
+```typescript
+// 1. Written by developer
+'use client'
+export default function Button() { ... }
+
+// 2. SWC conversion
+/* __next_internal_client_entry_do_not_use__ */
+export default function Button() { ... }
+
+// 3. next-flight-loader branch
+// Server Bundle:
+export default registerClientReference(...)
+
+// Client Bundle:
+export default function Button() { ... }  // keep original
+```
+
+### Runtime
+
+```typescript
+// 4. Server rendering
+<Page>
+  → <Button /> (reference object found)
+  → Create RSC Payload: M1: {...}, @1
+
+// 5. Client reception
+HTML: <div><h1>Welcome</h1></div>
+Payload: M1, @1
+Chunk: client-123.js
+
+// 6. Hydration
+@1 location + client-123.js → Actual Button rendering
+```
+
+## <BundleSplitDiagram />
+
+## Reasons for bundle size reduction
+
+The benefits of RSC are now clear.
+
+```tsx
+// Server Component
+import _ from 'lodash'; // 2MB library
+import { db } from './db';
+
+export default async function Page() {
+  const users = await db.getUsers();
+  const grouped = _.groupBy(users, 'country');
+
+  return (
+    <div>
+      <UserList data={grouped} /> {/* Client Component */}
+    </div>
+  );
+}
+```
+
+**Included in server bundle only**
+
+- Server Component Code (Page)
+- lodash library
+- Database access code
+
+**Included in client bundle only**
+
+- Client Component code (UserList)
+- Only libraries used by UserList
+
+**Send to client**
+
+- Server Component execution **Result** (HTML + RSC Payload)
+- Client Component Reference Information
+- Server component code is not transmitted.
+
+<BundleSizeComparison />
+The bundle is determined depending on where the same file is used. ```tsx // Use
+only on servers → Only in server bundles import _ from 'lodash';
+
+// Only used on clients → Only on client bundles
+('use client');
+import \_ from 'lodash';
+
+// Use both → both bundles
+
+```
+---
+
+Lastly, to summarize the key points:
+
+### 1. ‘use client’ is a build time marker
+
+It does not change runtime behavior, but is a marker that webpack uses to split bundles. The pipeline from SWC → next-flight-loader handles this.
+
+### 2. Same file, different processing
+
+The Client Component files are bundled twice.
+
+- For servers: replaced by reference object
+- For clients: maintain original code
+
+### 3. Serialization is key
+
+The core of RSC is the process of serializing a reference object on the server into an RSC Payload and restoring it to an actual component on the client.
+
+### 4. Bundle separation is automatic
+
+Developers only need to write `'use client'` and the build system will take care of the rest. webpack analyzes the dependency graph and creates the optimal bundle.
+
+---
+
+## Finish
+
+RSC's unbundling wasn't just "magic"; it was the result of a structured build pipeline.
+
+One line `'use client'` sets the whole process in motion: SWC conversion → webpack loader → reference object creation → RSC Payload serialization → hydration.
+
+By understanding this mechanism, you can clearly determine “why it works this way” and “what code goes where” when using RSC.
+
+Deeper implementation details can be found in the Next.js and React repositories.
+
+- `packages/next/src/build/webpack/loaders/next-flight-loader/`
+- `packages/react-server-dom-webpack/src/`
+```

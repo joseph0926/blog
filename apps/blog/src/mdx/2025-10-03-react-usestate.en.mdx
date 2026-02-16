@@ -1,0 +1,343 @@
+---
+slug: '2025-10-03-react-usestate'
+title: 'React useState internal structure: secrets of functional updates and linked lists'
+description: 'Implementing useState directly in vanilla JS, we dig into why functional updates are necessary and why React chose linked lists.'
+date: '2025-10-03'
+thumbnail: '/post/react.webp'
+tags: ['react']
+---
+
+## Why does React update the screen **automatically**?
+
+If I were to create a counter in vanilla JavaScript, I would write it like this.
+
+```js
+let count = 0;
+
+const addButton = document.getElementById('button');
+const countSpan = document.getElementById('count');
+
+addButton.addEventListener('click', () => {
+  count++;
+  // You need to update the DOM yourself
+  countSpan.textContent = count;
+});
+```
+
+The screen does not change with just count++. You must explicitly call countSpan.textContent = count.
+
+But in React, you write it like this:
+
+```jsx
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <div>
+      <p>Count: {count}</p>
+      <button onClick={() => setCount(count + 1)}>+</button>
+    </div>
+  );
+}
+```
+
+Just call setCount and the screen will update **automatically**. There is no code anywhere that directly manipulates the DOM.
+
+How is this possible?
+
+In this article, we will try to implement useState ourselves and answer two key questions:
+
+1. Why does it only increase by 1 even if setCount(count + 1) is called multiple times? (Need for functional update)
+2. Why does React use linked lists instead of arrays? (Component Isolation)
+
+## Implement useState yourself
+
+If you want to implement useState in JavaScript, there is one thing you need to answer first.
+
+### Where should the state be stored?
+
+In fact, component functions are executed each time they are rendered, so how is the state maintained?
+
+```js
+function Counter() {
+  let count = 0;
+
+  const increment = () => {
+    count++;
+    render();
+  };
+}
+```
+
+For example, if written as above, count is initialized to 0 every time the function is executed.
+
+This means that state cannot be placed inside a function.
+
+So what if we put the state outside of the function?
+
+```js
+const MyReact = (function () {
+  let state; // Store outside of function
+
+  function useState(initialValue) {
+    if (state === undefined) {
+      state = initialValue;
+    }
+
+    const setState = (newValue) => {
+      state = newValue;
+      render();
+    };
+
+    return [state, setState];
+  }
+
+  // ...render function
+})();
+```
+
+The state is now maintained. But a new problem arises.
+
+### How to distinguish between multiple useStates?
+
+```jsx
+function Counter() {
+  const [count, setCount] = useState(0);
+  const [name, setName] = useState('React');
+  const [age, setAge] = useState(20);
+}
+```
+
+What happens if you call useState multiple times in one component? As in the code above, if there is only one state variable, all states will be overwritten.
+
+If so, you need a way to distinguish each useState, and there are probably two ways to implement it.
+
+1. Create variables for each state => (state1, state2, state3...) => The problem is that the number of states is not known in advance.
+2. **Collect** and store the states somewhere => Save it as an array and find it by index
+
+In case 1, this may not be a problem in small apps, but as the number of components and hooks increases, too many variables are used.
+
+Therefore, I used arrangement number 2.
+
+```js
+const MyReact = (function () {
+  let hooks = []; // Store states in an array
+  let currentIndex = 0; // What is the current useState?
+
+  function useState(initialValue) {
+    const hookIndex = currentIndex; // Capture with Closure
+
+    if (hooks[hookIndex] === undefined) {
+      hooks[hookIndex] = initialValue;
+    }
+
+    const setState = (newValue) => {
+      hooks[hookIndex] = newValue;
+      render();
+    };
+
+    currentIndex++; // For the next useState
+    return [hooks[hookIndex], setState];
+  }
+
+  function render() {
+    currentIndex = 0; // Initialize each render
+    // ...
+  }
+})();
+```
+
+1. First useState(0) call → stored in hooks[0], currentIndex is set to 1
+2. Second useState('React') call → saved in hooks[1], currentIndex is set to 2
+3. Third useState(20) call → Save in hooks[2]
+
+## Why functional updates are needed
+
+Now, if you test the demo, you'll notice that there's a bit of a problem.
+
+> The demo is in the form below.
+
+```js
+function Counter() {
+  const [count, setCount] = useState(0);
+
+  const incrementThree = () => {
+    setCount(count + 1);
+    setCount(count + 1);
+    setCount(count + 1);
+  };
+
+  return `
+    <div>
+      <p>Count: ${count}</p>
+      <button onclick="incrementThree()">+3</button>
+    </div>
+  `;
+}
+```
+
+<Counter />- Expected: count increases by 3 - Actual: count increases by 10,000
+
+In fact, if you look at the code, it's clear why it works this way.
+
+```js
+const incrementThree = () => {
+  setCount(count + 1);
+  setCount(count + 1);
+  setCount(count + 1);
+};
+```
+
+At the time the incrementThree function is executed, count is fixed to 0. (Closure)
+
+This means that each setCount call triggers render(), but does not change the count variable inside the incrementThree function that is already executing.
+
+The official React documentation says that the solution to this problem is to update the state as shown below.
+
+```js
+const incrementThree = () => {
+  setCount((prev) => prev + 1);
+  setCount((prev) => prev + 1);
+  setCount((prev) => prev + 1);
+};
+```
+
+<CounterFn />
+### But why does it refer to the latest value when passing a function?
+
+When passing a value, count + 1 is calculated immediately at function execution time.
+
+However, if you pass a function, prev => prev + 1 is executed inside setState and receives the latest value at that point.
+
+Looking at the code implemented above,
+
+```js
+const setState = (newValue) => {
+  // Check if it is a function
+  if (typeof newValue === 'function') {
+    hooks[hookIndex] = newValue(hooks[hookIndex]); // Pass latest value
+  } else {
+    hooks[hookIndex] = newValue;
+  }
+  render();
+};
+```
+
+In fact, React’s internal code also follows the same pattern.
+
+```js
+// ReactFiberHooks.js
+function basicStateReducer<S>(state: S, action: BasicStateAction<S>): S {
+  return typeof action === 'function' ? action(state) : action;
+}
+
+// action is newValue based on our code
+// state is hooks[hookIndex] based on our code
+```
+
+## Why a linked list rather than an array?
+
+The current implementation seems to be working well, but it has some critical issues that make it difficult to use in production.
+
+### What if there are many components?
+
+```js
+function App() {
+  const [count, setCount] = useState(0);
+  const [name, setName] = useState('');
+  return <Child />;
+}
+
+function Child() {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  return <GrandChild />;
+}
+
+function GrandChild() {
+  const [age, setAge] = useState(20);
+}
+```
+
+As implemented now, it will be saved as below.
+
+```
+hooks[0] = count      // App
+hooks[1] = name       // App
+hooks[2] = title      // Child
+hooks[3] = description // Child
+hooks[4] = age        // GrandChild
+```
+
+That is, the states of all components are mixed in one array.
+
+But what happens if you unmount the Child component in this situation?
+
+```
+// After unmounting the child
+hooks[0] = count      // App
+hooks[1] = name       // App
+hooks[2] = ???        // Empty space?
+hooks[3] = ???        // Empty space?
+hooks[4] = age        // GrandChild - Still in [4]?
+```
+
+- Leave empty space as is -> Waste of memory
+- Pull GrandChild forward -> Requires index rebalancing, complicated
+- Difficult to keep track of which hook belongs to which component
+
+### Each component has its own independent hook chain => linked list
+
+React is designed so that each component (Fiber, to be exact) has its own hook-linked list.
+
+> If you check the type Hook of ReactFiberHooks.js, next exists.
+
+```
+Fiber(App) {
+  memoizedState: Hook(count) -> Hook(name) -> null
+}
+
+Fiber(Child) {
+  memoizedState: Hook(title) -> Hook(description) -> null
+}
+
+Fiber(GrandChild) {
+  memoizedState: Hook(age) -> null
+}
+```
+
+In other words, even if the child is unmounted, only the corresponding fiber and hook chain need to be removed from memory. Other components are not affected at all.
+
+## Cleanup
+
+I implement useState myself and have noticed two important design decisions:
+
+1. Functional update
+
+- Problem: Due to closure, the previous value is referenced even if called multiple times.
+- Solved: Use the latest value at the time of execution by passing a function
+
+```js
+// X setCount(count + 1)
+// O setCount(prev => prev + 1)
+```
+
+2. Linked List
+
+- Problem: Global arrays cause interference between components
+- Solved: Each component has its own independent hook chain.
+
+---
+
+If you want to explore further
+Among React source code,
+
+`packages/react-reconciler/src/ReactFiberHooks.js`
+
+```
+basicStateReducer - Functional update logic
+updateWorkInProgressHook - Linked list traversal
+mountState vs updateState - step by step
+```
+
+You can refer to this route.

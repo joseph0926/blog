@@ -19,7 +19,10 @@ export const createPost = async (data: {
   let counter = 2;
   const postsPath = path.join(process.cwd(), 'src/mdx');
 
-  while (fs.existsSync(path.join(postsPath, `${finalSlug}.mdx`))) {
+  while (
+    fs.existsSync(path.join(postsPath, `${finalSlug}.mdx`)) ||
+    fs.existsSync(path.join(postsPath, `${finalSlug}.en.mdx`))
+  ) {
     finalSlug = `${date}-${baseSlug}-${counter}`;
     counter++;
   }
@@ -45,5 +48,7 @@ export const createPost = async (data: {
     readingTime: 1,
     createdAt: new Date(date),
     tags: tags.map((tag) => ({ id: tag, name: tag })),
+    resolvedLocale: 'ko',
+    isFallback: false,
   };
 };

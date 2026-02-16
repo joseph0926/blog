@@ -28,27 +28,29 @@ TypeScript는 JavaScript에 타입만 입힌 언어입니다. 타입을 제거�
 
 반면 C 언어에서 어셈블리 언어로의 변환은 1:1 매칭이 되지 않습니다. 이렇게 1:1 매칭이 불가능하면 "다른 레벨"로 취급합니다. 다른 레벨끼리의 변환에 사용되는 것이 컴파일러입니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>구분</th>
-      <th>변환 방향</th>
-      <th>예시</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>컴파일러</td>
-      <td>다른 레벨</td>
-      <td>C → 어셈블리</td>
-    </tr>
-    <tr>
-      <td>트랜스파일러</td>
-      <td>같은 레벨</td>
-      <td>TS → JS, ES2024 → ES5</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>구분</th>
+        <th>변환 방향</th>
+        <th>예시</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>컴파일러</td>
+        <td>다른 레벨</td>
+        <td>C → 어셈블리</td>
+      </tr>
+      <tr>
+        <td>트랜스파일러</td>
+        <td>같은 레벨</td>
+        <td>TS → JS, ES2024 → ES5</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 ---
 
@@ -106,32 +108,34 @@ Vite 서버: App.tsx를 JavaScript로 변환해서 응답
 
 Vite는 개발 모드에서 esbuild를, 프로덕션에서 Rollup을 사용합니다.
 
-<table>
-  <thead>
-    <tr>
-      <th></th>
-      <th>esbuild</th>
-      <th>Rollup</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>속도</td>
-      <td>매우 빠름 (Go 언어, 병렬 처리)</td>
-      <td>상대적으로 느림</td>
-    </tr>
-    <tr>
-      <td>최적화 품질</td>
-      <td>기본적</td>
-      <td>정교함 (트리 쉐이킹 우수)</td>
-    </tr>
-    <tr>
-      <td>용도</td>
-      <td>개발 (속도 중요)</td>
-      <td>프로덕션 (품질 중요)</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th></th>
+        <th>esbuild</th>
+        <th>Rollup</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>속도</td>
+        <td>매우 빠름 (Go 언어, 병렬 처리)</td>
+        <td>상대적으로 느림</td>
+      </tr>
+      <tr>
+        <td>최적화 품질</td>
+        <td>기본적</td>
+        <td>정교함 (트리 쉐이킹 우수)</td>
+      </tr>
+      <tr>
+        <td>용도</td>
+        <td>개발 (속도 중요)</td>
+        <td>프로덕션 (품질 중요)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 개발할 때는 빠른 피드백이 중요하고, 배포할 때는 최적화된 결과물이 중요합니다. Vite는 상황에 맞는 도구를 선택합니다.
 

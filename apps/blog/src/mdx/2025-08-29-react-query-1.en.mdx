@@ -1,0 +1,389 @@
+---
+slug: '2025-08-29-2025-08-29-react-query-1'
+title: 'React Query internal operating principles 1 - The secret of selective re-rendering'
+description: "Let's look at internal code to see how React Query configures the data flow from Query → QueryObserver → Component and uses Proxy to track only the properties actually used to prevent unnecessary re-rendering."
+date: '2025-08-29'
+thumbnail: '/post/react-query.webp'
+tags: ['react-query']
+---
+
+For my open source contribution to @tanstack/react-query, I started looking into the internal code to learn more about the internal mechanisms.
+
+By checking the internal code like this, some of the issues that you may have to worry about when using react-query have been resolved to some extent.
+
+For example,
+
+- Obviously, there are many states such as isLoading, data, isError, etc., but why re-render only the values I use?
+- Why should a Query instance be defined outside of the React rendering tree?
+- What is `structuralSharing` and why is `structuralSharing` turned on by default?
+- What happens if the same query is called multiple times in one component?
+- Will the select function be re-executed for every query?
+
+I will try to answer these questions one by one in several posts.
+
+## @tanstack/react-query flow
+
+First, the flow of @tanstack/react-query is largely divided into three parts.
+
+1.Query
+2.QueryObserver
+3.Component
+
+To summarize this relationship in a simple sentence,
+
+> Data change → Query instance (based on queryKey) → QueryObserver (1 for each instance where useQuery etc. is used) → Listener call (useBaseQuery > useSyncExternalStore > onStoreChange) → Notify component of data change
+
+Let's take a closer look at this relationship.
+
+## How to notice changes in data?
+
+Let's start by looking at the "Data change → Query instance → Notify QueryObserver" section that exists first in the above flow.
+
+The first thing you need to know here is “When does the data change?” Typically this will be one of the following cases:
+
+- When one of the refetch options is triggered after the cache has become stale.
+- When the user presses the refetch button
+- Because other mutations invalidate it
+
+react-query naturally handles all three cases internally, but in this section we will first check "when the cache is stale and component mount, which is one of the refetch options, is triggered."
+
+Among the code in `query-core/src/queryObserver.ts`, the part related to this is the code below.
+
+```ts
+protected onSubscribe(): void {
+  if (this.listeners.size === 1) {
+    this.#currentQuery.addObserver(this)
+
+    if (shouldFetchOnMount(this.#currentQuery, this.options)) {
+      this.#executeFetch()
+    } else {
+      this.updateResult()
+    }
+
+    this.#updateTimers()
+  }
+}
+```
+
+In this code, `listeners` are callback functions that connect React components and QueryObserver. `listeners.size === 1` means when the first subscriber is registered. First, let's exclude this part and focus on one part.
+
+```ts
+if (shouldFetchOnMount(this.#currentQuery, this.options)) {
+  this.#executeFetch();
+}
+```
+
+I don't know what `shouldFetchOnMount` does here in detail, but if you look at the function name, it is interpreted as "fetch should be performed when mounted" and matches the case we were trying to deal with.
+
+So, if this if statement is passed, `this.#executeFetch()` is called. What role does this method play?
+
+```ts
+#executeFetch(
+  fetchOptions?: Omit<ObserverFetchOptions, 'initialPromise'>,
+): Promise<TQueryData | undefined> {
+  // The query may have been updated again at the moment `#executeFetch` is called, so to prevent this, check once more when calling #executeFetch.
+  this.#updateQuery()
+
+  // Obtain the resulting promise through fetch in the current query.
+  let promise: Promise<TQueryData | undefined> = this.#currentQuery.fetch(
+    this.options as QueryOptions<TQueryFnData, TError, TQueryData, TQueryKey>,
+    fetchOptions,
+  )
+
+  return promise // returns promise as a result of fetch
+}
+```
+
+As commented above, it is a relatively simple method that "returns a promise that is the fetch result."
+
+If you look a little more closely, it calls `this.#currentQuery.fetch()`, where `fetch` is a method of the Query instance.
+
+Therefore, if you look at the `fetch` code in `query-core/src/query.ts`, there is a part that stores the result in `this.setData` upon success, as shown below.
+
+```ts
+async fetch(
+  options?: QueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+  fetchOptions?: FetchOptions<TQueryFnData>,
+): Promise<TData> {
+  // ...
+
+  this.setData(data) // Upon success
+
+  // ...
+
+  this.#dispatch({
+    type: 'error',
+    error: error as TError,
+  }) // When an error occurs
+
+  // ...
+}
+```
+
+What is more relevant to the current topic than that is the intermittent use of `#dispatch`.
+
+```ts
+// ...
+this.#dispatch({ type: 'fetch', meta: context.fetchOptions?.meta });
+// ...
+this.#dispatch({
+  type: 'error',
+  error: error as TError,
+});
+// ...
+```
+
+If you see that `#dispatch` is called every time each state changes, you can predict that `#dispatch` plays the “role of notifying changes” mentioned in this article, and if you check the code to see if it actually does,
+
+```ts
+#dispatch(action: Action<TData, TError>): void {
+  this.state = reducer(this.state)  // 1. Status update
+
+  notifyManager.batch(() => {
+    this.observers.forEach((observer) => {
+      observer.onQueryUpdate()  // 2. Notify all Observers
+    })
+
+    this.#cache.notify({ query: this, type: 'updated', action })  // 3. Notify cache as well
+  })
+}
+```
+
+In fact, you can confirm that changes are notified to the cache through the `notify` method and `onQueryUpdate()` of all Observers is called. Here, `notifyManager.batch()` serves to prevent unnecessary re-rendering by processing multiple updates as one.
+
+Now, before checking the role of `observer.onQueryUpdate()`, let's summarize the flow so far.
+
+1. Query fetch() execution
+2. Receiving data → Contain data with setData() and notify changes with `#dispatch({ ... })`
+3. After changing the status in #dispatch, notify all caches of the change and also call onQueryUpdate() of Observers.
+
+Then, if you check `onQueryUpdate`, it is calling `this.updateResult()`,
+
+```ts
+onQueryUpdate(): void {
+  this.updateResult()
+
+  if (this.hasListeners()) {
+    this.#updateTimers()
+  }
+}
+```
+
+If you check `this.updateResult()`,
+
+```ts
+updateResult(): void {
+  // Previous results to compare to
+  const prevResult = this.#currentResult as
+    | QueryObserverResult<TData, TError>
+    | undefined
+
+  // Create up-to-date results based on your query now
+  const nextResult = this.createResult(this.#currentQuery, this.options)
+
+  this.#currentResultState = this.#currentQuery.state
+  this.#currentResultOptions = this.options
+
+  if (this.#currentResultState.data !== undefined) {
+    this.#lastQueryWithDefinedData = this.#currentQuery
+  }
+
+  // Compare the previous result and the latest result, and if they are the same, end without updating.
+  if (shallowEqualObjects(nextResult, prevResult)) {
+    return
+  }
+
+  // If different, assign the current result as the latest result
+  this.#currentResult = nextResult
+
+  const shouldNotifyListeners = (): boolean => {
+    // If there is no previous result => If it is the first run → Notify immediately
+    if (!prevResult) {
+      return true
+    }
+
+    const { notifyOnChangeProps } = this.options
+    const notifyOnChangePropsValue =
+      typeof notifyOnChangeProps === 'function'
+        ? notifyOnChangeProps()
+        : notifyOnChangeProps
+
+    if (
+      // explicitly specify notifyOnChangeProps as "all", or
+      notifyOnChangePropsValue === 'all' ||
+      // If trackedProps is empty without specifying notifyOnChangeProps separately,
+      // (If the part that uses the value of useQuery has not yet been accessed)
+      (!notifyOnChangePropsValue && !this.#trackedProps.size)
+    ) {
+      // update
+      return true
+    }
+
+    // Store properties that are being tracked
+    const includedProps = new Set(
+      notifyOnChangePropsValue ?? this.#trackedProps,
+    )
+
+    if (this.options.throwOnError) {
+      includedProps.add('error')
+    }
+
+    return Object.keys(this.#currentResult).some((key) => {
+      // If the properties of the current result have the same properties and changes as the previous result,
+      const typedKey = key as keyof QueryObserverResult
+      const changed = this.#currentResult[typedKey] !== prevResult[typedKey]
+
+      // Detect the change and determine if it is something to be tracked.
+      return changed && includedProps.has(typedKey)
+    })
+  }
+
+  // As a result, it is decided whether to notify (true) or not to notify (false) and then deliver it.
+  this.#notify({ listeners: shouldNotifyListeners() })
+}
+```
+
+Finally, the `#notify` method calls listeners according to the results of `shouldNotifyListeners()`.
+
+Additionally, as we'll cover in more detail in the next article, these listeners are callback functions connected through React's `useSyncExternalStore`, which when called trigger re-rendering of the component.
+
+In this way, the entire flow of data change notification from Query → QueryObserver → Component is completed.
+
+## Obviously, there are many states such as isLoading, data, isError, etc., so why re-render only the values ​​I use?
+
+So, let's take a look at one of the many questions that can be answered only with the content of this post: "There are obviously many states such as isLoading, data, and isError, but why do I only re-render the values ​​I use?"
+
+The following logic exists at the end of the function `updateResult()` examined last in this article.
+
+```ts
+const shouldNotifyListeners = (): boolean => {
+  // If there is no previous result => If it is the first run → Notify immediately
+  if (!prevResult) {
+    return true;
+  }
+
+  const { notifyOnChangeProps } = this.options;
+  const notifyOnChangePropsValue =
+    typeof notifyOnChangeProps === 'function'
+      ? notifyOnChangeProps()
+      : notifyOnChangeProps;
+
+  if (
+    // explicitly specify notifyOnChangeProps as "all", or
+    notifyOnChangePropsValue === 'all' ||
+    // If trackedProps is empty without specifying notifyOnChangeProps separately,
+    // (If the part that uses the value of useQuery has not yet been accessed)
+    (!notifyOnChangePropsValue && !this.#trackedProps.size)
+  ) {
+    // update
+    return true;
+  }
+
+  // Store properties that are being tracked
+  const includedProps = new Set(notifyOnChangePropsValue ?? this.#trackedProps);
+
+  if (this.options.throwOnError) {
+    includedProps.add('error');
+  }
+
+  return Object.keys(this.#currentResult).some((key) => {
+    // If the properties of the current result have the same properties and changes as the previous result,
+    const typedKey = key as keyof QueryObserverResult;
+    const changed = this.#currentResult[typedKey] !== prevResult[typedKey];
+
+    // Detect the change and determine if it is something to be tracked.
+    return changed && includedProps.has(typedKey);
+  });
+};
+```
+
+Here, there are slightly unfamiliar variables and fields => `notifyOnChangeProps`, `trackedProps`
+
+These two are the core of the question.
+
+### Attribute tracking using trackResult and Proxy
+
+Although not covered above, at the end of `react-query/src/useBaseQuery.ts`,
+
+```ts
+// Handle result property usage tracking
+return !defaultedOptions.notifyOnChangeProps
+  ? observer.trackResult(result)
+  : result;
+```
+
+This logic exists.
+
+If you read this logic as is, if notifyOnChangeProps does not exist among the query options, the result is `observer.trackResult(result)`, and if it exists, the result is returned as is.
+
+What I'm curious about here is the role of the `trackResult` method.
+
+```ts
+trackResult(
+  result: QueryObserverResult<TData, TError>,
+  onPropTracked?: (key: keyof QueryObserverResult) => void,
+): QueryObserverResult<TData, TError> {
+  return new Proxy(result, {
+    get: (target, key) => {
+      this.trackProp(key as keyof QueryObserverResult)
+      onPropTracked?.(key as keyof QueryObserverResult)
+      if (
+        key === 'promise' &&
+        !this.options.experimental_prefetchInRender &&
+        this.#currentThenable.status === 'pending'
+      ) {
+        this.#currentThenable.reject(
+          new Error(
+            'experimental_prefetchInRender feature flag is not enabled',
+          ),
+        )
+      }
+      return Reflect.get(target, key)
+    },
+  })
+}
+```
+
+It looks complicated, but to put it simply, it is a method that utilizes Javasciprt's `Proxy` to track what is actually used.
+
+To give a simple example,
+
+```tsx
+const result = useQuery({ queryKey: ['users'] });
+
+// ...
+return <div>{result.data?.name}</div>;
+```
+
+When such a component exists, the component only uses `result.data`, but when re-fetching occurs, `isFetching` etc. will also change.
+
+So should it be re-rendered only when `data` changes? Or will both `data` and `isFetching` trigger?
+
+You can test it out for yourself in the demo below.
+
+<ProxyTrack />
+In conclusion, re-rendering occurs only when `data` changes.
+
+If we explain it in relation to the `trackResult` method above,
+
+1. When data is accessed, Proxy's get trap is executed and trackProp('data') is called.
+2. 'data' added to trackedProps
+3. If the query data changes later, check shouldNotifyListeners
+4. If only isLoading changes and the data remains the same -> Do not re-render.
+5. When data changes -> re-render
+
+Then, if you look at the return part of `useBaseQuery` again,,
+
+```ts
+return !defaultedOptions.notifyOnChangeProps
+  ? observer.trackResult(result)
+  : result;
+```
+
+`notifyOnChangeProps` allows the developer to explicitly say, "Track only when xxx changes."
+
+In other words, if notifyOnChangeProps is set, only the change needs to be tracked, so the result is returned as is, and if it is not set, it automatically tracks what has been used.
+
+On the other hand, if notifyOnChangeProps is not set, it means that it automatically tracks what is used.
+
+In summary, React Query detects only the properties actually used by the component through automatic tracking mode (default) using Proxy, and triggers re-rendering only when those properties change. This is a powerful optimization technique that prevents unnecessary re-rendering.

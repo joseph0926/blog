@@ -3,6 +3,7 @@
 import { Github, Linkedin, Mail } from 'lucide-react';
 import { motion } from 'motion/react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { staggerContainer, staggerItem } from '@/lib/motion-variants';
 
 const socialLinks = [
@@ -24,6 +25,8 @@ const socialLinks = [
 ];
 
 export const ProfileHero = () => {
+  const t = useTranslations('about.profile');
+
   return (
     <motion.section
       variants={staggerContainer}
@@ -33,7 +36,7 @@ export const ProfileHero = () => {
     >
       <motion.div variants={staggerItem}>
         <span className="border-border bg-muted/50 text-muted-foreground inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
-          React Router · TanStack Query 컨트리뷰터
+          {t('badge')}
         </span>
       </motion.div>
 
@@ -41,27 +44,23 @@ export const ProfileHero = () => {
         variants={staggerItem}
         className="text-foreground mt-6 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
       >
-        김영훈
+        {t('name')}
       </motion.h1>
 
       <motion.p
         variants={staggerItem}
         className="text-muted-foreground mt-4 text-xl md:text-2xl"
       >
-        Frontend Engineer
+        {t('role')}
       </motion.p>
 
       <motion.p
         variants={staggerItem}
         className="text-muted-foreground mx-auto mt-6 max-w-2xl text-base leading-relaxed md:text-lg"
       >
-        React, TypeScript, Next.js 기반 프론트엔드 엔지니어입니다. 대규모 트래픽
-        환경의 사용자 플로우 안정화, 성능 최적화, 레거시 마이그레이션에
-        집중해왔습니다. TanStack Query·React Router 등 오픈소스에{' '}
-        <strong className="text-foreground">
-          10건 PR이 머지되어 공식 릴리스에 포함
-        </strong>
-        되었습니다.
+        {t('summaryPrefix')}
+        <strong className="text-foreground">{t('summaryHighlight')}</strong>
+        {t('summarySuffix')}
       </motion.p>
 
       <motion.div

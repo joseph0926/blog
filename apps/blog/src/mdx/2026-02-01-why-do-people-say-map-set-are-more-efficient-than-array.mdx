@@ -158,35 +158,37 @@ const index = this.#indexMap.get(observer);
 
 ## 정리
 
-<table>
-  <thead>
-    <tr>
-      <th>상황</th>
-      <th>추천</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>값 검색/존재 확인/삭제가 빈번</td>
-      <td>Map / Set</td>
-    </tr>
-    <tr>
-      <td>데이터가 매우 적음 (수십 개 이하)</td>
-      <td>Array</td>
-    </tr>
-    <tr>
-      <td>전체 순회가 주 작업</td>
-      <td>Array</td>
-    </tr>
-    <tr>
-      <td>중복 제거가 필요</td>
-      <td>Set</td>
-    </tr>
-    <tr>
-      <td>순서가 중요하고 인덱스 접근이 많음</td>
-      <td>Array</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>상황</th>
+        <th>추천</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>값 검색/존재 확인/삭제가 빈번</td>
+        <td>Map / Set</td>
+      </tr>
+      <tr>
+        <td>데이터가 매우 적음 (수십 개 이하)</td>
+        <td>Array</td>
+      </tr>
+      <tr>
+        <td>전체 순회가 주 작업</td>
+        <td>Array</td>
+      </tr>
+      <tr>
+        <td>중복 제거가 필요</td>
+        <td>Set</td>
+      </tr>
+      <tr>
+        <td>순서가 중요하고 인덱스 접근이 많음</td>
+        <td>Array</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 "Map, Set으로 바꾸면 최적화"라는 말은 **검색/존재 확인/삭제가 빈번한 경우**에 해당합니다. 상황에 따라 적절한 자료구조를 선택하는 것이 진짜 최적화입니다.

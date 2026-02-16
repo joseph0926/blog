@@ -1,0 +1,301 @@
+---
+slug: '2026-02-10-how-can-esm-be-statically-analyzed-despite-being-asynchronous'
+title: 'ESM is asynchronous, so how is static analysis possible?'
+description: 'The first question that came to mind when comparing ESM vs CJS. Asynchronous loading and static analysis are two different things, and if you understand the three stages of ESM loading, you will see that they are not contradictory.'
+date: '2026-02-10'
+tags: ['javascript', 'esm', 'module-system']
+thumbnail: '/post/bundler.webp'
+---
+
+# ESM is asynchronous, so how is static analysis possible?
+
+In an interview, I was asked, “What is the difference between ESM and CJS?” “ESM is asynchronous, CJS is synchronous,” I answered. It wasn't a wrong answer, but when I came back and sorted it out, one thing caught me off guard.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>item</th>
+        <th>CJS</th>
+        <th>ESM</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Loading</td>
+        <td>Motivation</td>
+        <td>Asynchronous</td>
+      </tr>
+      <tr>
+        <td>Static analysis</td>
+        <td>Limited</td>
+        <td>Available</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+It loads asynchronously, but is static analysis possible? Asynchronous means
+that the module is imported at the time of execution, and static analysis means
+that the structure is identified before execution. It seemed like a
+contradiction.
+
+This article starts with that question.
+
+---
+
+## What is asynchronous and what is static
+
+To resolve the contradiction, we need to separate out what "asynchronous" and "static analysis" respectively refer to.
+
+**What "asynchronous" refers to**: The action of fetching module files from the network or disk. This means that `a.js`, `b.js`, and `c.js` can be fetched at the same time. This happens at runtime.
+
+**What "static analysis" refers to**: figuring out "which module requires which module" by just reading `import`/`export` statements, without executing the code. This happens before code execution.
+
+The two have different targets.
+
+```
+[Before evaluation]
+  Module file loading (asynchronous I/O) ↔ Source parsing ↔ import/export analysis
+  (Iterates along the graph to complete the dependency graph)
+
+[Evaluation]
+  Run code after preparing all modules
+```
+
+Static analysis is about “figuring out which modules to import,” while asynchronous loading is “actually importing those module files.” It is not a contradiction because the viewpoints are different.
+
+So what difference does asynchronous loading really make? Let's say we import three modules that take 1 second, 5 seconds, and 3 seconds to load respectively.
+
+```
+CJS (sequential): [=a 1 second=][=====b 5 seconds=====][===c 3 seconds===] → Total 9 seconds
+
+ESM (parallel): [=a 1 second=]
+             [=====b 5 seconds=====] → Total 5 seconds
+             [===c 3 seconds===]
+```
+
+CJS's `require()` is a synchronous function, so it retrieves `b` only when `a` ends, and `c` only when `b` ends. Because ESM has identified the required modules in advance through static analysis, it can request three files at the same time. The slowest module (5 seconds) determines the overall time.
+
+This difference is especially large in browser environments where network I/O is the bottleneck. Node.js uses local file I/O, so the perceived difference is small.
+
+---
+
+## Two constraints that enable ESM to enable static analysis
+
+The reason why static analysis is possible in ESM is because `import` and `export` each have syntactic restrictions.
+
+**import (static import): Can only appear at the top of the file**
+
+```js
+// ESM — Always on top
+import { a } from './a.js';
+
+// CJS — also possible within conditional statements
+if (condition) {
+  const a = require('./a.js');
+}
+```
+
+The `import` referred to here is a **static import statement**. Static imports can only be at the top of the file, so “which module this imports” is known without having to run the code. On the other hand, `import()` is an expression, so it can be used inside conditionals/functions.
+
+**export: cannot be placed inside a conditional statement**
+
+```js
+// ESM — Always confirmed
+export { a, b };
+
+// CJS — decide at runtime
+module.exports = condition ? { a } : { b };
+```
+
+`export` is only declared at the module top-level and cannot be placed inside conditionals, so "what this module exports" is determined.
+
+There is a common misunderstanding here. It's easy to think that both `import` and `export` "cannot enter a conditional statement," but to be exact, the rules are different.
+
+- **import**: It is not a "conditional statement is not allowed", but a location restriction of **"(static import declaration) can only be placed at the top"**
+- **export**: **"Can only be declared at the top-level of the module and cannot be included in conditional statements"** is a syntax restriction.
+
+As a result, both are the same in that they are statically determined, but the nature of the constraints are different.
+
+For tree-shaking to be possible, both sides must be static. This is because “who gets what” and “who exports what” must both be confirmed at build time so that unused code can be safely removed.
+
+Then wouldn't static analysis be possible if CJS also sets a rule that "`require()` is not used in conditional statements"? The `import` side is partially possible. However, there are two limitations. First, the rule is a Lint-level promise, so it can be bypassed. ESM is rejected by the language grammar itself. Second, even if you block the `require` side, the `export` side (`module.exports = condition ? ...`) is still dynamic. Just one side being static is not enough.
+
+---
+
+## ESM loading step 3: Construction → Instantiation → Evaluation
+
+So far we have seen that "static analysis" and "asynchronous loading" are different things, and that ESM's syntactic constraints make static analysis possible. Now let's take a look at what order ESM actually operates in when loading modules.
+
+ESM loads modules in three stages: It is easy to understand if you compare it to the plumbing in a building.
+
+```
+1. Construction — Draw a blueprint (which room is connected to which room)
+2. Instantiation — Connect the pipes according to the blueprint (no water yet).
+   ════════════════ Barrier (all pipes connected, checked for leaks)
+3. Evaluation — Open the faucets (in order starting from the water source)
+```
+
+**Construction**: Starting from the entry file, read `import` statements, find the required module files, and create a module graph. This is the step of drawing a blueprint. At this time, the actual fetching of the file occurs in parallel/asynchronous. The “static analysis” mentioned earlier corresponds to this step.
+
+**Instantiation**: When the graph is completed, connect `export` and `import` of each module. This is the step of connecting the pipes according to the blueprint. Verify that the name is correct and assign a memory slot. The values ​​are not filled in yet. The pipes have been laid, but water is not flowing yet.
+
+This is where a **barrier** arises. Do not turn on the water until all pipes are connected and there are no leaks.
+
+**Evaluation**: When the barrier is overcome, the code is executed starting from the end module (leaf) that has no dependencies and the values ​​are filled in. When you turn on the water from the water source (leaf), the water flows through the pipes to each room (module). If `a.js` does not import anything, `a.js` will be executed first, followed by any modules that depend on `a.js`.
+
+If you connect these three steps with the first question, it looks like this.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Questionable keyword</th>
+        <th>The step</th>
+        <th>Point of View</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Static analysis</td>
+        <td>Construction</td>
+        <td>Before executing code</td>
+      </tr>
+      <tr>
+        <td>Asynchronous loading</td>
+        <td>Fetch my files in Construction</td>
+        <td>Runtime</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+“Static analysis” and “Asynchronous loading” do different things within the same
+Construction phase. Parsing the `import` statement and building the graph is
+static, and importing files according to the graph is asynchronous.
+
+---
+
+## What is good about static analysis?
+
+A representative advantage is **Tree-shaking**. This is an optimization that removes unused exports from modules from the bundle.
+
+```js
+// lib.js
+export const a = 1;
+export const b = 2;
+export const c = 3;
+
+// main.js
+import { a } from './lib.js';
+console.log(a);
+```
+
+Since both `import` and `export` are statically confirmed, the bundler knows at build time that "`b` and `c` are not imported anywhere." Remove `b` and `c` from the final bundle.
+
+### sideEffects: Hint to the bundler
+
+Tree-shaking has one caveat. Even if it is an unused export, if there is code (side effect) that affects the global level when the module is loaded, it cannot be removed without permission.
+
+```js
+// polyfill.js — No export, but modifies the global just by loading
+Array.prototype.sum = function () {
+  return this.reduce((a, b) => a + b, 0);
+};
+```
+
+So in `package.json` I have a setting called `"sideEffects": false`. It is a declaration that “the modules in this package have no side effects, so they can be removed if not used.”
+
+The problem is that this is a human judgment. If you incorrectly declare `"sideEffects": false` in a package that contains a polyfill as shown above, the bundler may remove the polyfill and a `sum is not a function` error may occur at runtime. Files with side effects must be explicitly protected.
+
+```json
+{
+  "sideEffects": ["./src/polyfill.js", "*.css"]
+}
+```
+
+### Why barrel files interfere with Tree-shaking
+
+The barrel file (pattern of re-exporting all modules in `index.ts`) commonly used in libraries also affects tree-shaking.
+
+```js
+// index.ts (barrel file)
+export * from './Button';
+export * from './Modal';
+export * from './Table';
+```
+
+`export *` does not specify which symbols are actually exported, which increases the scope for the bundler to analyze. If side effects or CJS modules are mixed in the middle of the chain, the bundler will make a conservative decision and leave the code behind. It is safer to explicitly re-export whenever possible.
+
+```js
+export { Button } from './Button';
+export { Modal } from './Modal';
+```
+
+### Bundle bloating experienced in practice
+
+In a previous project, I managed modals centrally with ModalProvider. The structure was such that zustand managed which modal to open, and the provider statically imported all modal components.
+
+```js
+// ModalProvider.tsx
+import AlertModal from './AlertModal';
+import ConfirmModal from './ConfirmModal';
+import SettingsModal from './SettingsModal';
+// ...20+ modals
+
+const registry = { alert: AlertModal, confirm: ConfirmModal, ... };
+```
+
+The build resulted in all modals being included in the bundle, increasing their size significantly. Since which modal is opened is determined by the runtime state (the `type` value of zustand), bundler could not determine “this modal is not used” at build time.
+
+The improvement was to change the static import to a dynamic import.
+
+```js
+const registry = {
+  alert: () => import('./AlertModal'),
+  confirm: () => import('./ConfirmModal'),
+};
+```
+
+This will only load that module when the modal is actually opened. The limitations of static analysis (runtime branches cannot be determined) are bypassed with dynamic import.
+
+---
+
+## Why is CJS said to be difficult?
+
+If you read this far, the opposite question naturally comes to mind. Why does CJS say static analysis is difficult?
+
+`require()` is a regular function. It can be called within a conditional statement, and a variable can be passed as an argument.
+
+```js
+// CJS — decide at runtime
+const name = condition ? 'a' : 'b';
+const mod = require(`./${name}.js`);
+```
+
+The same goes for `module.exports`. It can be assigned any value, at any time.
+
+```js
+// CJS — decide at runtime
+if (process.env.NODE_ENV === 'production') {
+  module.exports = require('./prod.js');
+} else {
+  module.exports = require('./dev.js');
+}
+```
+
+Because both importers and exporters can be determined at runtime, it is difficult to **completely and safely** determine the relationships between modules before executing the code. Simple cases such as string literal `require()` can be partially analyzed, but tree-shaking optimization room is generally less than ESM.
+
+---
+
+## Finish
+
+Let's go back to the first question.
+
+> ESM is asynchronous, so how is static analysis possible?
+
+“Asynchronous” and “static analysis” do not refer to the same thing.
+
+- **Static analysis**: Parsing `import`/`export` statements to determine relationships between modules (before executing code)
+- **Asynchronous loading**: actually fetching module files according to their relationships (runtime)
+
+ESM enforces syntactic constraints on `import` and `export` to determine their structure at build time, allowing files to be imported in parallel and unused code to be removed. Asynchronous and static analysis are not contradictory, but a relationship in which asynchronous loading operates efficiently because static analysis is possible.

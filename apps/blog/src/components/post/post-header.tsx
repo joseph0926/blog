@@ -1,14 +1,25 @@
 import { Badge } from '@joseph0926/ui/components/badge';
 import { format } from 'date-fns';
+import { enUS, ko } from 'date-fns/locale';
 import { Calendar, Clock } from 'lucide-react';
 import Image from 'next/image';
+import { getTranslations } from 'next-intl/server';
+import type { AppLocale } from '@/i18n/routing';
 import { ENV } from '@/lib/env';
 import { serverTrpc } from '@/server/trpc/server';
 
-export const PostHeader = async ({ slug }: { slug: string }) => {
+export const PostHeader = async ({
+  slug,
+  locale,
+}: {
+  slug: string;
+  locale: AppLocale;
+}) => {
+  const t = await getTranslations({ locale, namespace: 'post' });
+  const tBlog = await getTranslations({ locale, namespace: 'blog' });
   let post = null;
   try {
-    const result = await serverTrpc.post.getPostBySlug({ slug });
+    const result = await serverTrpc.post.getPostBySlug({ slug, locale });
     post = result.post;
   } catch {
     // 에러 발생 시 post는 null로 유지되어 에러 UI 표시
@@ -17,7 +28,7 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
   if (!post) {
     return (
       <p className="text-destructive py-12 text-center font-medium">
-        블로그 글을 찾을 수 없습니다.
+        {t('notFound')}
       </p>
     );
   }
@@ -43,13 +54,22 @@ export const PostHeader = async ({ slug }: { slug: string }) => {
       <div className="text-muted-foreground mt-6 flex items-center gap-4 text-sm">
         <span className="flex items-center gap-1.5">
           <Calendar className="h-4 w-4" />
-          {format(new Date(post.createdAt), 'MMM dd, yyyy')}
+          {format(
+            new Date(post.createdAt),
+            locale === 'ko' ? 'yyyy.MM.dd' : 'MMM dd, yyyy',
+            { locale: locale === 'ko' ? ko : enUS },
+          )}
         </span>
         <span className="flex items-center gap-1.5">
           <Clock className="h-4 w-4" />
-          {post.readingTime} min read
+          {tBlog('readTime', { minutes: post.readingTime })}
         </span>
       </div>
+      {post.isFallback && (
+        <p className="text-muted-foreground mt-3 text-sm">
+          {t('fallbackNotice')}
+        </p>
+      )}
 
       {post.thumbnail && (
         <div className="relative mt-8 aspect-video overflow-hidden rounded-lg">

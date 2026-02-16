@@ -1,0 +1,165 @@
+---
+slug: '2025-12-20-beondeulreoui-jonjae-iyu'
+title: 'Why bundlers exist'
+description: 'In this article, we summarize why bundlers emerged, what a dependency graph is, and why Vite took a different approach.'
+date: '2025-12-20'
+tags: ['bundler', 'vite']
+---
+
+# Reason for the existence of bundlers
+
+I was once asked a question about bundlers during an interview at a domestic big tech company. I answered, “It’s a tool that ties together multiple modules.” But even as you say things like, “Did you ask that question to ask that?”, “Why did you ask this?” I had a doubt.
+
+After the interview, I studied various documents and learned that Bundler is not just a “bundling tool.” In this article, we will explain why bundlers emerged, what a dependency graph is, and why Vite took a different approach.
+
+---
+
+## Compiler vs Transpiler
+
+Bundler is a “tool for bundling multiple modules.” The module here must be a browser-readable JavaScript file.
+
+Most modern web development is done with TypeScript. However, TypeScript cannot be read by browsers. I need something to turn TypeScript into JavaScript. That's a transpiler.
+
+Sometimes the term "TypeScript compiler" appears. So clearly distinguishing between a transpiler and a compiler is the first step to understanding a bundler.
+
+Compilers and transpilers are both "translating" tools. The crucial difference is “level”. The level determines whether 1:1 correspondence between languages ​​before and after conversion is possible.
+
+TypeScript is a type-only language added to JavaScript. If you remove the type, it becomes JavaScript as is. This is “1:1 matching”. If 1:1 matching is possible, it is treated as “same level”. A transpiler is used to convert between the same levels.
+
+On the other hand, conversion from C language to assembly language is not 1:1 matching. If 1:1 matching is not possible, it is treated as “another level”. The compiler is used to convert between different levels.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Separation</th>
+        <th>Transform direction</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Compiler</td>
+        <td>Different levels</td>
+        <td>C → Assembly</td>
+      </tr>
+      <tr>
+        <td>Transpiler</td>
+        <td>Same level</td>
+        <td>TS → JS, ES2024 → ES5</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+---
+
+## History of the module system
+
+Back in the days when there was no concept of "modules", you had to manually list all the `<script>` tags in order. If even one order is wrong, an error will occur. I had to manually check the code every time to figure out the dependencies. Additionally, all variables were exposed globally (`window`), so there was a risk of name collision.
+
+In 2009, with the advent of Node.js, JavaScript was also used on servers. Servers also needed a module system, so CommonJS was created. Modules are imported with `require()` and exported with `module.exports`.
+
+CommonJS works synchronously. Until one module was loaded, you had to wait for the next module. Also, `require()` is a function that is executed at runtime. This means that you have to actually run the code to find out which modules are being imported.
+
+CJS is basically a system written for servers, so reading a locally existing file did not take much time, so synchronization was not a problem. However, the browser receives the file as a network request. If this works synchronously, it has the disadvantage of being very slow. Additionally, because CJS is executed at runtime, it was not possible to analyze it in advance.
+
+ES Module was created as a result of the need for a module system for browsers. ESM enforces the `import`/`export` syntax. It must be written at the top as a static string. Afterwards, Bundler was able to find out “what module is being used” without running the code. Why this is important for bundlers is explained in the next section.
+
+---
+
+## What a bundler does
+
+Static analysis is possible in ESM, so you can draw a "dependency graph" that follows `import` and `export` to figure out which modules depend on which.
+
+Bundler builds a dependency graph starting from the entry point. Topological sorting then determines the correct order. Topological ordering is ordering things so that they are “defined before they are used.” Finally, merge into n files.
+
+You cannot simply concatenate files. This is because paths like `import './utils'` become meaningless after the merge. The bundler replaces these paths with internal references.
+
+---
+
+## Vite’s core strategy
+
+So far, we have learned why you need a bundler. However, bundling takes time. The larger your project, the longer the build time will be. There are times when you have to change a single line of code and wait tens of seconds to see the result.
+
+Vite solves this problem with the strategy of “separating development and production modes.”
+
+### Development mode: No bundling
+
+In development mode, Vite does not bundle. How is this possible? This is because browsers now support ESM natively. When the browser encounters an `import` statement, it requests that file directly from the server. Vite responds by converting only the requested files on the fly.
+
+```
+Browser: found import App from './App.tsx'
+    ↓
+Vite Server: Convert App.tsx to JavaScript and respond
+    ↓
+Browser: Request import in App.tsx in the same way
+```
+
+Server startup is almost instantaneous, as there is no need to bundle the entire project ahead of time.
+
+### 프로덕션 모드: 번들링을 한다
+
+But you shouldn't do this in production either. If there are 500 modules, the browser will have to send 500 network requests. Additionally, you must receive file A to know the imports in A, so requests occur sequentially. This is slow.
+
+So bundling is still required in production. Vite uses Rollup to create optimized bundles.
+
+### esbuild와 Rollup을 나눠 쓰는 이유
+
+Vite uses esbuild in development mode and Rollup in production.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th></th>
+        <th>esbuild</th>
+        <th>Rollup</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Speed</td>
+        <td>Very fast (Go language, parallel processing)</td>
+        <td>Relatively slow</td>
+      </tr>
+      <tr>
+        <td>Optimized Quality</td>
+        <td>Default</td>
+        <td>Sophisticated (excellent tree shaking)</td>
+      </tr>
+      <tr>
+        <td>Use</td>
+        <td>Development (speed is important)</td>
+        <td>Production (quality is important)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+Quick feedback is important when developing, and optimized results are important
+when distributing. Vite chooses the right tool for your situation.
+
+---
+
+## Summary: The link between problem and solution
+
+```
+[Problem] No module system in browser
+    ↓
+[Solution] CommonJS → ESM standardization
+    ↓
+[New Problem] How to deliver hundreds of files?
+    ↓
+[Solved] Bundler (dependency analysis + merge)
+    ↓
+[New Issue] Bundling is slow (lower development feedback)
+    ↓
+[Solved] Vite: ESM native for development, bundling only for production
+```
+
+---
+
+## Next episode
+
+- **Tree Shaking**: How ESM’s static analysis leads to “eliminating unused code”
+- **Code Splitting**: Why and how to split a bundle again
+- **HMR**: A mechanism that maintains state and only replaces code.

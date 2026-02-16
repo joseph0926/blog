@@ -1,0 +1,214 @@
+---
+slug: '2025-07-24-react-query-issue-'
+title: 'Resolving React Query Issues'
+description: 'We describe the merge process by resolving one issue in React Query.'
+date: '2025-07-24'
+thumbnail: '/post/react-query.webp'
+tags: ['react-query']
+---
+
+This article describes the experience of resolving performance issues in React Query.
+
+## What was the problem?
+
+<img
+  src="/content/query-1.png"
+  alt="React Query issue description image"
+  width="1200"
+  height="800"
+/>
+
+[Issue](https://github.com/TanStack/query/issues/8604#issue-2829836925): An issue that points out a problem with the internal logic of useQueries and specifically mentions that there is a problem with traversing n queries n times → O(n²).
+
+To be precise, the problem is as follows.
+
+1. Importing multiple data at once (Deployment → Issue uses DataLoader as an example)
+
+```tsx
+// Assume idx = [1, 2, 3, 4, 5]
+const userLoader = new DataLoader(async (ids) => {
+  const users = await fetch(`/api/users?ids=${ids.join(',')}`);
+  return users; // [user1, user2, user3, user4, user5] returned at once
+});
+```
+
+1. Resolve each Promise individually inside DataLoader
+
+```tsx
+// Inside DataLoader
+promise1.resolve(user1); // As the first query in useQueries
+promise2.resolve(user2); // As the second query in useQueries
+promise3.resolve(user3); // With the third query of useQueries
+// ...
+```
+
+1. useQueries iterates through all observations whenever each promise is resolved
+
+```tsx
+// Whenever each Promise is resolved
+user1 arrives → observer1 is updated → findMatchingObservers() is executed → all observers are traversed
+user2 arrives → observer2 is updated → findMatchingObservers() is executed → all observers are traversed
+user3 arrives → observer3 is updated → findMatchingObservers() is executed → all observers are traversed
+// ...
+```
+
+1. Ultimately, the entire observer circuit is repeated for each promise resolve, resulting in a final result of O(n^2).
+
+```tsx
+Delivery driver brings 100 packages
+
+1st courier delivery
+- Search for delivery locations: Building 101 -> Building 102 -> Building 103 -> ... -> Building 200 (check all 100 buildings)
+- Finally, it was located in 101-dong and delivery was completed.
+
+2nd courier delivery
+- Search for delivery locations: Building 101 -> Building 102 -> Building 103 -> ... -> Building 200 (check all 100 buildings)
+- Finally, delivery was completed after finding 102-dong.
+
+Repeat this 100 times
+
+Total number of confirmations: 100 parcels × 100 units = 10,000 times
+```
+
+### Issues examined code-wise
+
+After understanding the above problem and looking at the code, I thought there were two problems.
+
+- Code that unconditionally runs the entire circuit even though it knows which observers to update.
+
+```tsx
+// Because array2.includes(x) is called for every element,
+// Even if prevObservers <-> newObservers are almost identical, both arrays are scanned interchangeably.
+// Even if an observer already exists, the includes linear search is repeated every time.
+function difference<T>(array1: Array<T>, array2: Array<T>): Array<T> {
+  return array1.filter((x) => !array2.includes(x)); // O(n²) complexity
+}
+```
+
+```tsx
+// EX: A situation where there are 100 observers and only 1 has changed.
+prevObservers = [obs1, obs2, obs3, ..., obs100];
+newObservers = [obs1, obs2, obs3, ..., obs99, obs101]; // obs100 → changed to obs101
+
+// difference(prevObservers, newObservers)
+// obs1: Check all 100 newObservers → Yes
+// obs2: Check all 100 newObservers → Yes
+// obs3: Check all 100 newObservers → Yes
+// ...
+// obs100: Check all 100 newObservers → None -> Target for removal
+
+// Total operations: 100 × 100 = 10,000 times
+```
+
+- Missing code that returns early if already known
+
+```tsx
+#onUpdate(observer: QueryObserver, result: QueryObserverResult): void {
+// I already know what to update with the observer parameter, but I search the whole thing again with indexOf.
+  const index = this.#observers.indexOf(observer)
+  if (index !== -1) {
+    this.#result = replaceAt(this.#result, index, result)
+    this.#notify()
+  }
+}
+```
+
+```tsx
+  #trackResult(
+    result: Array<QueryObserverResult>,
+    queries: Array<QueryObserverOptions>,
+  ) {
+	  // Repeat findMatchingObservers each time
+    const matches = this.#findMatchingObservers(queries)
+
+    return matches.map((match, index) => {
+      const observerResult = result[index]!
+      return !match.defaultedQueryOptions.notifyOnChangeProps
+        ? match.observer.trackResult(observerResult, (accessedProp) => {
+            // track property on all observers to ensure proper (synchronized) tracking (#7000)
+            matches.forEach((m) => {
+              m.observer.trackProp(accessedProp)
+            })
+          })
+        : observerResult
+    })
+  }
+```
+
+## How did you solve it?
+
+At that time, we only identified one problem out of three trouble codes.
+
+```tsx
+  #trackResult(
+    result: Array<QueryObserverResult>,
+    matches: Array<QueryObserverMatch>,
+  ) {
+    return matches.map((match, index) => {
+      const observerResult = result[index]!
+      return !match.defaultedQueryOptions.notifyOnChangeProps
+        ? match.observer.trackResult(observerResult, (accessedProp) => {
+            // track property on all observers to ensure proper (synchronized) tracking (#7000)
+            matches.forEach((m) => {
+              m.observer.trackProp(accessedProp)
+            })
+          })
+        : observerResult
+    })
+  }
+```
+
+In order to avoid having to do findMatchingObservers every time in trackResult, I declared observerMatches and saved the result of findMatchingObservers.
+
+```tsx
+// Old code: not saving it after finding it
+const newObserverMatches = this.#findMatchingObservers(this.#queries);
+
+// Improvement Code: Find and save to improve for future use.
+const newObserverMatches = this.#findMatchingObservers(this.#queries);
+this.#observerMatches = newObserverMatches;
+```
+
+## Process until official release
+
+I posted the modified [PR](https://github.com/TanStack/query/pull/8641), but the person who first presented the issue gave [feedback as below](https://github.com/TanStack/query/issues/8604#issuecomment-2656213898).
+
+```tsx
+Looking at the code myself and at your PR @joseph0926 I realized that this will be quite hard to solve entirely. Your PR does remove some quadratic work but onUpdate still contain the mentioned indexOf, trackResult still contain a map over all observers, any user defined combine method will most likely also do N amount of work and if not combineResult will in replaceEqualDeep.
+
+What fundamentally makes multiple useQuery faster than useQueries is reacts auto batching. We notify react once for each updated useQuery but react only rerender once.
+
+I thought that maybe we could do the same for useQueries by notifying useSyncExternalStore on every update and doing combineResult/trackResult lazily when react request the value in getSnapshot. However it seems like react will call getSnapshot every time it is notified defeating this idea.
+```
+
+In short, it seems to be saying that although performance may improve slightly, the fundamental problem does not seem to have been solved.
+
+I couldn't pinpoint what the underlying problem was at the time, so I stopped fixing it here.
+
+However, [the original author of React Query](https://github.com/TanStack/query/issues/8604#issuecomment-2661416880) decided that this level of performance improvement was meaningful and proceeded with the merge.
+
+In the months since, many issues have improved.
+
+-Improved difference
+
+```tsx
+function difference<T>(array1: Array<T>, array2: Array<T>): Array<T> {
+  const excludeSet = new Set(array2);
+  return array1.filter((x) => !excludeSet.has(x));
+}
+```
+
+- Improved findMatchingObservers
+
+```tsx
+#findMatchingObservers(queries: Array<QueryObserverOptions>): Array<QueryObserverMatch> {
+  const prevObserversMap = new Map(
+    this.#observers.map((observer) => [observer.options.queryHash, observer]),
+  )
+
+  queries.forEach((options) => {
+    const match = prevObserversMap.get(defaultedOptions.queryHash)
+    // ...
+  })
+}
+```

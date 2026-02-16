@@ -156,42 +156,44 @@ key가 spread되지 않았으면 `props = config`로 **그대로 재사용**합�
 
 근데 여기서 의문이 들었습니다. jsx()가 아니라 createElement()를 쓰면 어떻게 될까요? 둘 다 Element를 만드는 함수인데, 차이가 뭘까요?
 
-<table>
-  <thead>
-    <tr>
-      <th></th>
-      <th>
-        <code>jsx()</code> / <code>jsxs()</code>
-      </th>
-      <th>
-        <code>createElement()</code>
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>
-        <strong>누가 호출?</strong>
-      </td>
-      <td>컴파일러(Babel/SWC)만</td>
-      <td>사람이 직접 호출 가능</td>
-    </tr>
-    <tr>
-      <td>
-        <strong>언제 쓰는가?</strong>
-      </td>
-      <td>JSX 문법을 쓸 때 (자동 변환)</td>
-      <td>JSX 없이 수동으로 Element 만들 때</td>
-    </tr>
-    <tr>
-      <td>
-        <strong>현재 상태</strong>
-      </td>
-      <td>Modern JSX Transform (기본)</td>
-      <td>레거시 호환</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th></th>
+        <th>
+          <code>jsx()</code> / <code>jsxs()</code>
+        </th>
+        <th>
+          <code>createElement()</code>
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <strong>누가 호출?</strong>
+        </td>
+        <td>컴파일러(Babel/SWC)만</td>
+        <td>사람이 직접 호출 가능</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>언제 쓰는가?</strong>
+        </td>
+        <td>JSX 문법을 쓸 때 (자동 변환)</td>
+        <td>JSX 없이 수동으로 Element 만들 때</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>현재 상태</strong>
+        </td>
+        <td>Modern JSX Transform (기본)</td>
+        <td>레거시 호환</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 `createElement()`는 사람이 직접 호출할 수 있기 때문에, 아래처럼 같은 config 객체를 재사용하는 위험한 패턴이 가능합니다.
 
@@ -383,40 +385,42 @@ if (typeof type === 'object' && type !== null) {
 
 논리적으로는 동작합니다. 하지만 현재 구조는 **빈도 기반 최적화**입니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>순서</th>
-      <th>현재 구조</th>
-      <th>제안 구조</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>1번째 체크</td>
-      <td>
-        <code>typeof === 'function'</code> (가장 흔한 케이스 → 바로 끝)
-      </td>
-      <td>
-        <code>typeof === 'object'</code> (함수 컴포넌트도 fail 후 통과)
-      </td>
-    </tr>
-    <tr>
-      <td>2번째 체크</td>
-      <td>
-        <code>typeof === 'string'</code> (함수 아닌 경우만)
-      </td>
-      <td>
-        <code>typeof === 'string'</code> (함수 컴포넌트도 fail 후 통과)
-      </td>
-    </tr>
-    <tr>
-      <td>3번째</td>
-      <td>else (드문 경우만)</td>
-      <td>나머지 → 함수 컴포넌트</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>순서</th>
+        <th>현재 구조</th>
+        <th>제안 구조</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1번째 체크</td>
+        <td>
+          <code>typeof === 'function'</code> (가장 흔한 케이스 → 바로 끝)
+        </td>
+        <td>
+          <code>typeof === 'object'</code> (함수 컴포넌트도 fail 후 통과)
+        </td>
+      </tr>
+      <tr>
+        <td>2번째 체크</td>
+        <td>
+          <code>typeof === 'string'</code> (함수 아닌 경우만)
+        </td>
+        <td>
+          <code>typeof === 'string'</code> (함수 컴포넌트도 fail 후 통과)
+        </td>
+      </tr>
+      <tr>
+        <td>3번째</td>
+        <td>else (드문 경우만)</td>
+        <td>나머지 → 함수 컴포넌트</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 실제 React 앱에서 대부분의 컴포넌트는 함수 컴포넌트입니다. memo, forwardRef, lazy 같은 래퍼 타입은 상대적으로 드물고, `<div>`, `<span>` 같은 HostComponent는 그 다음으로 많습니다.
 
@@ -658,61 +662,63 @@ if (((fiber.actualStartTime: any): number) < 0) {
 
 이 글에서 다룬 최적화들을 정리하면 이렇습니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>최적화</th>
-      <th>위치</th>
-      <th>근거</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Object.freeze DEV 전용</td>
-      <td>ReactJSXElement.js</td>
-      <td>DEV/PROD 분기, issue #14365</td>
-    </tr>
-    <tr>
-      <td>jsx() props 재사용</td>
-      <td>ReactJSXElement.js</td>
-      <td>소스 주석: "compiler always passes a new object"</td>
-    </tr>
-    <tr>
-      <td>delete 회피</td>
-      <td>ReactJSXElement.js</td>
-      <td>소스 주석: "V8 will deopt to dictionary mode"</td>
-    </tr>
-    <tr>
-      <td>ref null 정규화</td>
-      <td>ReactJSXElement.js</td>
-      <td>소스 주석: "coerced to null"</td>
-    </tr>
-    <tr>
-      <td>개별 Hook 함수 유지</td>
-      <td>ReactHooks.js</td>
-      <td>소스 주석: "helps ensure this is inlined"</td>
-    </tr>
-    <tr>
-      <td>typeof 분기 순서</td>
-      <td>ReactFiber.js</td>
-      <td>빈도 기반 핫 패스 최적화</td>
-    </tr>
-    <tr>
-      <td>SharedInternals 플래트닝</td>
-      <td>ReactSharedInternalsClient.js</td>
-      <td>PR #28783 → #28912</td>
-    </tr>
-    <tr>
-      <td>필드 미리 선언</td>
-      <td>ReactFiber.js</td>
-      <td>issue #14365, Chromium bug #8538</td>
-    </tr>
-    <tr>
-      <td>-0 / -1.1 초기값</td>
-      <td>ReactFiber.js</td>
-      <td>PR #30942</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>최적화</th>
+        <th>위치</th>
+        <th>근거</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Object.freeze DEV 전용</td>
+        <td>ReactJSXElement.js</td>
+        <td>DEV/PROD 분기, issue #14365</td>
+      </tr>
+      <tr>
+        <td>jsx() props 재사용</td>
+        <td>ReactJSXElement.js</td>
+        <td>소스 주석: "compiler always passes a new object"</td>
+      </tr>
+      <tr>
+        <td>delete 회피</td>
+        <td>ReactJSXElement.js</td>
+        <td>소스 주석: "V8 will deopt to dictionary mode"</td>
+      </tr>
+      <tr>
+        <td>ref null 정규화</td>
+        <td>ReactJSXElement.js</td>
+        <td>소스 주석: "coerced to null"</td>
+      </tr>
+      <tr>
+        <td>개별 Hook 함수 유지</td>
+        <td>ReactHooks.js</td>
+        <td>소스 주석: "helps ensure this is inlined"</td>
+      </tr>
+      <tr>
+        <td>typeof 분기 순서</td>
+        <td>ReactFiber.js</td>
+        <td>빈도 기반 핫 패스 최적화</td>
+      </tr>
+      <tr>
+        <td>SharedInternals 플래트닝</td>
+        <td>ReactSharedInternalsClient.js</td>
+        <td>PR #28783 → #28912</td>
+      </tr>
+      <tr>
+        <td>필드 미리 선언</td>
+        <td>ReactFiber.js</td>
+        <td>issue #14365, Chromium bug #8538</td>
+      </tr>
+      <tr>
+        <td>-0 / -1.1 초기값</td>
+        <td>ReactFiber.js</td>
+        <td>PR #30942</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 하나하나는 사소합니다. 하지만 이 코드들은 매 렌더마다 수천~수만 번 실행됩니다. React 팀이 소스 코드 곳곳에 남긴 주석과 PR 히스토리를 보면, 이런 선택들이 단순한 스타일 차이가 아니라 측정과 경험에 기반한 의도적 설계라는 것을 알 수 있습니다.

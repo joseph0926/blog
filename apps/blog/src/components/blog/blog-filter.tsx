@@ -12,9 +12,11 @@ import { Input } from '@joseph0926/ui/components/input';
 import { cn } from '@joseph0926/ui/lib/utils';
 import { Filter, Search, SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Tag } from '@/generated/prisma/client';
+import { usePathname, useRouter } from '@/i18n/navigation';
 
 type BlogFilterProps = {
   tags: Pick<Tag, 'id' | 'name'>[];
@@ -22,6 +24,7 @@ type BlogFilterProps = {
 };
 
 export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
+  const t = useTranslations('blog');
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -101,13 +104,13 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
 
   const categoryOptions = useMemo(
     () => [
-      { id: 'all', name: 'All', value: null as string | null },
+      { id: 'all', name: t('all'), value: null as string | null },
       ...tags.map((tag) => ({
         ...tag,
         value: tag.name,
       })),
     ],
-    [tags],
+    [tags, t],
   );
 
   const getCategoryButtonClassName = (isActive: boolean) =>
@@ -126,19 +129,20 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
             <div className="flex flex-wrap items-center gap-2">
               <span className="bg-muted text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium">
                 <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filter
+                {t('filter')}
               </span>
               <span className="text-muted-foreground text-xs">
-                {tags.length} topics
+                {tags.length} {t('topics')}
               </span>
               {totalCount !== undefined && (
                 <span className="text-muted-foreground text-xs">
-                  {totalCount} {totalCount === 1 ? 'post' : 'posts'}
+                  {totalCount}{' '}
+                  {totalCount === 1 ? t('postSingular') : t('postPlural')}
                 </span>
               )}
               {hasActiveFilters && (
                 <span className="bg-primary/10 text-primary inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium">
-                  {activeFilterCount} active
+                  {activeFilterCount} {t('active')}
                 </span>
               )}
             </div>
@@ -150,27 +154,27 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
             >
               <DrawerTrigger
                 className="border-border hover:bg-muted inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors md:hidden"
-                aria-label="Open filters"
+                aria-label={t('openFilters')}
               >
                 <Filter className="h-4 w-4" />
-                Filters
+                {t('filters')}
                 {hasActiveFilters && (
                   <span className="bg-primary h-2 w-2 rounded-full" />
                 )}
               </DrawerTrigger>
               <DrawerContent className="h-fit overflow-y-auto px-8">
                 <DrawerHeader>
-                  <DrawerTitle>Filter Posts</DrawerTitle>
+                  <DrawerTitle>{t('filterPosts')}</DrawerTitle>
                 </DrawerHeader>
                 <div className="mt-4 space-y-5">
                   <div>
                     <p className="text-muted-foreground mb-2 text-sm font-medium">
-                      Category
+                      {t('category')}
                     </p>
                     <div
                       className="flex flex-wrap gap-2"
                       role="group"
-                      aria-label="Filter posts by category"
+                      aria-label={t('filterByCategory')}
                     >
                       {categoryOptions.map((option) => {
                         const isActive = option.value === currentCategory;
@@ -194,7 +198,7 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
                       onClick={handleClearFilters}
                       className="w-full"
                     >
-                      Clear all filters
+                      {t('clearAllFilters')}
                     </Button>
                   )}
                 </div>
@@ -208,14 +212,14 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
               <Input
                 value={searchQuery}
                 onChange={(e) => handleSearchInputChange(e.target.value)}
-                placeholder="Search by title or description..."
+                placeholder={t('searchPlaceholder')}
                 className="bg-background h-9 w-full pr-9 pl-9 md:h-10"
               />
               {searchQuery && (
                 <button
                   onClick={handleSearchClear}
                   className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 transition-colors"
-                  aria-label="Clear search"
+                  aria-label={t('clearSearch')}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -229,7 +233,7 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
                 onClick={handleClearFilters}
                 className="h-9 justify-start px-0 text-xs md:h-10 md:justify-center md:px-3"
               >
-                Clear all
+                {t('clearAll')}
               </Button>
             )}
           </div>
@@ -238,7 +242,7 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
             <div
               className="scrollbar-hide -mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1"
               role="group"
-              aria-label="Filter posts by category"
+              aria-label={t('filterByCategory')}
             >
               {categoryOptions.map((option) => {
                 const isActive = option.value === currentCategory;
@@ -265,7 +269,7 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
                 className="border-border/60 mt-3 flex flex-wrap items-center gap-2 border-t pt-3"
               >
                 <span className="text-muted-foreground text-xs font-medium">
-                  Active filters
+                  {t('activeFilters')}
                 </span>
                 {currentCategory && (
                   <button
@@ -289,7 +293,7 @@ export const BlogFilter = ({ tags, totalCount }: BlogFilterProps) => {
                   onClick={handleClearFilters}
                   className="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors"
                 >
-                  Reset
+                  {t('reset')}
                 </button>
               </motion.div>
             )}

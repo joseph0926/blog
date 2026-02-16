@@ -41,36 +41,38 @@ AI 챗봇을 구현함에 있어서 가장 먼저 결정해야하는 부분은 "
 
 여기서 주목한 점은 **비용 대비 성능**이었습니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>모델</th>
-      <th>Input (1M)</th>
-      <th>Output (1M)</th>
-      <th>특징</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>gpt-4o-mini</td>
-      <td>$0.15</td>
-      <td>$0.60</td>
-      <td>가장 저렴, 문서 Q&A에 충분</td>
-    </tr>
-    <tr>
-      <td>gpt-4.1-mini</td>
-      <td>$0.40</td>
-      <td>$1.60</td>
-      <td>더 긴 컨텍스트, 약간 비쌈</td>
-    </tr>
-    <tr>
-      <td>gpt-5-mini</td>
-      <td>$0.25</td>
-      <td>$2.00</td>
-      <td>추론 특화, Output 비용 높음</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>모델</th>
+        <th>Input (1M)</th>
+        <th>Output (1M)</th>
+        <th>특징</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>gpt-4o-mini</td>
+        <td>$0.15</td>
+        <td>$0.60</td>
+        <td>가장 저렴, 문서 Q&A에 충분</td>
+      </tr>
+      <tr>
+        <td>gpt-4.1-mini</td>
+        <td>$0.40</td>
+        <td>$1.60</td>
+        <td>더 긴 컨텍스트, 약간 비쌈</td>
+      </tr>
+      <tr>
+        <td>gpt-5-mini</td>
+        <td>$0.25</td>
+        <td>$2.00</td>
+        <td>추론 특화, Output 비용 높음</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 문서 챗봇의 특성상,
 
@@ -151,34 +153,36 @@ async function embed(text: string): Promise<number[]> {
 
 여러 옵션을 비교했습니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>DB</th>
-      <th>장점</th>
-      <th>단점</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Supabase pgvector</td>
-      <td>PostgreSQL 통합, 익숙함</td>
-      <td>Vercel AI SDK 공식 지원 X</td>
-    </tr>
-    <tr>
-      <td>Pinecone</td>
-      <td>성숙한 생태계</td>
-      <td>무료 티어 제한적</td>
-    </tr>
-    <tr>
-      <td>
-        <strong>Upstash Vector</strong>
-      </td>
-      <td>Vercel AI SDK 공식 지원, 무료 10K/일</td>
-      <td>상대적으로 신규</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>DB</th>
+        <th>장점</th>
+        <th>단점</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Supabase pgvector</td>
+        <td>PostgreSQL 통합, 익숙함</td>
+        <td>Vercel AI SDK 공식 지원 X</td>
+      </tr>
+      <tr>
+        <td>Pinecone</td>
+        <td>성숙한 생태계</td>
+        <td>무료 티어 제한적</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>Upstash Vector</strong>
+        </td>
+        <td>Vercel AI SDK 공식 지원, 무료 10K/일</td>
+        <td>상대적으로 신규</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 결과적으로 **Upstash Vector**를 선택하였습니다.
 
@@ -390,36 +394,38 @@ export function ChatPanel() {
 
 베타 서비스 특성상 과도한 사용을 방지해야 했습니다. Upstash Redis를 활용해 3중 제한을 구현했습니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>제한 타입</th>
-      <th>제한량</th>
-      <th>대상</th>
-      <th>목적</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>분당</td>
-      <td>10회</td>
-      <td>IP당</td>
-      <td>빠른 연속 요청 방지</td>
-    </tr>
-    <tr>
-      <td>일일</td>
-      <td>50회</td>
-      <td>IP당</td>
-      <td>개인 과다 사용 방지</td>
-    </tr>
-    <tr>
-      <td>전체 일일</td>
-      <td>1,000회</td>
-      <td>서비스 전체</td>
-      <td>베타 비용 상한선</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>제한 타입</th>
+        <th>제한량</th>
+        <th>대상</th>
+        <th>목적</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>분당</td>
+        <td>10회</td>
+        <td>IP당</td>
+        <td>빠른 연속 요청 방지</td>
+      </tr>
+      <tr>
+        <td>일일</td>
+        <td>50회</td>
+        <td>IP당</td>
+        <td>개인 과다 사용 방지</td>
+      </tr>
+      <tr>
+        <td>전체 일일</td>
+        <td>1,000회</td>
+        <td>서비스 전체</td>
+        <td>베타 비용 상한선</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 ```typescript
 import { Ratelimit } from '@upstash/ratelimit';
@@ -505,40 +511,42 @@ ${context}`,
 
 ### 예상 비용
 
-<table>
-  <thead>
-    <tr>
-      <th>항목</th>
-      <th>월 예상 비용</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>OpenAI API</td>
-      <td>~$5</td>
-    </tr>
-    <tr>
-      <td>Upstash Vector</td>
-      <td>무료 (10K/일)</td>
-    </tr>
-    <tr>
-      <td>Upstash Redis</td>
-      <td>무료 (10K/일)</td>
-    </tr>
-    <tr>
-      <td>Vercel</td>
-      <td>~$20 (Pro)</td>
-    </tr>
-    <tr>
-      <td>
-        <strong>합계</strong>
-      </td>
-      <td>
-        <strong>~$25</strong>
-      </td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>항목</th>
+        <th>월 예상 비용</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>OpenAI API</td>
+        <td>~$5</td>
+      </tr>
+      <tr>
+        <td>Upstash Vector</td>
+        <td>무료 (10K/일)</td>
+      </tr>
+      <tr>
+        <td>Upstash Redis</td>
+        <td>무료 (10K/일)</td>
+      </tr>
+      <tr>
+        <td>Vercel</td>
+        <td>~$20 (Pro)</td>
+      </tr>
+      <tr>
+        <td>
+          <strong>합계</strong>
+        </td>
+        <td>
+          <strong>~$25</strong>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 일 50~100회 사용 기준으로, gpt-4o-mini의 저렴한 가격 덕분에 월 $5 이하로 LLM 비용을 유지할 수 있었습니다.
 

@@ -1,18 +1,7 @@
-import fs from 'fs';
-import matter from 'gray-matter';
 import { MetadataRoute } from 'next';
-import path from 'path';
-
-const BASE_URL = 'https://www.joseph0926.com';
-
-type PostData = {
-  slug: string;
-  date?: string;
-  updatedAt?: string;
-  publishedAt?: string;
-  tags?: string[];
-  category?: string;
-};
+import { appLocales } from '@/i18n/routing';
+import { localizedPath, toAbsoluteUrl } from '@/i18n/seo';
+import { getAllPostSlugs, getPostMetaBySlug } from '@/services/post.service';
 
 type ChangeFrequency =
   | 'always'
@@ -23,45 +12,12 @@ type ChangeFrequency =
   | 'yearly'
   | 'never';
 
-async function getMDXPosts(): Promise<PostData[]> {
-  const mdxDirectory = path.join(process.cwd(), 'src/mdx');
-
-  try {
-    const files = await fs.promises.readdir(mdxDirectory);
-
-    const posts = await Promise.all(
-      files
-        .filter((file) => file.endsWith('.mdx'))
-        .map(async (file) => {
-          const filePath = path.join(mdxDirectory, file);
-          const fileContent = await fs.promises.readFile(filePath, 'utf8');
-          const { data } = matter(fileContent);
-
-          const fileNameWithoutExt = file.replace('.mdx', '');
-          const dateMatch = fileNameWithoutExt.match(
-            /^(\d{4}-\d{2}-\d{2})-(.+)$/,
-          );
-
-          // slug는 파일명 전체 사용 (실제 라우팅과 일치)
-          const slug = fileNameWithoutExt;
-          const fileDate = dateMatch ? dateMatch[1] : null;
-
-          return {
-            slug,
-            date: data.date || data.publishedAt || fileDate,
-            updatedAt: data.updatedAt,
-            publishedAt: data.publishedAt || data.date || fileDate,
-            tags: data.tags,
-            category: data.category,
-          };
-        }),
-    );
-
-    return posts.filter(Boolean);
-  } catch {
-    return [];
-  }
-}
+const languageAlternates = (path: string) => ({
+  languages: {
+    ko: toAbsoluteUrl(localizedPath('ko', path)),
+    en: toAbsoluteUrl(localizedPath('en', path)),
+  },
+});
 
 function calculatePriority(
   pageType: string,
@@ -123,42 +79,57 @@ function getChangeFrequency(
   return 'weekly';
 }
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const staticRoutes: MetadataRoute.Sitemap = [
-    {
-      url: BASE_URL,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1.0,
-    },
-    {
-      url: `${BASE_URL}/about`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: calculatePriority('about'),
-    },
-    {
-      url: `${BASE_URL}/blog`,
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: calculatePriority('blog'),
-    },
+const buildLocalizedStaticRoutes = () => {
+  const routes = [
+    { path: '/', type: 'home', frequency: 'daily' as ChangeFrequency },
+    { path: '/about', type: 'about', frequency: 'monthly' as ChangeFrequency },
+    { path: '/blog', type: 'blog', frequency: 'daily' as ChangeFrequency },
   ];
 
-  const posts = await getMDXPosts();
+  return routes.flatMap((route) =>
+    appLocales.map((locale) => ({
+      url: toAbsoluteUrl(localizedPath(locale, route.path)),
+      lastModified: new Date(),
+      changeFrequency: route.frequency,
+      priority: calculatePriority(route.type),
+      alternates: languageAlternates(route.path),
+    })),
+  );
+};
 
-  const postRoutes: MetadataRoute.Sitemap = posts.map((post) => {
-    const lastModified = post.updatedAt || post.publishedAt || new Date();
-    const postUrl = `${BASE_URL}/post/${post.slug}`;
+const buildLocalizedPostRoutes = async (): Promise<MetadataRoute.Sitemap> => {
+  const slugs = await getAllPostSlugs();
 
-    return {
-      url: postUrl,
-      lastModified: new Date(lastModified),
-      changeFrequency: getChangeFrequency('post', lastModified),
-      priority: calculatePriority('post', lastModified),
-    };
-  });
+  const allPostRoutes = await Promise.all(
+    slugs.map(async (slug) => {
+      const koPost = await getPostMetaBySlug(slug, 'ko');
+      if (!koPost) return [];
 
+      const enPost = await getPostMetaBySlug(slug, 'en');
+      const lastModified =
+        enPost?.updatedAt ??
+        koPost.updatedAt ??
+        enPost?.date ??
+        koPost.date ??
+        new Date().toISOString();
+      const path = `/post/${slug}`;
+
+      return appLocales.map((locale) => ({
+        url: toAbsoluteUrl(localizedPath(locale, path)),
+        lastModified: new Date(lastModified),
+        changeFrequency: getChangeFrequency('post', lastModified),
+        priority: calculatePriority('post', lastModified),
+        alternates: languageAlternates(path),
+      }));
+    }),
+  );
+
+  return allPostRoutes.flat();
+};
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const staticRoutes = buildLocalizedStaticRoutes();
+  const postRoutes = await buildLocalizedPostRoutes();
   const allRoutes = [...staticRoutes, ...postRoutes];
 
   const uniqueRoutes = Array.from(

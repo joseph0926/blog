@@ -81,32 +81,34 @@ P0는 “기본 지시 + 스키마 안내” 수준으로 얕게 작성했습니
 
 ### 결과
 
-<table>
-  <thead>
-    <tr>
-      <th>프롬프트</th>
-      <th align="right">PASS</th>
-      <th align="right">FAIL</th>
-      <th align="right">개선폭</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>P0</td>
-      <td align="right">12</td>
-      <td align="right">38</td>
-      <td align="right">—</td>
-    </tr>
-    <tr>
-      <td>P1</td>
-      <td align="right">47</td>
-      <td align="right">3</td>
-      <td align="right">
-        <strong>+35</strong>
-      </td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>프롬프트</th>
+        <th align="right">PASS</th>
+        <th align="right">FAIL</th>
+        <th align="right">개선폭</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>P0</td>
+        <td align="right">12</td>
+        <td align="right">38</td>
+        <td align="right">—</td>
+      </tr>
+      <tr>
+        <td>P1</td>
+        <td align="right">47</td>
+        <td align="right">3</td>
+        <td align="right">
+          <strong>+35</strong>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 단순한 문장 다듬기가 아니라, **의사결정 규칙을 명확히 넣는 것**이 성능을 크게 끌어올렸습니다.
 
@@ -124,28 +126,30 @@ P1에서는 이 규칙을 **사전에 명시**했고 결과가 급격히 좋아�
 
 아래 표는 P0 기준으로 자동 채점에서 가장 많이 나온 실패 원인입니다.
 
-<table>
-  <thead>
-    <tr>
-      <th>원인</th>
-      <th align="right">건수</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>needs_human 과소 판단</td>
-      <td align="right">13</td>
-    </tr>
-    <tr>
-      <td>priority 높음 → 보통</td>
-      <td align="right">8</td>
-    </tr>
-    <tr>
-      <td>priority 긴급 → 높음</td>
-      <td align="right">5</td>
-    </tr>
-  </tbody>
-</table>
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>원인</th>
+        <th align="right">건수</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>needs_human 과소 판단</td>
+        <td align="right">13</td>
+      </tr>
+      <tr>
+        <td>priority 높음 → 보통</td>
+        <td align="right">8</td>
+      </tr>
+      <tr>
+        <td>priority 긴급 → 높음</td>
+        <td align="right">5</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
 
 ### 개선 과제: 토큰 증가
 
