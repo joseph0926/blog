@@ -1,0 +1,601 @@
+---
+slug: '2026-02-21-why-is-nextjs-source-code-complex'
+title: 'Why is Next.js source code so complex? -- The cost of keeping Pages Router'
+description: 'Tracing just next/navigation through the source reveals where the complexity comes from: re-export entry points, context adapters, and .react-server.ts splits.'
+date: '2026-02-21'
+tags: ['nextjs', 'source-code']
+thumbnail: '/post/nextjs.webp'
+---
+
+# Why is Next.js source code so complex?
+
+These days, I am studying by reading the Next.js source code directly.
+
+Just like when I studied React, I fork the repo locally and open files one by one. To read source efficiently, I start from APIs I already use often. So I started from `next/navigation`, especially `useRouter` and `redirect`.
+
+```ts
+import { useRouter, redirect } from 'next/navigation';
+```
+
+It is just one import line. But once I traced it, it went through far more files than expected.
+
+```
+[Default entry]
+next/navigation (packages/next/navigation.js)
+  -> dist/client/components/navigation
+
+[When webpack alias layers apply]
+next/navigation.js
+  -> next/dist/api/navigation (createNextApiEsmAliases)
+  -> (server-only layer) next/dist/api/navigation.react-server
+
+[Source-level mapping]
+src/api/navigation.ts (re-export layer)
+  -> client/components/navigation.ts (actual implementation)
+    -> navigation.react-server.ts (server-only branch)
+```
+
+The complexity came from two different axes. **Context/adapter/null-compat came from Pages Router coexistence**, while **the `.react-server.ts` split was directly triggered by the React `react-server` condition transition and bundling issue (#62456)**.
+
+This post is a record of what I found while tracing just `next/navigation`.
+
+---
+
+## Help desk pattern -- Why does `src/api/` exist?
+
+In Next.js, `packages/next/src/api/` contains 16 files.
+
+```
+src/api/
+|- navigation.ts
+|- navigation.react-server.ts
+|- headers.ts
+|- server.ts
+|- image.ts
+|- link.ts
+|- form.ts
+|- script.ts
+|- og.ts
+|- dynamic.ts
+|- app-dynamic.ts
+|- router.ts
+|- head.ts
+|- document.tsx
+|- app.tsx
+`- constants.ts
+```
+
+If you open them, they are short.
+
+```ts
+// src/api/navigation.ts -- full file
+export * from '../client/components/navigation';
+```
+
+```ts
+// src/api/headers.ts -- full file
+export * from '../server/request/cookies';
+export * from '../server/request/headers';
+export * from '../server/request/draft-mode';
+```
+
+```ts
+// src/api/server.ts -- full file
+export * from '../server/web/exports/index';
+```
+
+There is no implementation here. They only re-export from elsewhere. `src/api/` is like a hotel help desk. The desk does not provide the service itself, but guests (developers) only need to visit one place. Actual service happens in departments like `client/`, `server/`, and `shared/`.
+
+This pattern becomes powerful when combined with the build system.
+
+```ts
+// build/create-compiler-aliases.ts:231-250
+export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
+  const mapping: Record<string, string> = {
+    head: 'next/dist/client/components/noop-head',
+    dynamic: 'next/dist/api/app-dynamic',
+    link: 'next/dist/client/app-dir/link',
+    form: 'next/dist/client/app-dir/form',
+  };
+
+  if (isServerOnlyLayer) {
+    mapping['navigation'] = 'next/dist/api/navigation.react-server';
+    mapping['link'] = 'next/dist/client/app-dir/link.react-server';
+  }
+
+  const aliasMap: Record<string, string> = {};
+  for (const [key, value] of Object.entries(mapping)) {
+    const nextApiFilePath = path.join(NEXT_PROJECT_ROOT, key);
+    aliasMap[nextApiFilePath + '.js'] = value;
+  }
+  return aliasMap;
+}
+```
+
+If `isServerOnlyLayer` is `true` (while bundling Server Components), `navigation` resolves to `navigation.react-server`. Developers still import `'next/navigation'`, and the build system connects the environment-specific target.
+
+It is like the help desk checking your room type and routing you to the right service.
+
+Pros and cons come from the same root.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Perspective</th>
+        <th>Pros</th>
+        <th>Cons</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>User experience</td>
+        <td>Same import path regardless of environment</td>
+        <td>You cannot see which code is actually wired at build time</td>
+      </tr>
+      <tr>
+        <td>Debugging</td>
+        <td>-</td>
+        <td>
+          Hard to understand error causes when importing useRouter in Server
+          Components
+        </td>
+      </tr>
+      <tr>
+        <td>Maintainability</td>
+        <td>Public API stability even when internals change</td>
+        <td>The alias system itself adds complexity</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+This is the double edge of abstraction. It makes users comfortable, but makes root-cause tracing harder when problems happen.
+
+Among those 16 files, only `navigation.ts` has a `.react-server.ts` pair. Why does only this one need a server/client split?
+
+To answer that, we need to open the real implementation behind `navigation.ts`.
+
+---
+
+## The cost of two routers sharing one hook
+
+### Why context is needed
+
+If you open the actual implementation (`client/components/navigation.ts`), all hooks follow the same pattern.
+
+```ts
+// client/components/navigation.ts:146-153
+export function useRouter(): AppRouterInstance {
+  const router = useContext(AppRouterContext);
+  if (router === null) {
+    throw new Error('invariant expected app router to be mounted');
+  }
+  return router;
+}
+```
+
+```ts
+// client/components/navigation.ts:103-108
+export function usePathname(): string {
+  const pathname = useContext(PathnameContext) as string;
+  return pathname;
+}
+```
+
+```ts
+// client/components/navigation.ts:56-68
+export function useSearchParams(): ReadonlyURLSearchParams {
+  const searchParams = useContext(SearchParamsContext);
+  const readonlySearchParams = useMemo((): ReadonlyURLSearchParams => {
+    if (!searchParams) {
+      return null!;
+    }
+    return new ReadonlyURLSearchParams(searchParams);
+  }, [searchParams]);
+  return readonlySearchParams;
+}
+```
+
+`useRouter` reads `AppRouterContext`, `usePathname` reads `PathnameContext`, and `useSearchParams` reads `SearchParamsContext`. They all read values injected by the framework through `useContext`.
+
+Why context? Why not import concrete implementations directly?
+
+`app-router.tsx` gives the answer.
+
+```ts
+// client/components/app-router.tsx:549-554
+{/* TODO: We should be able to remove this context. useRouter
+    should import from app-router-instance instead. It's only
+    necessary because useRouter is shared between Pages and
+    App Router. We should fork that module, then remove this
+    context provider. */}
+<AppRouterContext.Provider value={publicAppRouterInstance}>
+```
+
+This TODO is from the Next.js team itself. Context is needed because `useRouter` must work for both Pages Router and App Router. The comment explicitly says context can be removed after forking.
+
+### Different plumbing, different water
+
+Then how does the same `useRouter()` know whether it is running under Pages Router or App Router?
+
+It does not detect anything. There is no explicit detection logic.
+
+In Pages Router `AppContainer` (`client/index.tsx:296-334`):
+
+```ts
+// client/index.tsx:296-334
+function AppContainer({ children }): React.ReactElement {
+  const adaptedForAppRouter = React.useMemo(() => {
+    return adaptForAppRouterInstance(router);
+  }, []);
+  return (
+    <Container>
+      <AppRouterContext.Provider value={adaptedForAppRouter}>
+        <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+          <PathnameContextProviderAdapter
+            router={router}
+            isAutoExport={/* ... */}
+          >
+            <PathParamsContext.Provider value={adaptForPathParams(router)}>
+              {children}
+            </PathParamsContext.Provider>
+          </PathnameContextProviderAdapter>
+        </SearchParamsContext.Provider>
+      </AppRouterContext.Provider>
+    </Container>
+  );
+}
+```
+
+Compare that with App Router provider setup (`client/components/app-router.tsx:536-558`):
+
+```ts
+// client/components/app-router.tsx:536-558
+return (
+  <>
+    <PathParamsContext.Provider value={pathParams}>
+      <PathnameContext.Provider value={pathname}>
+        <SearchParamsContext.Provider value={searchParams}>
+          <GlobalLayoutRouterContext.Provider value={globalLayoutRouterContext}>
+            <AppRouterContext.Provider value={publicAppRouterInstance}>
+              <LayoutRouterContext.Provider value={layoutRouterContext}>
+                {content}
+              </LayoutRouterContext.Provider>
+            </AppRouterContext.Provider>
+          </GlobalLayoutRouterContext.Provider>
+        </SearchParamsContext.Provider>
+      </PathnameContext.Provider>
+    </PathParamsContext.Provider>
+  </>
+);
+```
+
+They inject different values into the same contexts (`AppRouterContext`, `SearchParamsContext`, `PathnameContext`). Pages Router injects an adapted object from `adaptForAppRouterInstance(router)`, while App Router injects `publicAppRouterInstance`.
+
+The hook is not deciding "where am I?". The plumbing (provider tree) is already wired differently. `useContext` simply reads the nearest parent provider value, so the return value changes based on where the component is rendered.
+
+```
+[Pages Router path]
+AppContainer
+  -> AppRouterContext.Provider value={adaptedForAppRouter}
+     -> User's Pages component
+        -> useRouter() -> useContext(AppRouterContext) -> adapter object
+
+[App Router path]
+app-router.tsx
+  -> AppRouterContext.Provider value={publicAppRouterInstance}
+     -> User's App component
+        -> useRouter() -> useContext(AppRouterContext) -> App Router instance
+```
+
+This is enabled by the adapter function.
+
+```ts
+// shared/lib/router/adapters.tsx:12-36
+export function adaptForAppRouterInstance(
+  pagesRouter: NextRouter,
+): AppRouterInstance {
+  return {
+    back() {
+      pagesRouter.back();
+    },
+    forward() {
+      pagesRouter.forward();
+    },
+    refresh() {
+      pagesRouter.reload();
+    },
+    push(href, { scroll } = {}) {
+      void pagesRouter.push(href, undefined, { scroll });
+    },
+    replace(href, { scroll } = {}) {
+      void pagesRouter.replace(href, undefined, { scroll });
+    },
+    prefetch(href) {
+      void pagesRouter.prefetch(href);
+    },
+  };
+}
+```
+
+It converts Pages Router `NextRouter` into the `AppRouterInstance` interface. For example, `refresh()` internally calls `pagesRouter.reload()`. Since Pages Router cannot be dropped yet, an adapter provides one shared interface.
+
+### Type-system impact too -- the `null!` trick
+
+Look at `useSearchParams` again.
+
+```ts
+// client/components/navigation.ts:64-68
+if (!searchParams) {
+  // When the router is not ready in pages, we won't have the search params
+  // available.
+  return null!;
+}
+```
+
+`null!` applies TypeScript non-null assertion to `null`. The return type is `ReadonlyURLSearchParams`, but under Pages Router there are real cases where `null` must be returned. The comment says exactly why: search params are unavailable while the Pages router is not ready.
+
+In App-only projects, this cannot happen, so the base type does not include `| null`. Instead, projects that use both Pages and App routers receive an additional compat type overload automatically.
+
+```ts
+// navigation-types/compat/navigation.d.ts
+declare module 'next/navigation' {
+  export function useSearchParams(): ReadonlyURLSearchParams | null;
+  export function usePathname(): string | null;
+  export function useParams<
+    T extends Record<string, string | string[]>,
+  >(): T | null;
+  export function useSelectedLayoutSegments(): string[] | null;
+  export function useSelectedLayoutSegment(): string | null;
+}
+```
+
+The condition is in `writeAppTypeDeclarations.ts`.
+
+```ts
+// lib/typescript/writeAppTypeDeclarations.ts:59-62
+if (hasAppDir && hasPagesDir) {
+  lines.push(
+    '/// <reference types="next/navigation-types/compat/navigation" />',
+  );
+}
+```
+
+`hasAppDir && hasPagesDir` means the `| null` overloads are added only when both routers coexist. App-only projects can use these hooks without null checks; mixed projects get null checks enforced by TypeScript.
+
+It is a clever solution, but the fact that `null!` is needed is itself a signal of complexity. Without Pages Router support, this code would not exist.
+
+---
+
+## When React changes, Next.js gets shaken too
+
+Earlier we saw that only `navigation.ts` has a `.react-server.ts` pair in `src/api/`. Why did that file appear? The answer is visible when tracking PR history.
+
+### Two kinds of APIs in one file
+
+`navigation.ts` (client version) mixes two very different API categories.
+
+```ts
+// client/components/navigation.ts
+// 1. React hooks -- useContext based, client-only
+import React, { useContext, useMemo, use } from 'react';
+
+export function useRouter(): AppRouterInstance {
+  const router = useContext(AppRouterContext);
+  // ...
+}
+export function usePathname(): string {
+  const pathname = useContext(PathnameContext) as string;
+  // ...
+}
+
+// 2. Pure functions -- shared by server and client
+export {
+  notFound,
+  redirect,
+  permanentRedirect,
+  RedirectType,
+  unstable_rethrow,
+} from './navigation.react-server';
+```
+
+`.react-server.ts` (server version) has no context-dependent hooks, only shared server APIs and a guard function.
+
+```ts
+// client/components/navigation.react-server.ts -- full file
+export function unstable_isUnrecognizedActionError(): boolean {
+  throw new Error(
+    '`unstable_isUnrecognizedActionError` can only be used on the client.',
+  );
+}
+
+export { redirect, permanentRedirect } from './redirect';
+export { notFound } from './not-found';
+export { forbidden } from './forbidden';
+export { unauthorized } from './unauthorized';
+export { unstable_rethrow } from './unstable-rethrow';
+export { ReadonlyURLSearchParams };
+export const RedirectType = { push: 'push', replace: 'replace' } as const;
+```
+
+Originally there was only one `navigation.ts`. The `.react-server.ts` file was introduced because of a React-side change.
+
+### `useContext` disappeared from the server build
+
+React separates server and client builds through conditional exports in `package.json`.
+
+```json
+// compiled/react/package.json
+".": {
+  "react-server": "./react.react-server.js",
+  "default": "./index.js"
+}
+```
+
+The available hooks differ across those builds.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Hook</th>
+        <th>Client build (react.production.js)</th>
+        <th>Server build (react.react-server.production.js)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>useContext</code>
+        </td>
+        <td>yes (line 511)</td>
+        <td>no</td>
+      </tr>
+      <tr>
+        <td>
+          <code>useState</code>
+        </td>
+        <td>yes</td>
+        <td>no</td>
+      </tr>
+      <tr>
+        <td>
+          <code>useEffect</code>
+        </td>
+        <td>yes (line 518)</td>
+        <td>no</td>
+      </tr>
+      <tr>
+        <td>
+          <code>useMemo</code>
+        </td>
+        <td>yes (line 536)</td>
+        <td>yes (line 433)</td>
+      </tr>
+      <tr>
+        <td>
+          <code>useCallback</code>
+        </td>
+        <td>yes (line 508)</td>
+        <td>yes (line 426)</td>
+      </tr>
+      <tr>
+        <td>
+          <code>use</code>
+        </td>
+        <td>yes (line 502)</td>
+        <td>yes (line 423)</td>
+      </tr>
+      <tr>
+        <td>
+          <code>createContext</code>
+        </td>
+        <td>yes</td>
+        <td>no</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+From React's viewpoint this is reasonable: context APIs are not meaningful in Server Components.
+
+The issue is that Next.js `navigation.ts` was affected by this change.
+
+### Error path
+
+This is how the failure happened when only one `navigation.ts` existed:
+
+1. A Server Component imports `redirect` from `next/navigation`.
+2. The bundler resolves `navigation.ts`.
+3. `navigation.ts` includes `import { useContext } from 'react'`.
+4. Because this is a server bundle, React resolves with the `react-server` condition.
+5. `react.react-server.js` does not export `useContext`.
+6. Bundling fails: `"useContext is not exported from react"`.
+
+The user only wanted `redirect`, but `useRouter` in the same file imported `useContext`, and that symbol does not exist in React's server build.
+
+The commit message of PR #62456 explains this directly.
+
+> We found that if you're using edge runtime with `next/navigation` it will error with bundling that you're attempted to import some client component hooks such as `useContext` from react. So we introduced a `react-server` version of `next/navigation` that doesn't interoplate with any client hooks.
+
+### Timeline -- 3 weeks between React and Next.js
+
+The git history gives a clear timeline.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>PR</th>
+        <th>Author</th>
+        <th>Change</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>2024-02-05</td>
+        <td>#61522</td>
+        <td>Josh Story (React team)</td>
+        <td><code>shared-subset</code> -> <code>react-server</code>, removed <code>useContext</code></td>
+      </tr>
+      <tr>
+        <td>2024-02-26</td>
+        <td>#62456</td>
+        <td>Jiachi Liu (Next.js team)</td>
+        <td>Added <code>navigation.react-server.ts</code> to fix bundling error</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+In PR #61522, Josh Story updated React and changed Next.js alias naming (`shared-subset` -> `react-server`) in one PR, so this was a coordinated effort. But that PR mostly handled alias naming, and did not fully catch the `navigation.ts` + `useContext` impact.
+
+Three weeks later, real Edge Runtime + Server Components errors were reported, and the Next.js team shipped the `.react-server.ts` split as a follow-up fix.
+
+So this was not an intentional breaking change from Next.js. React intentionally removed `useContext` from the server build, but the impact surface in Next.js was not fully handled in one step. This is a realistic failure mode in framework-level dependency coordination.
+
+---
+
+## Wrap-up
+
+Here is a summary of the complexity we traced in this article.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Complexity</th>
+        <th>Cause</th>
+        <th>Evidence</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Context + adapter pattern</td>
+        <td>Pages/App Router share the same hooks</td>
+        <td>TODO in app-router.tsx:549-554</td>
+      </tr>
+      <tr>
+        <td><code>.react-server.ts</code> split</td>
+        <td><code>useContext</code> removed from React server build</td>
+        <td>PR #61522 -> PR #62456</td>
+      </tr>
+      <tr>
+        <td><code>null!</code> type trick</td>
+        <td>Conditional compat overloads for mixed Pages/App projects</td>
+        <td>writeAppTypeDeclarations.ts:59-62</td>
+      </tr>
+      <tr>
+        <td>Build-time alias system</td>
+        <td>Transparent server/client branching</td>
+        <td>create-compiler-aliases.ts:231-250</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+The key is two axes. Context/adapter/`null!` complexity comes from Pages Router coexistence, while the `.react-server.ts` split was directly triggered by a React `react-server` transition side effect and bundling issue (#62456). As the TODO says, if Pages/App modules are forked, context coupling can be reduced.
+
+But Next.js still cannot drop Pages Router entirely. Many production projects still run on it, and Pages Router is still supported in Next.js v16. That is why the source is complex. This complexity is not simply bad design; it is the result of practical compatibility constraints.

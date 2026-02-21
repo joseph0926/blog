@@ -1,0 +1,609 @@
+---
+slug: '2026-02-21-why-is-nextjs-source-code-complex'
+title: 'Next.js 소스코드는 왜 복잡할까 — Pages Router를 버릴 수 없는 대가'
+description: 'next/navigation 하나를 소스 코드에서 추적하며 발견한 복잡성의 뿌리. re-export 진입점, Context 어댑터, .react-server.ts 분리까지 — 모두 Pages Router와의 공존이 만든 대가였습니다.'
+date: '2026-02-21'
+tags: ['nextjs', 'source-code']
+thumbnail: '/post/nextjs.webp'
+---
+
+# Next.js 소스코드는 왜 복잡할까
+
+저는 요즘 Next.js 소스 코드를 직접 읽으면서 공부하고 있습니다.
+
+React 때와 마찬가지로, 레포를 fork해서 로컬에 두고 파일 하나하나 열어보는 방식입니다. 소스를 읽을 때는 익숙한 API부터 시작해야 이해가 수월합니다. `next/navigation`의 `useRouter`, `redirect`는 매일 쓰는 API이므로 여기서부터 시작했습니다.
+
+```ts
+import { useRouter, redirect } from 'next/navigation';
+```
+
+한 줄짜리 import입니다. 이 한 줄을 추적하기 시작하니, 예상보다 훨씬 많은 파일을 거쳐야 했습니다.
+
+```
+[기본 엔트리]
+next/navigation (packages/next/navigation.js)
+  → dist/client/components/navigation
+
+[webpack alias 레이어가 적용될 때]
+next/navigation.js
+  → next/dist/api/navigation (createNextApiEsmAliases)
+  → (server-only layer) next/dist/api/navigation.react-server
+
+[소스 코드 대응 경로]
+src/api/navigation.ts (re-export 레이어)
+  → client/components/navigation.ts (실제 구현)
+    → navigation.react-server.ts (Server 전용 분기)
+```
+
+파고 들어갈수록 복잡성은 두 축에서 왔습니다. **Context/어댑터/null-compat는 Pages Router 공존의 결과**이고, **`.react-server.ts` 분리는 React `react-server` 조건 전환 이후 번들 이슈(#62456)가 직접 트리거**였습니다.
+
+이 글은 `next/navigation` 하나를 추적하면서 발견한 것들을 정리한 기록입니다.
+
+---
+
+## 안내 데스크 패턴 — `src/api/`는 왜 존재하는가
+
+Next.js의 `packages/next/src/api/` 디렉토리에는 16개의 파일이 있습니다.
+
+```
+src/api/
+├── navigation.ts
+├── navigation.react-server.ts
+├── headers.ts
+├── server.ts
+├── image.ts
+├── link.ts
+├── form.ts
+├── script.ts
+├── og.ts
+├── dynamic.ts
+├── app-dynamic.ts
+├── router.ts
+├── head.ts
+├── document.tsx
+├── app.tsx
+└── constants.ts
+```
+
+이 파일들을 열어보면 짧습니다.
+
+```ts
+// src/api/navigation.ts — 전체 코드
+export * from '../client/components/navigation';
+```
+
+```ts
+// src/api/headers.ts — 전체 코드
+export * from '../server/request/cookies';
+export * from '../server/request/headers';
+export * from '../server/request/draft-mode';
+```
+
+```ts
+// src/api/server.ts — 전체 코드
+export * from '../server/web/exports/index';
+```
+
+구현이 없습니다. 전부 다른 곳에서 가져와 re-export할 뿐입니다. `src/api/`는 호텔의 안내 데스크입니다. 안내 데스크 직원이 직접 서비스를 제공하지는 않지만, 손님(개발자)은 안내 데스크만 찾아가면 됩니다. 실제 서비스는 `client/`, `server/`, `shared/` 등 각 부서에서 이루어집니다.
+
+이 패턴의 힘은 빌드 시스템과 결합할 때 나타납니다.
+
+```ts
+// build/create-compiler-aliases.ts:231-250
+export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
+  const mapping: Record<string, string> = {
+    head: 'next/dist/client/components/noop-head',
+    dynamic: 'next/dist/api/app-dynamic',
+    link: 'next/dist/client/app-dir/link',
+    form: 'next/dist/client/app-dir/form',
+  };
+
+  if (isServerOnlyLayer) {
+    mapping['navigation'] = 'next/dist/api/navigation.react-server';
+    mapping['link'] = 'next/dist/client/app-dir/link.react-server';
+  }
+
+  const aliasMap: Record<string, string> = {};
+  for (const [key, value] of Object.entries(mapping)) {
+    const nextApiFilePath = path.join(NEXT_PROJECT_ROOT, key);
+    aliasMap[nextApiFilePath + '.js'] = value;
+  }
+  return aliasMap;
+}
+```
+
+`isServerOnlyLayer`가 `true`이면 — Server Component를 번들링하는 중이면 — `navigation`의 resolve 대상이 `navigation.react-server`로 바뀝니다. 개발자는 동일하게 `'next/navigation'`으로 import하지만, 빌드 시스템이 환경에 맞는 코드를 연결합니다.
+
+안내 데스크 직원이 손님의 객실 타입을 확인하고, 그에 맞는 서비스를 연결하는 구조입니다.
+
+장단점은 같은 뿌리에서 나옵니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>관점</th>
+        <th>장점</th>
+        <th>단점</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>사용자 경험</td>
+        <td>환경을 신경 쓸 필요 없이 동일한 import 경로</td>
+        <td>빌드 타임에 실제로 어떤 코드가 연결되는지 보이지 않음</td>
+      </tr>
+      <tr>
+        <td>디버깅</td>
+        <td>—</td>
+        <td>Server Component에서 useRouter import 시 에러 원인 이해 어려움</td>
+      </tr>
+      <tr>
+        <td>유지보수</td>
+        <td>내부 구조 변경 시 public API 안정성 유지</td>
+        <td>alias 시스템 자체가 복잡성 추가</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+추상화의 양면성입니다. 사용자를 편하게 만드는 구조가, 문제가 생겼을 때 원인을 찾기 어렵게 만듭니다.
+
+16개 파일 중 `navigation.ts`만 `.react-server.ts` 쌍을 가집니다. 왜 이 파일만 Server/Client 분기가 필요한 걸까요?
+
+답을 찾으려면 `navigation.ts`의 실제 구현을 열어봐야 합니다.
+
+---
+
+## 두 라우터가 하나의 hook을 공유하는 대가
+
+### Context가 필요한 이유
+
+`navigation.ts`의 실제 구현(`client/components/navigation.ts`)을 열면, 모든 hook이 같은 패턴입니다.
+
+```ts
+// client/components/navigation.ts:146-153
+export function useRouter(): AppRouterInstance {
+  const router = useContext(AppRouterContext);
+  if (router === null) {
+    throw new Error('invariant expected app router to be mounted');
+  }
+  return router;
+}
+```
+
+```ts
+// client/components/navigation.ts:103-108
+export function usePathname(): string {
+  const pathname = useContext(PathnameContext) as string;
+  return pathname;
+}
+```
+
+```ts
+// client/components/navigation.ts:56-68
+export function useSearchParams(): ReadonlyURLSearchParams {
+  const searchParams = useContext(SearchParamsContext);
+  const readonlySearchParams = useMemo((): ReadonlyURLSearchParams => {
+    if (!searchParams) {
+      return null!;
+    }
+    return new ReadonlyURLSearchParams(searchParams);
+  }, [searchParams]);
+  return readonlySearchParams;
+}
+```
+
+`useRouter`는 `useContext(AppRouterContext)`, `usePathname`은 `useContext(PathnameContext)`, `useSearchParams`는 `useContext(SearchParamsContext)`. 전부 `useContext`로 프레임워크가 주입한 값을 읽습니다.
+
+왜 Context일까요? 구현을 직접 import하면 되지 않을까요?
+
+`app-router.tsx`에 답이 있습니다.
+
+```ts
+// client/components/app-router.tsx:549-554
+{/* TODO: We should be able to remove this context. useRouter
+    should import from app-router-instance instead. It's only
+    necessary because useRouter is shared between Pages and
+    App Router. We should fork that module, then remove this
+    context provider. */}
+<AppRouterContext.Provider value={publicAppRouterInstance}>
+```
+
+Next.js 팀이 직접 남긴 TODO 주석입니다. Context가 필요한 이유는 `useRouter`가 Pages Router와 App Router 양쪽에서 동작해야 하기 때문입니다. "fork하면 Context를 제거할 수 있다"고 했으니, 이상적 설계가 아니라는 것을 팀 스스로도 인지하고 있습니다.
+
+### 배관이 다르면 다른 물이 나온다
+
+그러면 같은 `useRouter()`를 호출했을 때, Pages Router인지 App Router인지를 어떻게 구분할까요?
+
+구분하지 않습니다. 감지 로직이 없습니다.
+
+Pages Router의 `AppContainer`(`client/index.tsx:296-334`)를 보면,
+
+```ts
+// client/index.tsx:296-334
+function AppContainer({ children }): React.ReactElement {
+  const adaptedForAppRouter = React.useMemo(() => {
+    return adaptForAppRouterInstance(router);
+  }, []);
+  return (
+    <Container>
+      <AppRouterContext.Provider value={adaptedForAppRouter}>
+        <SearchParamsContext.Provider value={adaptForSearchParams(router)}>
+          <PathnameContextProviderAdapter
+            router={router}
+            isAutoExport={/* ... */}
+          >
+            <PathParamsContext.Provider value={adaptForPathParams(router)}>
+              {children}
+            </PathParamsContext.Provider>
+          </PathnameContextProviderAdapter>
+        </SearchParamsContext.Provider>
+      </AppRouterContext.Provider>
+    </Container>
+  );
+}
+```
+
+App Router의 Provider(`client/components/app-router.tsx:536-558`)와 비교하면,
+
+```ts
+// client/components/app-router.tsx:536-558
+return (
+  <>
+    <PathParamsContext.Provider value={pathParams}>
+      <PathnameContext.Provider value={pathname}>
+        <SearchParamsContext.Provider value={searchParams}>
+          <GlobalLayoutRouterContext.Provider value={globalLayoutRouterContext}>
+            <AppRouterContext.Provider value={publicAppRouterInstance}>
+              <LayoutRouterContext.Provider value={layoutRouterContext}>
+                {content}
+              </LayoutRouterContext.Provider>
+            </AppRouterContext.Provider>
+          </GlobalLayoutRouterContext.Provider>
+        </SearchParamsContext.Provider>
+      </PathnameContext.Provider>
+    </PathParamsContext.Provider>
+  </>
+);
+```
+
+같은 Context(`AppRouterContext`, `SearchParamsContext`, `PathnameContext`)에 다른 값을 주입합니다. Pages Router는 `adaptForAppRouterInstance(router)`로 변환한 어댑터 객체를, App Router는 `publicAppRouterInstance`를 넣습니다.
+
+수도꼭지(hook)가 "내가 어디 있지?"를 판단하는 게 아닙니다. 배관(Provider)이 이미 다르게 연결되어 있습니다. `useContext`는 가장 가까운 상위 Provider의 value를 반환하므로, 어떤 트리 안에서 렌더링되느냐에 따라 다른 값이 나옵니다.
+
+```
+[Pages Router 경로]
+AppContainer
+  └─ AppRouterContext.Provider value={adaptedForAppRouter}
+       └─ 사용자의 Pages 컴포넌트
+            └─ useRouter() → useContext(AppRouterContext) → 어댑터 객체
+
+[App Router 경로]
+app-router.tsx
+  └─ AppRouterContext.Provider value={publicAppRouterInstance}
+       └─ 사용자의 App 컴포넌트
+            └─ useRouter() → useContext(AppRouterContext) → App Router 인스턴스
+```
+
+이 구조를 가능하게 하는 것이 어댑터 함수입니다.
+
+```ts
+// shared/lib/router/adapters.tsx:12-36
+export function adaptForAppRouterInstance(
+  pagesRouter: NextRouter,
+): AppRouterInstance {
+  return {
+    back() {
+      pagesRouter.back();
+    },
+    forward() {
+      pagesRouter.forward();
+    },
+    refresh() {
+      pagesRouter.reload();
+    },
+    push(href, { scroll } = {}) {
+      void pagesRouter.push(href, undefined, { scroll });
+    },
+    replace(href, { scroll } = {}) {
+      void pagesRouter.replace(href, undefined, { scroll });
+    },
+    prefetch(href) {
+      void pagesRouter.prefetch(href);
+    },
+  };
+}
+```
+
+Pages Router의 `NextRouter`를 `AppRouterInstance` 인터페이스에 맞게 변환합니다. `refresh()`가 내부적으로 `pagesRouter.reload()`를 호출하는 식입니다. Pages Router를 아직 버릴 수 없으니, 어댑터로 감싸서 같은 인터페이스를 제공합니다.
+
+### 타입 시스템까지 영향 — `null!` 트릭
+
+다시 `useSearchParams` 구현을 봅니다.
+
+```ts
+// client/components/navigation.ts:64-68
+if (!searchParams) {
+  // When the router is not ready in pages, we won't have the search params
+  // available.
+  return null!;
+}
+```
+
+`null!` — TypeScript의 non-null assertion을 `null`에 적용한 것입니다. 함수 반환 타입은 `ReadonlyURLSearchParams`이지만, Pages Router에서는 실제로 `null`을 반환해야 하는 상황이 존재합니다. 주석이 그 이유를 직접 설명합니다: "pages에서 router가 ready 상태가 아니면 search params를 사용할 수 없다".
+
+App Router 전용 프로젝트에서는 `null`이 반환될 일이 없으므로 타입에 `| null`을 넣지 않았습니다. 대신, Pages Router를 함께 사용하는 프로젝트에서는 별도의 타입 오버로드가 자동으로 추가됩니다.
+
+```ts
+// navigation-types/compat/navigation.d.ts
+declare module 'next/navigation' {
+  export function useSearchParams(): ReadonlyURLSearchParams | null;
+  export function usePathname(): string | null;
+  export function useParams<
+    T extends Record<string, string | string[]>,
+  >(): T | null;
+  export function useSelectedLayoutSegments(): string[] | null;
+  export function useSelectedLayoutSegment(): string | null;
+}
+```
+
+이 타입 파일이 적용되는 조건은 `writeAppTypeDeclarations.ts`에 있습니다.
+
+```ts
+// lib/typescript/writeAppTypeDeclarations.ts:59-62
+if (hasAppDir && hasPagesDir) {
+  lines.push(
+    '/// <reference types="next/navigation-types/compat/navigation" />',
+  );
+}
+```
+
+`hasAppDir && hasPagesDir` — App Router와 Pages Router를 모두 사용하는 프로젝트에서만 `| null` 오버로드가 추가됩니다. App Router만 사용하면 `null` 체크 없이 쓸 수 있고, Pages를 함께 사용하면 TypeScript가 `null` 체크를 강제합니다.
+
+프로젝트 설정에 따라 타입 시스템이 자동으로 조절됩니다. 영리한 해법이지만, `null!`이라는 트릭이 필요한 시점에서 이미 복잡성의 신호입니다. Pages Router를 지원하지 않았다면 이 코드는 존재하지 않았을 것입니다.
+
+---
+
+## React가 바뀌면 Next.js도 흔들린다
+
+앞서 `src/api/` 디렉토리에서 `navigation.ts`만 `.react-server.ts` 쌍을 가진다고 했습니다. 이 파일이 왜 생겼는지, PR을 추적하면 원인이 나옵니다.
+
+### 하나의 파일에 두 종류의 API
+
+`navigation.ts`(Client 버전)에는 성격이 완전히 다른 두 종류의 API가 공존합니다.
+
+```ts
+// client/components/navigation.ts
+// 1. React Hooks — useContext 사용, Client 전용
+import React, { useContext, useMemo, use } from 'react';
+
+export function useRouter(): AppRouterInstance {
+  const router = useContext(AppRouterContext);
+  // ...
+}
+export function usePathname(): string {
+  const pathname = useContext(PathnameContext) as string;
+  // ...
+}
+
+// 2. 순수 함수 — Server/Client 양쪽 가능
+export {
+  notFound,
+  redirect,
+  permanentRedirect,
+  RedirectType,
+  unstable_rethrow,
+} from './navigation.react-server';
+```
+
+`.react-server.ts`(Server 버전)에는 Context 의존 hook이 없고, 서버 공용 API와 가드 함수만 있습니다.
+
+```ts
+// client/components/navigation.react-server.ts — 전체 코드
+export function unstable_isUnrecognizedActionError(): boolean {
+  throw new Error(
+    '`unstable_isUnrecognizedActionError` can only be used on the client.',
+  );
+}
+
+export { redirect, permanentRedirect } from './redirect';
+export { notFound } from './not-found';
+export { forbidden } from './forbidden';
+export { unauthorized } from './unauthorized';
+export { unstable_rethrow } from './unstable-rethrow';
+export { ReadonlyURLSearchParams };
+export const RedirectType = { push: 'push', replace: 'replace' } as const;
+```
+
+원래는 `navigation.ts` 하나만 있었습니다. `.react-server.ts`가 생긴 이유는 React의 변경 때문입니다.
+
+### `useContext`가 서버 빌드에서 사라졌다
+
+React는 서버용 빌드와 클라이언트용 빌드를 분리합니다. `package.json`의 조건부 export로 결정됩니다.
+
+```json
+// compiled/react/package.json
+".": {
+  "react-server": "./react.react-server.js",
+  "default": "./index.js"
+}
+```
+
+두 빌드에서 제공하는 hook이 다릅니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Hook</th>
+        <th>Client 빌드 (react.production.js)</th>
+        <th>Server 빌드 (react.react-server.production.js)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>useContext</code>
+        </td>
+        <td>있음 (511줄)</td>
+        <td>없음</td>
+      </tr>
+      <tr>
+        <td>
+          <code>useState</code>
+        </td>
+        <td>있음</td>
+        <td>없음</td>
+      </tr>
+      <tr>
+        <td>
+          <code>useEffect</code>
+        </td>
+        <td>있음 (518줄)</td>
+        <td>없음</td>
+      </tr>
+      <tr>
+        <td>
+          <code>useMemo</code>
+        </td>
+        <td>있음 (536줄)</td>
+        <td>있음 (433줄)</td>
+      </tr>
+      <tr>
+        <td>
+          <code>useCallback</code>
+        </td>
+        <td>있음 (508줄)</td>
+        <td>있음 (426줄)</td>
+      </tr>
+      <tr>
+        <td>
+          <code>use</code>
+        </td>
+        <td>있음 (502줄)</td>
+        <td>있음 (423줄)</td>
+      </tr>
+      <tr>
+        <td>
+          <code>createContext</code>
+        </td>
+        <td>있음</td>
+        <td>없음</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Server Component에서 Context는 의미가 없으므로, React 팀은 서버 빌드에서 `useContext`를 제거했습니다. 이것 자체는 합리적인 결정입니다.
+
+문제는 Next.js의 `navigation.ts`가 이 변경에 영향을 받았다는 것입니다.
+
+### 에러 발생 흐름
+
+`navigation.ts` 하나만 있던 시절의 에러 발생 과정입니다.
+
+1. Server Component에서 `import { redirect } from 'next/navigation'`
+2. 번들러가 `navigation.ts`를 resolve
+3. `navigation.ts`는 `import { useContext } from 'react'`를 포함
+4. 번들러가 Server 번들이므로 `react-server` 조건으로 React를 resolve
+5. `react.react-server.js`에 `useContext`가 없음
+6. 번들링 에러: `"useContext is not exported from react"`
+
+사용자는 `redirect`만 쓰려 했습니다. 하지만 같은 파일에 있는 `useRouter`가 `useContext`를 import하고, 그 `useContext`가 서버 빌드의 React에 존재하지 않아 터진 것입니다.
+
+PR #62456의 커밋 메시지가 이 상황을 직접 설명합니다.
+
+> We found that if you're using edge runtime with `next/navigation` it will error with bundling that you're attempted to import some client component hooks such as `useContext` from react. So we introduced a `react-server` version of `next/navigation` that doesn't interoplate with any client hooks.
+
+### 타임라인 — React 팀과 Next.js 팀의 3주
+
+git 히스토리를 추적하면 타임라인이 나옵니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>날짜</th>
+        <th>PR</th>
+        <th>작성자</th>
+        <th>내용</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>2024-02-05</td>
+        <td>#61522</td>
+        <td>Josh Story (React 팀)</td>
+        <td>
+          <code>shared-subset</code> → <code>react-server</code> 전환,{' '}
+          <code>useContext</code> 제거
+        </td>
+      </tr>
+      <tr>
+        <td>2024-02-26</td>
+        <td>#62456</td>
+        <td>Jiachi Liu (Next.js 팀)</td>
+        <td>
+          <code>navigation.react-server.ts</code> 생성으로 번들링 에러 수정
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+PR #61522에서 React 팀의 Josh Story가 `shared-subset` → `react-server` 전환과 Next.js의 alias 변경을 한 PR에서 같이 처리했습니다. 협업하여 진행한 것입니다. 다만 이 PR에서는 alias 이름만 바꿨고, `navigation.ts`가 `useContext`를 import하는 문제까지는 미처 잡지 못했습니다.
+
+3주 뒤 Edge Runtime + Server Components에서 실제 에러가 보고되고, Next.js 팀이 `.react-server.ts` 분리로 후속 수정했습니다.
+
+의도적인 breaking change가 아닙니다. React의 `useContext` 제거는 의도적이었지만(Server Component에서 Context는 의미 없으므로), Next.js의 `navigation.ts`에 미치는 영향까지는 한 번에 처리되지 않았습니다. 프레임워크 간 의존 관계에서 발생하는 현실적인 문제입니다.
+
+---
+
+## 마무리
+
+이 글에서 추적한 복잡성의 원인을 정리하면 이렇습니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>복잡성</th>
+        <th>원인</th>
+        <th>근거</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Context + 어댑터 패턴</td>
+        <td>Pages/App Router가 같은 hook을 공유</td>
+        <td>app-router.tsx:549-554 TODO 주석</td>
+      </tr>
+      <tr>
+        <td>
+          <code>.react-server.ts</code> 분리
+        </td>
+        <td>
+          React 서버 빌드에서 <code>useContext</code> 제거
+        </td>
+        <td>PR #61522 → PR #62456</td>
+      </tr>
+      <tr>
+        <td>
+          <code>null!</code> 타입 트릭
+        </td>
+        <td>Pages 혼용 시 조건부 타입 오버로드</td>
+        <td>writeAppTypeDeclarations.ts:59-62</td>
+      </tr>
+      <tr>
+        <td>빌드 타임 alias 시스템</td>
+        <td>Server/Client 투명 분기</td>
+        <td>create-compiler-aliases.ts:231-250</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+핵심은 두 축입니다. Context/어댑터/`null!` 복잡성은 Pages Router 공존에서 왔고, `.react-server.ts` 분리는 React의 `react-server` 조건 전환 이후 발생한 번들 이슈(#62456)가 직접 트리거였습니다. TODO 주석이 말하듯 Pages/App 분기를 fork하면 Context 의존은 줄일 수 있습니다.
+
+하지만 아직은 버릴 수 없습니다. Pages Router 위에서 동작하는 프로젝트가 여전히 많고, Next.js v16에서도 Pages Router는 지원 중입니다. 그래서 소스코드는 복잡합니다. 이 복잡성은 나쁜 설계가 아니라, 하위 호환성이라는 현실적 제약 아래에서 내린 선택의 결과입니다.
