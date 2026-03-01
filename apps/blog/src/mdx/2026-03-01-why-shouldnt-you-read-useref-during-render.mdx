@@ -1,0 +1,387 @@
+---
+slug: '2026-03-01-why-shouldnt-you-read-useref-during-render'
+title: 'useRef는 렌더링에 필요 없는 값인데, 왜 렌더링 중에 읽으면 안 될까'
+description: 'React 공식 문서의 두 문장이 모순처럼 보였습니다. useRef는 렌더링에 필요하지 않은 값을 참조하는 훅인데, 렌더링 중에 ref.current를 읽지 말라니. 소스 코드를 추적하며 "렌더링"이 가리키는 두 가지 차원 — 트리거와 일관성 — 을 분리하고, tearing까지 도달한 기록입니다.'
+date: '2026-03-01'
+tags: ['react', 'useRef', 'rendering']
+thumbnail: '/post/react.webp'
+---
+
+# useRef는 렌더링에 필요 없는 값인데, 왜 렌더링 중에 읽으면 안 될까
+
+React 공식 문서에서 `useRef`를 읽다가 두 문장 사이에서 의문이 생겼습니다.
+
+> useRef는 렌더링에 필요하지 않은 값을 참조할 수 있게 해주는 React 훅입니다.
+
+> 초기화를 제외하고, 렌더링되는 동안 ref.current를 읽거나 변경하지 않아야 합니다. 그것은 컴포넌트의 동작을 예측 불가능하게 만듭니다.
+
+렌더링에 필요하지 않은 값인데, 렌더링 중에 읽으면 안 된다. 렌더링에 필요 없는 값이 렌더링에 영향을 준다는 뜻으로 읽혔고, 모순처럼 느껴졌습니다.
+
+소스 코드를 추적해보니, 모순이 아니었습니다. 두 문장에서 "렌더링"이 가리키는 것이 달랐습니다.
+
+---
+
+## "렌더링"의 두 가지 차원
+
+두 문장은 서로 다른 차원의 이야기입니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>문장</th>
+        <th>차원</th>
+        <th>의미</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>"렌더링에 필요하지 않은 값"</td>
+        <td>트리거</td>
+        <td>ref.current를 바꿔도 리렌더링이 발생하지 않는다</td>
+      </tr>
+      <tr>
+        <td>"렌더링 중 읽지 마라"</td>
+        <td>일관성</td>
+        <td>Concurrent Mode에서 렌더 중 ref 값의 안정성을 보장할 수 없다</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+첫 번째 문장은 ref.current를 변경해도 리렌더링이 일어나지 않는다는 이야기입니다. `useState`의 `setState`는 React에 "다시 그려줘"라고 알리는 경로가 있지만, `useRef`에는 그 경로가 없습니다.
+
+두 번째 문장은 Concurrent Mode에서 렌더링이 중단되고 재시작될 때, ref.current의 값이 중간에 바뀔 수 있다는 이야기입니다. React가 관리하지 않는 mutable 값이기 때문에, 렌더 시도마다 다른 값을 읽게 될 수 있습니다.
+
+같은 단어 "렌더링"이 서로 다른 메커니즘을 가리키고 있었습니다. "렌더링을 유발하지 않는다"는 것과 "렌더링 중에 안전하게 읽을 수 있다"는 것은 별개의 속성입니다. 각각을 소스 코드에서 확인할 수 있습니다.
+
+---
+
+## 소스 코드로 보는 구조적 차이
+
+### useRef — update queue가 없다
+
+`useRef`의 내부 구현은 단순합니다.
+
+```js
+// packages/react-reconciler/src/ReactFiberHooks.js:2602-2612
+function mountRef<T>(initialValue: T): {current: T} {
+  const hook = mountWorkInProgressHook();
+  const ref = {current: initialValue};
+  hook.memoizedState = ref;
+  return ref;
+}
+
+function updateRef<T>(initialValue: T): {current: T} {
+  const hook = updateWorkInProgressHook();
+  return hook.memoizedState;
+}
+```
+
+`{current: initialValue}` 객체를 만들어 hook에 저장할 뿐입니다. `queue`도 없고, `dispatch`도 없고, `scheduleUpdateOnFiber`를 호출할 경로 자체가 없습니다.
+
+### useState — update queue + scheduleUpdateOnFiber
+
+대비로 `mountState`를 보면 구조가 다릅니다.
+
+```js
+// packages/react-reconciler/src/ReactFiberHooks.js:1894-1933
+function mountStateImpl<S>(initialState): Hook {
+  const hook = mountWorkInProgressHook();
+  hook.memoizedState = hook.baseState = initialState;
+  const queue: UpdateQueue = {
+    pending: null,
+    lanes: NoLanes,
+    dispatch: null,
+    lastRenderedReducer: basicStateReducer,
+    lastRenderedState: initialState,
+  };
+  hook.queue = queue;
+  return hook;
+}
+
+function mountState<S>(initialState) {
+  const hook = mountStateImpl(initialState);
+  const dispatch = dispatchSetState.bind(null, currentlyRenderingFiber, queue);
+  queue.dispatch = dispatch;
+  return [hook.memoizedState, dispatch];
+}
+```
+
+`useState`는 `dispatch` → `dispatchSetState` → `scheduleUpdateOnFiber`라는 경로로 React에 "다시 그려줘"라고 알립니다. `useRef`는 그 경로가 아예 없습니다. 이것이 "렌더링에 필요하지 않은 값"이라는 문서의 의미입니다 — ref.current를 바꿔도 **리렌더링을 스케줄링하는 메커니즘이 존재하지 않습니다.**
+
+여기까지가 트리거 차원의 이야기입니다. 이제 일관성 차원입니다.
+
+---
+
+## 렌더링 중에 읽으면 생기는 문제
+
+렌더링에 관여되지 않은 값을 렌더링 중에 읽으면 세 가지 층위의 문제가 생깁니다.
+
+### 문제 1: 화면에 반영 안 됨
+
+```jsx
+function Counter() {
+  const countRef = useRef(0);
+
+  return (
+    <div>
+      <p>{countRef.current}</p>
+      <button
+        onClick={() => {
+          countRef.current++;
+        }}
+      >
+        +1
+      </button>
+    </div>
+  );
+}
+```
+
+버튼을 눌러도 화면은 안 바뀝니다. `countRef.current`는 바뀌지만 리렌더링을 트리거하지 않으니까요. 이건 useRef의 설계 의도대로입니다 — 문제가 아니라 의도된 제한입니다.
+
+### 문제 2: 우연한 반영
+
+더 심각한 것은 다른 이유로 리렌더링이 발생했을 때입니다.
+
+```jsx
+function Dashboard() {
+  const cachedDataRef = useRef(null);
+  const [userName, setUserName] = useState('Kim');
+
+  return (
+    <div>
+      <h1>{userName}</h1>
+      {cachedDataRef.current ? (
+        <DataView data={cachedDataRef.current} />
+      ) : (
+        <Loading />
+      )}
+    </div>
+  );
+}
+```
+
+1. `cachedDataRef.current = null` → `<Loading />` 표시
+2. fetch 완료 → 이벤트 핸들러에서 `cachedDataRef.current = data` (리렌더 안 됨)
+3. `setUserName("Park")` → 리렌더 발생
+4. 이제야 `<DataView>` 표시됨
+
+데이터가 화면에 나타나는 시점이 관련 없는 다른 state 변경에 의존합니다. `userName`을 안 바꿨으면 데이터는 영영 안 보입니다. 개발자가 통제할 수 없는 타이밍에 화면이 바뀌는, 디버깅이 극도로 어려운 버그입니다.
+
+### 문제 3: Tearing
+
+가장 심각한 문제는 Concurrent Mode에서 발생합니다. React는 Concurrent Mode에서 렌더링을 시간 분할(time slicing)로 나눠서 처리합니다. 트리의 윗부분을 렌더링하다가 중간에 양보하고, 나중에 아랫부분을 이어서 렌더링할 수 있습니다.
+
+```jsx
+function Parent() {
+  const sharedRef = useRef('A');
+
+  return (
+    <>
+      <Child1 sharedRef={sharedRef} />
+      {/* 여기서 시간 양보, 이벤트 발생, sharedRef.current = "B" */}
+      <Child2 sharedRef={sharedRef} />
+    </>
+  );
+}
+```
+
+Child1은 시간 슬라이스 1에서 렌더링되어 `ref.current = "A"`를 봅니다. 그 사이 이벤트가 발생해서 `ref.current = "B"`로 바뀝니다. Child2는 시간 슬라이스 2에서 `ref.current = "B"`를 봅니다.
+
+같은 렌더 패스인데 Child1은 "A"를, Child2는 "B"를 봅니다. 네비바에 "테스트1"이, 푸터에 "테스트2"가 동시에 뜨는 것과 같습니다. 이것이 **tearing(찢어짐)**입니다.
+
+`useState`는 이 문제가 없습니다 — React가 렌더 시작 시 state 스냅샷을 고정하기 때문입니다. 이런 외부 mutable 값을 렌더에 안전하게 사용해야 할 때가 바로 `useSyncExternalStore`가 만들어진 이유입니다. `checkIfSnapshotChanged`(`ReactFiberHooks.js:1876`)로 렌더 중 값이 바뀌었는지 검증하고, 바뀌었으면 동기 리렌더를 강제합니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>층위</th>
+        <th>현상</th>
+        <th>심각도</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>문제 1</td>
+        <td>ref 값 변경이 화면에 반영되지 않음</td>
+        <td>낮음 (의도된 동작)</td>
+      </tr>
+      <tr>
+        <td>문제 2</td>
+        <td>다른 state 변경에 의존해서 우연히 반영됨</td>
+        <td>중간 (디버깅 어려움)</td>
+      </tr>
+      <tr>
+        <td>문제 3</td>
+        <td>같은 렌더에서 다른 값을 보는 tearing</td>
+        <td>높음 (UI 일관성 파괴)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+---
+
+## 초기화는 왜 예외인가
+
+React 문서는 "초기화를 제외하고"라는 예외를 둡니다. 초기화 중에 Concurrent Mode가 꺼지는 것은 아닙니다. 초기화 중에도 Concurrent Mode는 동일하게 작동합니다. 예외가 허용되는 이유는 **멱등성(idempotency)** 때문입니다.
+
+```jsx
+function Example() {
+  const ref = useRef(null);
+  if (ref.current === null) {
+    ref.current = new ExpensiveObject();
+  }
+  // ...
+}
+```
+
+이 패턴에서 `ref.current`는 `null → 값`으로 한 방향으로만 전이합니다. React가 렌더를 폐기하고 재시도해도, `ref.current`가 이미 값을 가지고 있으면 조건문을 건너뜁니다. 몇 번을 재시도하든 결과가 동일합니다.
+
+앞에서 본 일반적인 렌더 중 ref 읽기와 비교하면 차이가 명확합니다.
+
+```
+[일반적인 렌더 중 ref 읽기]
+render#1: ref.current = "A" → JSX("A")
+── React가 render#1을 폐기, 이벤트 핸들러에서 ref.current = "B" ──
+render#2: ref.current = "B" → JSX("B")   ← 다른 결과!
+
+[초기화 패턴]
+render#1: ref.current === null → ref.current = new X() → JSX(...)
+── React가 render#1을 폐기 ──
+render#2: ref.current !== null → 기존 값 유지 → JSX(...)  ← 동일한 결과
+```
+
+React 테스트 코드가 이 패턴을 명시적으로 허용합니다.
+
+```js
+// packages/react-reconciler/src/__tests__/useRef-test.internal.js:158-180
+it('should not warn about lazy init during render', async () => {
+  function Example() {
+    const ref1 = useRef(null);
+    const ref2 = useRef(undefined);
+    // Read: safe because lazy init:
+    if (ref1.current === null) {
+      ref1.current = 123;
+    }
+    if (ref2.current === undefined) {
+      ref2.current = 123;
+    }
+    return null;
+  }
+
+  await act(() => {
+    ReactNoop.render(<Example />);
+  });
+
+  // Should not warn after an update either.
+  await act(() => {
+    ReactNoop.render(<Example />);
+  });
+});
+```
+
+React 팀이 `// Read: safe because lazy init:` 라는 주석까지 달아놓았습니다. "동시성 모드가 꺼져서 안전하다"가 아니라, "동시성 모드에서 몇 번 재시도해도 결과가 같으니까 안전하다"입니다.
+
+---
+
+## 이 규칙은 왜 코드로 강제되지 않을까
+
+이렇게 위험한 규칙이 왜 코드로 강제되지 않는지도 짚어볼 필요가 있습니다.
+
+비교 대상으로 떠오르는 "state는 불변해야 한다"도 코드로 강제되지 않습니다.
+
+```js
+const [user, setUser] = useState({ name: 'Kim' });
+user.name = 'Park'; // JS 에러 없음, React 에러도 없음
+```
+
+직접 변이해도 JavaScript가 막지 않고, React 런타임도 에러를 던지지 않습니다. 다만 React가 변경을 감지하지 못해서 화면이 안 바뀔 뿐입니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th></th>
+        <th>state 불변 규칙</th>
+        <th>ref 렌더 관여 금지 규칙</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>JS 레벨 강제</td>
+        <td>X (객체는 자유롭게 변이 가능)</td>
+        <td>X (ref.current는 자유롭게 읽기 가능)</td>
+      </tr>
+      <tr>
+        <td>React 런타임 강제</td>
+        <td>X (변이해도 에러 안 남)</td>
+        <td>X (읽어도 에러 안 남)</td>
+      </tr>
+      <tr>
+        <td>DEV 모드 경고</td>
+        <td>StrictMode double render로 감지 시도</td>
+        <td>렌더 중 ref 읽기 경고</td>
+      </tr>
+      <tr>
+        <td>어기면?</td>
+        <td>React가 변경을 못 봄 → 화면 안 바뀜</td>
+        <td>우연한 반영, tearing</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+둘 다 React가 의존하는 전제 — "렌더는 순수함수다" — 를 깨뜨리는 행위입니다. JavaScript가 막아주지 않기 때문에 DEV 경고와 문서로만 안내합니다. 이 전제를 지키는 것은 개발자의 몫입니다.
+
+---
+
+## 마무리
+
+처음 의문으로 돌아가겠습니다.
+
+> "렌더링에 필요하지 않은 값"인데 "렌더링 중에 읽지 마라" — 모순 아닌가?
+
+모순이 아니었습니다. 두 문장은 같은 설계 의도의 앞뒤면입니다. "렌더링 밖에서 쓰라고 만든 것"(기능 설명)이니 "렌더링 안에서 쓰지 마라"(사용 규칙).
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th></th>
+        <th>
+          <code>useState</code>
+        </th>
+        <th>
+          <code>useRef</code> (렌더 중 읽기)
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>값 변경 → 리렌더링</td>
+        <td>
+          보장 (<code>scheduleUpdateOnFiber</code>)
+        </td>
+        <td>트리거 경로 없음</td>
+      </tr>
+      <tr>
+        <td>같은 렌더에서 일관성</td>
+        <td>보장 (스냅샷 고정)</td>
+        <td>보장 안 됨 (mutable)</td>
+      </tr>
+      <tr>
+        <td>Concurrent tearing</td>
+        <td>방지됨</td>
+        <td>노출됨</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+`mountRef`(`ReactFiberHooks.js:2602`)의 구조가 이를 보여줍니다 — update queue도, dispatch도, `scheduleUpdateOnFiber` 경로도 의도적으로 없습니다. 렌더링 시스템과 연결하지 않겠다는 설계가 코드 자체에 드러나 있습니다.
+
+이 값을 렌더링에 관여시키는 순간, React의 스냅샷 고정, bailout 최적화, tearing 방지 등 모든 안전장치 바깥에 놓이게 됩니다. "읽지 마라"는 정확히 말하면 **렌더 출력을 결정하는 데 사용하지 마라**입니다.

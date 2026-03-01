@@ -1,0 +1,390 @@
+---
+slug: '2026-03-01-why-shouldnt-you-read-useref-during-render'
+title: 'useRef holds values not needed for rendering, so why should you not read it during render?'
+description: 'Two sentences in the React docs looked contradictory at first. useRef stores values not needed for rendering, yet React says not to read ref.current during render. Tracing the source code shows these are about two different dimensions of rendering: trigger vs consistency, all the way to tearing.'
+date: '2026-03-01'
+tags: ['react', 'useRef', 'rendering']
+thumbnail: '/post/react.webp'
+---
+
+# useRef holds values not needed for rendering, so why shouldn't you read it during render?
+
+While reading the React docs for `useRef`, I got stuck between two sentences.
+
+> useRef is a React Hook that lets you reference a value that's not needed for rendering.
+
+> Do not write or read ref.current during rendering, except for initialization. This makes your component's behavior unpredictable.
+
+If a value is not needed for rendering, why should reading it during render be forbidden? It sounded like “a value that does not affect rendering can still affect rendering,” which felt contradictory.
+
+After tracing the source code, it turned out not to be a contradiction. The word “rendering” points to different things in those two sentences.
+
+---
+
+## Two dimensions of “rendering”
+
+The two sentences are talking about different dimensions.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Sentence</th>
+        <th>Dimension</th>
+        <th>Meaning</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>"Not needed for rendering"</td>
+        <td>Trigger</td>
+        <td>Changing ref.current does not trigger a re-render</td>
+      </tr>
+      <tr>
+        <td>"Do not read during rendering"</td>
+        <td>Consistency</td>
+        <td>
+          In Concurrent Mode, ref values are not guaranteed to stay stable
+          during a render
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+The first sentence is about trigger behavior: changing `ref.current` does not cause a re-render. `useState` has a path that tells React “render again” through `setState`, but `useRef` has no such path.
+
+The second sentence is about consistency in Concurrent Mode: when rendering is interrupted and resumed, `ref.current` can change in the middle. Because it is mutable data outside React’s control, each render attempt can read a different value.
+
+So the same word “rendering” points to different mechanisms. “Does not trigger rendering” and “safe to read during rendering” are separate properties. We can verify both in source.
+
+---
+
+## Structural difference in source code
+
+### useRef — no update queue
+
+The internal implementation of `useRef` is simple.
+
+```js
+// packages/react-reconciler/src/ReactFiberHooks.js:2602-2612
+function mountRef<T>(initialValue: T): {current: T} {
+  const hook = mountWorkInProgressHook();
+  const ref = {current: initialValue};
+  hook.memoizedState = ref;
+  return ref;
+}
+
+function updateRef<T>(initialValue: T): {current: T} {
+  const hook = updateWorkInProgressHook();
+  return hook.memoizedState;
+}
+```
+
+It just creates a `{current: initialValue}` object and stores it in the hook. There is no `queue`, no `dispatch`, and no path to call `scheduleUpdateOnFiber`.
+
+### useState — update queue + scheduleUpdateOnFiber
+
+Now compare that to `mountState`.
+
+```js
+// packages/react-reconciler/src/ReactFiberHooks.js:1894-1933
+function mountStateImpl<S>(initialState): Hook {
+  const hook = mountWorkInProgressHook();
+  hook.memoizedState = hook.baseState = initialState;
+  const queue: UpdateQueue = {
+    pending: null,
+    lanes: NoLanes,
+    dispatch: null,
+    lastRenderedReducer: basicStateReducer,
+    lastRenderedState: initialState,
+  };
+  hook.queue = queue;
+  return hook;
+}
+
+function mountState<S>(initialState) {
+  const hook = mountStateImpl(initialState);
+  const dispatch = dispatchSetState.bind(null, currentlyRenderingFiber, queue);
+  queue.dispatch = dispatch;
+  return [hook.memoizedState, dispatch];
+}
+```
+
+`useState` notifies React through `dispatch` -> `dispatchSetState` -> `scheduleUpdateOnFiber`. `useRef` has no such path at all. That is the real meaning of “not needed for rendering” in the docs: even if you mutate `ref.current`, **there is no mechanism to schedule a re-render.**
+
+That covers the trigger dimension. Now to consistency.
+
+---
+
+## What goes wrong if you read during render
+
+Reading values not integrated into React’s render pipeline creates problems at three levels.
+
+### Problem 1: It does not show up on screen
+
+```jsx
+function Counter() {
+  const countRef = useRef(0);
+
+  return (
+    <div>
+      <p>{countRef.current}</p>
+      <button
+        onClick={() => {
+          countRef.current++;
+        }}
+      >
+        +1
+      </button>
+    </div>
+  );
+}
+```
+
+Clicking the button does not update the UI. `countRef.current` changes, but it does not trigger a re-render. This is by design in `useRef`.
+
+### Problem 2: Accidental reflection
+
+It gets worse when a re-render happens for an unrelated reason.
+
+```jsx
+function Dashboard() {
+  const cachedDataRef = useRef(null);
+  const [userName, setUserName] = useState('Kim');
+
+  return (
+    <div>
+      <h1>{userName}</h1>
+      {cachedDataRef.current ? (
+        <DataView data={cachedDataRef.current} />
+      ) : (
+        <Loading />
+      )}
+    </div>
+  );
+}
+```
+
+1. `cachedDataRef.current = null` -> `<Loading />` is shown.
+2. Fetch completes -> `cachedDataRef.current = data` in an event handler (no re-render).
+3. `setUserName("Park")` -> re-render happens.
+4. Only now does `<DataView>` appear.
+
+The timing of UI updates depends on unrelated state changes. If `userName` never changes, data may never appear. This creates bugs that are very hard to debug because display timing is outside explicit control.
+
+### Problem 3: Tearing
+
+The most serious problem appears in Concurrent Mode. React can split rendering into time slices. It can render the upper part of the tree, yield, and later continue with the lower part.
+
+```jsx
+function Parent() {
+  const sharedRef = useRef('A');
+
+  return (
+    <>
+      <Child1 sharedRef={sharedRef} />
+      {/* yield here, event happens, sharedRef.current = "B" */}
+      <Child2 sharedRef={sharedRef} />
+    </>
+  );
+}
+```
+
+`Child1` renders in time slice 1 and reads `ref.current = "A"`. Then an event updates it to `"B"`. `Child2` renders in time slice 2 and reads `ref.current = "B"`.
+
+Same render pass, different values. One part of the UI sees “A,” another sees “B.” That is **tearing**.
+
+`useState` does not have this issue because React fixes a state snapshot at the start of render. This is exactly why `useSyncExternalStore` exists for safely reading external mutable values in render. It checks whether the snapshot changed during render via `checkIfSnapshotChanged` (`ReactFiberHooks.js:1876`), and forces a synchronous re-render if needed.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Level</th>
+        <th>Symptom</th>
+        <th>Severity</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Problem 1</td>
+        <td>Ref changes are not reflected in UI</td>
+        <td>Low (intended behavior)</td>
+      </tr>
+      <tr>
+        <td>Problem 2</td>
+        <td>Values appear only when unrelated state changes happen</td>
+        <td>Medium (hard to debug)</td>
+      </tr>
+      <tr>
+        <td>Problem 3</td>
+        <td>Tearing: different values in the same render</td>
+        <td>High (breaks UI consistency)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+---
+
+## Why is initialization an exception?
+
+The docs explicitly allow an exception: “except for initialization.” This does not mean Concurrent Mode is turned off during initialization. It still works the same way. The exception is allowed because of **idempotency**.
+
+```jsx
+function Example() {
+  const ref = useRef(null);
+  if (ref.current === null) {
+    ref.current = new ExpensiveObject();
+  }
+  // ...
+}
+```
+
+In this pattern, `ref.current` only moves one way: `null -> value`. Even if React discards and retries render, once `ref.current` has a value the condition is skipped. No matter how many retries happen, the result stays the same.
+
+Compared with regular “read ref during render,” the difference is clear.
+
+```
+[Normal read during render]
+render#1: ref.current = "A" -> JSX("A")
+-- React discards render#1, event handler sets ref.current = "B" --
+render#2: ref.current = "B" -> JSX("B")   <- different result!
+
+[Initialization pattern]
+render#1: ref.current === null -> ref.current = new X() -> JSX(...)
+-- React discards render#1 --
+render#2: ref.current !== null -> keep existing value -> JSX(...)  <- same result
+```
+
+React test code explicitly allows this pattern.
+
+```js
+// packages/react-reconciler/src/__tests__/useRef-test.internal.js:158-180
+it('should not warn about lazy init during render', async () => {
+  function Example() {
+    const ref1 = useRef(null);
+    const ref2 = useRef(undefined);
+    // Read: safe because lazy init:
+    if (ref1.current === null) {
+      ref1.current = 123;
+    }
+    if (ref2.current === undefined) {
+      ref2.current = 123;
+    }
+    return null;
+  }
+
+  await act(() => {
+    ReactNoop.render(<Example />);
+  });
+
+  // Should not warn after an update either.
+  await act(() => {
+    ReactNoop.render(<Example />);
+  });
+});
+```
+
+The React team even left the comment `// Read: safe because lazy init:`. It is not “safe because concurrency is off,” but “safe because retries still produce the same result in concurrency.”
+
+---
+
+## Why isn't this rule enforced by code?
+
+It is also worth asking why such a risky rule is not enforced by runtime errors.
+
+A similar rule, “state must be immutable,” is also not strictly enforced by code.
+
+```js
+const [user, setUser] = useState({ name: 'Kim' });
+user.name = 'Park'; // no JS error, no React error
+```
+
+Even with direct mutation, JavaScript does not block it and React runtime does not throw. React just fails to detect the change, so the UI does not update.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th></th>
+        <th>State immutability rule</th>
+        <th>Do not read refs for render output</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Enforced by JS</td>
+        <td>X (objects are freely mutable)</td>
+        <td>X (ref.current can be freely read)</td>
+      </tr>
+      <tr>
+        <td>Enforced by React runtime</td>
+        <td>X (no error on mutation)</td>
+        <td>X (no error on reads)</td>
+      </tr>
+      <tr>
+        <td>DEV warning</td>
+        <td>StrictMode double render tries to expose it</td>
+        <td>Warning for reading refs during render</td>
+      </tr>
+      <tr>
+        <td>If you violate it</td>
+        <td>React misses the change -> UI does not update</td>
+        <td>Accidental reflection, tearing</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Both break React’s core assumption: “render is a pure function.” Since JavaScript cannot block these patterns at language level, React relies on DEV warnings and documentation. Keeping that assumption is the developer’s responsibility.
+
+---
+
+## Wrap-up
+
+Back to the original question:
+
+> “Not needed for rendering,” yet “do not read during rendering” -- is this contradictory?
+
+It is not. The two sentences are the two sides of one design intent. “Made for use outside rendering” (feature definition) naturally implies “do not use it to decide render output” (usage rule).
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th></th>
+        <th>
+          <code>useState</code>
+        </th>
+        <th>
+          <code>useRef</code> (read during render)
+        </th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Value change -> re-render</td>
+        <td>
+          Guaranteed (<code>scheduleUpdateOnFiber</code>)
+        </td>
+        <td>No trigger path</td>
+      </tr>
+      <tr>
+        <td>Consistency in same render</td>
+        <td>Guaranteed (fixed snapshot)</td>
+        <td>Not guaranteed (mutable)</td>
+      </tr>
+      <tr>
+        <td>Concurrent tearing</td>
+        <td>Prevented</td>
+        <td>Exposed</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+The structure of `mountRef` (`ReactFiberHooks.js:2602`) shows this clearly: no update queue, no dispatch, and intentionally no `scheduleUpdateOnFiber` path. The code itself reflects the design decision not to connect refs to the render scheduling pipeline.
+
+The moment this value starts affecting render output, it leaves React’s safety boundaries: fixed snapshots, bailout optimizations, tearing prevention, and more. So “do not read it” more precisely means: **do not use it to decide render output.**
