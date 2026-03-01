@@ -44,7 +44,7 @@ The two sentences are talking about different dimensions.
         <td>"Do not read during rendering"</td>
         <td>Consistency</td>
         <td>
-          In Concurrent Mode, ref values are not guaranteed to stay stable
+          In concurrent rendering, ref values are not guaranteed to stay stable
           during a render
         </td>
       </tr>
@@ -54,7 +54,7 @@ The two sentences are talking about different dimensions.
 
 The first sentence is about trigger behavior: changing `ref.current` does not cause a re-render. `useState` has a path that tells React “render again” through `setState`, but `useRef` has no such path.
 
-The second sentence is about consistency in Concurrent Mode: when rendering is interrupted and resumed, `ref.current` can change in the middle. Because it is mutable data outside React’s control, each render attempt can read a different value.
+The second sentence is about consistency in concurrent rendering: when rendering is interrupted and resumed, `ref.current` can change in the middle. Because it is mutable data outside React’s control, each render attempt can read a different value.
 
 So the same word “rendering” points to different mechanisms. “Does not trigger rendering” and “safe to read during rendering” are separate properties. We can verify both in source.
 
@@ -175,7 +175,7 @@ The timing of UI updates depends on unrelated state changes. If `userName` never
 
 ### Problem 3: Tearing
 
-The most serious problem appears in Concurrent Mode. React can split rendering into time slices. It can render the upper part of the tree, yield, and later continue with the lower part.
+The most serious problem appears in concurrent rendering. React can split rendering into time slices. It can render the upper part of the tree, yield, and later continue with the lower part.
 
 ```jsx
 function Parent() {
@@ -230,7 +230,7 @@ Same render pass, different values. One part of the UI sees “A,” another see
 
 ## Why is initialization an exception?
 
-The docs explicitly allow an exception: “except for initialization.” This does not mean Concurrent Mode is turned off during initialization. It still works the same way. The exception is allowed because of **idempotency**.
+The docs explicitly allow an exception: “except for initialization.” This does not mean concurrent rendering is turned off during initialization. It still works the same way. The exception is allowed because of **idempotency**.
 
 ```jsx
 function Example() {
@@ -287,7 +287,7 @@ it('should not warn about lazy init during render', async () => {
 });
 ```
 
-The React team even left the comment `// Read: safe because lazy init:`. It is not “safe because concurrency is off,” but “safe because retries still produce the same result in concurrency.”
+The React team even left the comment `// Read: safe because lazy init:`. It is not “safe because concurrent rendering is off,” but “safe because retries still produce the same result in concurrent rendering.”
 
 ---
 
@@ -302,7 +302,7 @@ const [user, setUser] = useState({ name: 'Kim' });
 user.name = 'Park'; // no JS error, no React error
 ```
 
-Even with direct mutation, JavaScript does not block it and React runtime does not throw. React just fails to detect the change, so the UI does not update.
+Even with direct mutation, JavaScript does not block it and React runtime does not throw. The mutation itself is not detected by React, so the UI does not update immediately. (If another re-render happens for a different reason, it can show up later.)
 
 <div className="my-4 overflow-x-auto">
   <table className="min-w-[720px]">
@@ -326,19 +326,19 @@ Even with direct mutation, JavaScript does not block it and React runtime does n
       </tr>
       <tr>
         <td>DEV warning</td>
-        <td>StrictMode double render tries to expose it</td>
-        <td>Warning for reading refs during render</td>
+        <td>StrictMode double render can make symptoms easier to notice</td>
+        <td>Pre-detection via ESLint rule (`react-hooks/refs`)</td>
       </tr>
       <tr>
         <td>If you violate it</td>
-        <td>React misses the change -> UI does not update</td>
+        <td>React can miss the change -> no immediate UI update</td>
         <td>Accidental reflection, tearing</td>
       </tr>
     </tbody>
   </table>
 </div>
 
-Both break React’s core assumption: “render is a pure function.” Since JavaScript cannot block these patterns at language level, React relies on DEV warnings and documentation. Keeping that assumption is the developer’s responsibility.
+Both break React’s core assumption: “render is a pure function.” Since JavaScript cannot block these patterns at language level, React relies on documentation and lint rules. Keeping that assumption is the developer’s responsibility.
 
 ---
 
