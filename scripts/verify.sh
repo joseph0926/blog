@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "=== lint ==="
-pnpm lint
+pnpm lint:fix
 
 echo "=== format ==="
 pnpm --filter @joseph0926/blog format:check
