@@ -7,7 +7,9 @@
 ├── README.md                      # 이 파일 (운영 규칙 + 템플릿)
 ├── <토픽>/
 │   ├── state.md                   # 현재 작업 상태
-│   └── log.md                     # 세션 이력 (최대 10개)
+│   ├── log.md                     # 세션 이력 (최대 10개)
+│   └── tasks/                     # 태스크 문서 (계획 → 구현 브릿지)
+│       └── <NNN>-<이름>.md        # 개별 태스크
 └── archive/
     └── <토픽>-log-<YYYY-MM-DD>.md # 아카이브된 로그
 ```
@@ -99,6 +101,63 @@ log.md 엔트리가 **10개 초과** 시:
    ```markdown
    # <토픽> 로그 아카이브 (YYYY-MM-DD ~ YYYY-MM-DD)
    ```
+
+## 태스크 문서 (tasks/)
+
+계획(plan) 승인 후, 구현 전에 태스크 문서를 작성해야 한다.
+태스크 문서 없이 구현을 시작하는 것은 금지.
+
+### 위치
+
+`.harness/<토픽>/tasks/<NNN>-<이름>.md`
+
+번호는 001부터 순차 증가. 이름은 kebab-case.
+
+### 태스크 문서 템플릿
+
+새 태스크 생성 시 아래를 **그대로 복사**하여 사용.
+
+```markdown
+# Task: <이름>
+
+Status: pending | in_progress | completed
+Created: YYYY-MM-DD
+
+## Scope
+
+변경 대상 파일과 범위.
+
+- path/to/file.ts (NEW|MODIFY|DELETE) — 사유
+
+## Steps
+
+- [ ] 1. 구체적이고 실행 가능한 단계
+- [ ] 2. 다음 단계
+
+## Acceptance Criteria
+
+- [ ] 기준 1 (검증 가능한 조건)
+- [ ] 기준 2
+
+## Notes
+```
+
+### 필드 설명
+
+| 필드                  | 설명                                           | 필수 |
+| --------------------- | ---------------------------------------------- | ---- |
+| `Status`              | `pending` → `in_progress` → `completed`        | O    |
+| `Scope`               | 변경할 파일과 변경 유형 (NEW/MODIFY/DELETE)    | O    |
+| `Steps`               | 구체적이고 실행 가능한 단계 (모호한 단계 금지) | O    |
+| `Acceptance Criteria` | 검증 가능한 조건 (테스트 통과, 파일 존재 등)   | O    |
+| `Notes`               | 구현 중 메모, 결정 사항, 발견한 문제           | -    |
+
+### 규칙
+
+- Steps, Acceptance Criteria가 **비어 있으면 불완전** → 구현 시작 불가
+- 각 Step 완료 시 `[x]`로 체크
+- 예상치 못한 파일 변경 시 Scope에 추가 후 진행
+- 완료 시 Status를 `completed`로 변경
 
 ## 병렬 세션 충돌 방지
 

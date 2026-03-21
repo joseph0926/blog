@@ -23,7 +23,8 @@
 13. [구현 상세 — Playwright E2E](#13-playwright-e2e)
 14. [구현 상세 — CI 강화](#14-ci-강화)
 15. [도입 순서 및 체크리스트](#15-도입-순서-및-체크리스트)
-16. [출처](#16-출처)
+16. [도입 순서 및 체크리스트](#16-도입-순서-및-체크리스트)
+17. [출처](#17-출처)
 
 ---
 
@@ -1024,7 +1025,120 @@ reporters: process.env.CI ? ['default', 'github-actions'] : ['default'];
 
 ---
 
-## 15. 도입 순서 및 체크리스트
+## 15. 시각화 도입
+
+### 배경
+
+에이전트가 코드를 수정하면 구조를 시각화하고 변경 이유를 설명하게 하되,
+인간은 그 설명이 아니라 근거(테스트, trace, eval)로 검증해야 한다.
+데스크톱 앱을 설치할 수 없는 환경(회사 등)도 고려하여 환경별 도구를 선택한다.
+
+상세 레퍼런스: `~/Downloads/@work/study-all/ai/visualization-in-harness.md`
+
+### 이 프로젝트의 환경
+
+- Node.js >= 24 (있음)
+- Playwright: Phase 2에서 E2E 테스트용으로 설치 예정
+- 환경 분류: **B (CLI + Node)** → Playwright + mermaid-cli 조합
+
+### 도구 선택 근거
+
+| 도구               | 역할                | 근거                                             |
+| ------------------ | ------------------- | ------------------------------------------------ |
+| **mermaid-cli**    | 아키텍처 다이어그램 | headless SVG 생성. 브라우저 UI 불필요. 가장 단순 |
+| **Playwright MCP** | 앱 화면 캡처 + 검증 | E2E 테스트와 통합. 하나의 도구로 검증+시각화     |
+
+Playwright가 이미 E2E용으로 도입 예정이므로 **별도 시각화 도구를 추가하지 않고 통합**.
+
+### 구현 상세
+
+#### 15-1. mermaid-cli 설치
+
+```bash
+pnpm add -Dw @mermaid-js/mermaid-cli
+```
+
+루트 devDependency로 추가. `npx mmdc -i diagram.mmd -o diagram.svg`로 사용.
+
+#### 15-2. Playwright MCP 등록
+
+```bash
+claude mcp add playwright npx @playwright/mcp@latest
+```
+
+Playwright MCP는 34개 도구 제공:
+
+- `browser_navigate` — URL 접근
+- `browser_take_screenshot` — 페이지 캡처
+- `browser_snapshot` — 접근성 트리 기반 DOM 스냅샷
+- headless 모드로 브라우저 UI 없이 동작
+
+E2E 테스트(admin CRUD, 블로그 흐름)와 시각화(페이지 캡처, 비주얼 리그레션)를 하나의 도구로 처리.
+
+#### 15-3. .harness/README.md 시각화 정책 추가
+
+```markdown
+## 시각화 정책
+
+아키텍처 변경이 포함된 작업의 VERIFY 게이트에서 시각화를 생성한다.
+
+tool: mermaid-cli
+output: svg
+path: .harness/<토픽>/diagrams/
+```
+
+- `tool`: 이 프로젝트에서 사용하는 시각화 도구
+- `output`: 출력 형식
+- `path`: 다이어그램 저장 경로 (토픽별 관리)
+
+#### 15-4. /harness 스킬 VERIFY 게이트 수정
+
+VERIFY 게이트에 시각화 정책 참조 단계 추가:
+
+```
+기존:
+  1. 검증 명령 실행
+  2. Acceptance Criteria 확인
+  3. 모든 검증 통과
+
+추가:
+  1. 검증 명령 실행
+  2. Acceptance Criteria 확인
+  3. .harness/README.md 시각화 정책 확인     ← NEW
+     - tool != none이면: 변경 구조 다이어그램 생성 + 저장
+     - tool == none 또는 정책 없으면: 생략
+  4. 모든 검증 통과
+```
+
+EXIT 게이트에서 생성된 다이어그램 경로를 log.md에 기록.
+
+### Playwright 이중 활용 정리
+
+```
+Playwright (하나의 도구)
+├── E2E 테스트 (VERIFY 게이트)
+│   ├── 사용자 흐름 검증 (admin CRUD, 블로그)
+│   ├── 접근성 트리 기반 상호작용
+│   └── --trace=retain-on-failure
+└── 시각화 (VERIFY 게이트)
+    ├── 페이지 스크린샷 캡처
+    ├── 비주얼 리그레션 (toHaveScreenshot)
+    └── UI 변경 before/after 비교
+```
+
+### 환경 대응표 (다른 프로젝트에 적용 시)
+
+| 환경           | 조합                                                        |
+| -------------- | ----------------------------------------------------------- |
+| A. 데스크톱 앱 | Claude Desktop 내장 (추가 도구 불필요)                      |
+| B. CLI + Node  | **mermaid-cli + Playwright MCP** (이 프로젝트)              |
+| C. Python만    | Python mmdc (`pip install mermaid-cli`) + Kroki self-hosted |
+| D. 웹만        | claude.ai 내장 시각화                                       |
+| E. SSH 격리    | Kroki self-hosted (`curl` API) + 터미널 이미지 프로토콜     |
+
+---
+
+## 16. 도입 순서 및 체크리스트
 
 ### 구현 순서
 
@@ -1043,6 +1157,10 @@ reporters: process.env.CI ? ['default', 'github-actions'] : ['default'];
 | 11  | 첫 E2E 테스트 작성               | e2e/admin.spec.ts          | #10                           |
 | 12  | CI 강화 (coverage)               | .github/workflows/ci.yml   | #8                            |
 | 13  | CI 강화 (Playwright)             | .github/workflows/ci.yml   | #11                           |
+| 14  | mermaid-cli 설치                 | package.json               | 없음                          |
+| 15  | Playwright MCP 등록              | .claude/ MCP 설정          | #10                           |
+| 16  | .harness/README.md 시각화 정책   | .harness/README.md         | #14                           |
+| 17  | /harness 스킬 VERIFY 게이트 수정 | ~/.claude/skills/harness/  | #16                           |
 
 ### 체크리스트
 
@@ -1060,15 +1178,19 @@ Phase 1: 문서 + 강제 장치
 - [x] #9a .harness/README.md 운영 규칙 + 템플릿 (2026-03-21 완료)
 - [x] #9b .harness/harness-setup/ state.md + log.md 생성 (2026-03-21 완료)
 
-Phase 2: E2E + CI
+Phase 2: E2E + CI + 시각화
 - [ ] #10 Playwright 설치 + e2e/playwright.config.ts
 - [ ] #11 e2e/admin.spec.ts 작성 (로그인+글 작성)
 - [ ] #12 ci.yml: test:ci --coverage 추가
 - [ ] #13 ci.yml: Playwright 단계 추가
+- [ ] #14 mermaid-cli devDependency 추가
+- [ ] #15 Playwright MCP 등록
+- [ ] #16 .harness/README.md 시각화 정책 섹션 추가
+- [ ] #17 /harness 스킬 VERIFY 게이트 시각화 단계 추가
 
 Phase 3: 확장 (추후)
 - [ ] e2e/blog.spec.ts 작성
-- [ ] 비주얼 리그레션 테스트
+- [ ] 비주얼 리그레션 테스트 (Playwright toHaveScreenshot)
 - [ ] 다국어 E2E 테스트
 - [ ] 커버리지 임계값 상향 검토
 ```
@@ -1078,12 +1200,13 @@ Phase 3: 확장 (추후)
 각 단계 완료 후:
 
 - Phase 1 검증: `./scripts/verify.sh` 성공
-- Phase 2 검증: `npx playwright test` 성공 + CI 파이프라인 통과
-- 전체 검증: 새 세션에서 CLAUDE.md 읽기 → docs/ 참조 → 작업 시작 → verify.sh 통과
+- Phase 2 검증: `npx playwright test` 성공 + CI 파이프라인 통과 + `npx mmdc --version` 성공
+- 시각화 검증: `npx mmdc -i test.mmd -o test.svg` 성공 + Playwright MCP 등록 확인
+- 전체 검증: 새 세션에서 CLAUDE.md 읽기 → docs/ 참조 → /harness 스킬 → 작업 시작 → verify.sh 통과
 
 ---
 
-## 16. 출처
+## 17. 출처
 
 ### 로컬 레퍼런스 (~/Downloads/@work/study-all/ref/)
 
@@ -1119,3 +1242,9 @@ Phase 3: 확장 (추후)
 | STATE 파일 패턴           | dev.to/builtbyzac/the-state-file                                    |
 | 컨텍스트 백업 훅          | claudefa.st/blog/tools/hooks/context-recovery-hook                  |
 | 세션 메모리 컴팩션        | platform.claude.com/cookbook/misc-session-memory-compaction         |
+| Playwright MCP            | github.com/microsoft/playwright-mcp                                 |
+| Mermaid CLI               | github.com/mermaid-js/mermaid-cli                                   |
+| Python mmdc               | github.com/mohammadraziei/mmdc                                      |
+| Kroki                     | kroki.io / github.com/yuzutech/kroki                                |
+| claude-mermaid MCP        | github.com/veelenga/claude-mermaid                                  |
+| 시각화 레퍼런스           | ~/Downloads/@work/study-all/ai/visualization-in-harness.md          |
