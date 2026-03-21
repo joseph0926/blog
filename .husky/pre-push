@@ -1,2 +1,2 @@
 pnpm db:gen
-pnpm build
+./scripts/verify.sh

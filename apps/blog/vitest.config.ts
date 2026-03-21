@@ -13,6 +13,9 @@ export default defineConfig({
     testTimeout: 10000,
     hookTimeout: 10000,
     fileParallelism: false,
+    clearMocks: true,
+    restoreMocks: true,
+    reporters: process.env.CI ? ['default', 'github-actions'] : ['default'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -26,6 +29,7 @@ export default defineConfig({
         'src/mdx/**',
       ],
       thresholds: {
+        perFile: true,
         lines: 60,
         branches: 50,
         functions: 50,

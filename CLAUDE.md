@@ -1,41 +1,50 @@
 # CLAUDE.md
 
-## Repository Working Agreement
+개인 기술 블로그. Turbo + pnpm 모노레포.
 
-새 기능 구현은 아래 3단계 문서 흐름으로 진행한다.
+## 스택
 
-공통 근거 탐색 규칙:
+Next.js 16 (App Router) / tRPC 11 / Prisma 7 / PostgreSQL / TypeScript strict
+UI: Radix + Tailwind v4 / 콘텐츠: MDX / 다국어: next-intl (ko, en)
 
-- 근거를 현재 저장소/합의 문서 범위에서 찾지 못한다고 판단되면 웹검색을 활용한다.
-- 웹검색으로 확보한 근거는 답변/문서에 출처와 함께 명시한다.
+## 구조
 
-1. RFC 단계
+apps/blog/ — 메인 앱
+packages/ui/ — 공유 UI 컴포넌트
+의존 방향: apps → packages (단방향, 역참조 금지)
 
-- 사용자와 QnA로 요구사항/범위/수용기준을 확정한다.
-- 경로: `docs/rfcs/<주제>.md`
-- 사용자가 `docs/rfc/<주제>.md`라고 요청해도 동일 단계로 취급한다.
-- RFC 문서 초안/보완의 마지막에는 사용자와 QnA를 반드시 수행한다.
-- 질문 입력 포맷: 사용자가 `*.md` 문서에 `<!-- @Q. <질문> -->` 주석으로 남긴다.
-- 처리 규칙: 에이전트는 해당 질문에 대해 채팅으로 먼저 답변하고, RFC 문서 보완 시 QnA를 문서에 그대로 작성한다(사용자 오타/띄어쓰기만 교정 가능).
+## 검증
 
-2. Plan 단계
+모든 작업 완료 전:
+./scripts/verify.sh
 
-- RFC 확정 후 구현 계획을 구체화한다.
-- 경로: `docs/plan/<주제>.md`
-- Plan 문서 초안/보완의 마지막에는 사용자와 QnA를 반드시 수행한다.
-- 질문 입력 포맷: 사용자가 `*.md` 문서에 `<!-- @Q. <질문> -->` 주석으로 남긴다.
-- 처리 규칙: 에이전트는 해당 질문에 대해 채팅으로 먼저 답변하고, Plan 문서 보완 시 QnA를 문서에 그대로 작성한다(사용자 오타/띄어쓰기만 교정 가능).
+개별 실행:
+pnpm lint # ESLint
+pnpm --filter @joseph0926/blog format:check # Prettier
+pnpm type-check # tsc --noEmit
+pnpm --filter @joseph0926/blog test:ci # Vitest
+pnpm build # Next.js 빌드
 
-3. Implementation 단계
+## 테스트 규칙
 
-- Plan 확정 후 구현하고 결과를 기록한다.
-- 구현 근거(중요): 선택한 방식의 이유, 제약, 트레이드오프를 반드시 명시한다.
-- 경로: `docs/impl/<주제>.md`
-- 구현 문서 초안/보완의 마지막에는 사용자와 QnA를 반드시 수행한다.
-- 질문 입력 포맷: 사용자가 `*.md` 문서에 `<!-- @Q. <질문> -->` 주석으로 남긴다.
-- 처리 규칙: 에이전트는 해당 질문에 대해 채팅으로 먼저 답변하고, 문서 보완 시 QnA를 문서에 그대로 작성한다(사용자 오타/띄어쓰기만 교정 가능).
+- 새 기능 → 테스트 동반 필수
+- 버그 수정 → 재현 테스트 먼저
+- Async Server Component → Playwright E2E (vitest 불가)
+- 동기 컴포넌트/유틸/서비스 → Vitest
 
-## Completed Docs Rule
+## 금지
 
-- 문서 첫 줄이 `<!-- AI_STATUS: COMPLETED -->`면 완료로 간주한다.
-- 완료 문서는 명시적 수정 요청이 없으면 다른 AI는 추가 분석 없이 early return 한다.
+- server-only 모듈을 클라이언트에서 import
+- packages/ui → apps/\* 역참조
+- 코드 읽기 전 변경 제안
+
+## 세션 상태
+
+새 세션/compact 후 → .harness/<토픽>/state.md 먼저 읽고 이어서 작업.
+세션 종료 시 → state.md 갱신 + log.md에 이력 추가.
+
+## 상세 문서
+
+- [docs/architecture.md](docs/architecture.md) — 기술 스택, 디렉토리 책임, 데이터 흐름, 캐싱
+- [docs/testing.md](docs/testing.md) — 테스트 전략 (Unit/Integration/E2E), 패턴, 규칙
+- [docs/conventions.md](docs/conventions.md) — 코드 컨벤션, 네이밍, import 규칙
