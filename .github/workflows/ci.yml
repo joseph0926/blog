@@ -74,7 +74,7 @@ jobs:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5433/testdb
 
       - name: Run tests
-        run: pnpm --filter @joseph0926/blog test:ci
+        run: pnpm --filter @joseph0926/blog test:ci --coverage
         env:
           DATABASE_URL: postgresql://testuser:testpass@localhost:5433/testdb
 
@@ -87,3 +87,20 @@ jobs:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           APP_VERSION: ${{ env.APP_VERSION }}
+
+      - name: Install Playwright
+        run: npx playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: npx playwright test --config e2e/playwright.config.ts
+        env:
+          DATABASE_URL: postgresql://testuser:testpass@localhost:5433/testdb
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

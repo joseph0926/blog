@@ -159,6 +159,14 @@ Created: YYYY-MM-DD
 - 예상치 못한 파일 변경 시 Scope에 추가 후 진행
 - 완료 시 Status를 `completed`로 변경
 
+## 시각화 정책
+
+아키텍처 변경이 포함된 작업의 VERIFY 게이트에서 시각화를 생성한다.
+
+tool: mermaid-cli
+output: svg
+path: .harness/<토픽>/diagrams/
+
 ## 병렬 세션 충돌 방지
 
 - 한 토픽 = 한 세션만 쓰기 가능
