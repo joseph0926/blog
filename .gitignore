@@ -50,3 +50,5 @@ temp.*
 
 # claude code
 .claude/settings.local.json
+
+**/prisma/migrations/
