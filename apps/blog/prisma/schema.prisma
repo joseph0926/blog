@@ -17,16 +17,6 @@ enum Environment {
   dev
 }
 
-model User {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  email        String         @unique
-  password     String
-  RefreshToken RefreshToken[]
-}
-
 model Post {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -52,16 +42,3 @@ model Tag {
   posts Post[]
 }
 
-model RefreshToken {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-
-  token     String   @unique
-  expiresAt DateTime
-  revoked   Boolean  @default(false)
-
-  user   User   @relation(fields: [userId], references: [id])
-  userId String
-
-  @@index([token])
-}

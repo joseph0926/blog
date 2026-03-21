@@ -1,5 +1,5 @@
 import { TRPCError } from '@trpc/server';
-import { revalidateTag, unstable_cache } from 'next/cache';
+import { unstable_cache } from 'next/cache';
 import { z } from 'zod';
 import { defaultLocale } from '@/i18n/routing';
 import { perfTimer } from '@/lib/perf-log';
@@ -7,53 +7,12 @@ import {
   getAllPosts,
   getAllTags,
   getPostBySlug as getPostBySlugFromMdx,
-  updatePostMeta,
 } from '@/services/post.service';
-import { createPost } from '@/services/post/create-post.service';
-import { protectedProcedure, publicProcedure, router } from '../trpc';
+import { publicProcedure, router } from '../trpc';
 
 const localeSchema = z.enum(['ko', 'en']).default(defaultLocale);
 
 export const postRouter = router({
-  createPost: protectedProcedure
-    .input(
-      z.object({
-        title: z.string().min(1).max(100),
-        description: z.string().min(1),
-        tags: z.array(z.string()),
-        thumbnail: z.string().optional(),
-      }),
-    )
-    .mutation(async ({ input }) => {
-      try {
-        const post = await createPost(input);
-
-        await Promise.all([
-          revalidateTag('all-posts-ko', 'max'),
-          revalidateTag('all-posts-en', 'max'),
-          revalidateTag(`post-ko-${post.slug}`, 'max'),
-          revalidateTag(`post-en-${post.slug}`, 'max'),
-        ]);
-
-        return {
-          post,
-          message: '포스트가 성공적으로 생성되었습니다.',
-        };
-      } catch (e) {
-        if (e instanceof Error && e.message.includes('이미 존재하는 slug')) {
-          throw new TRPCError({
-            code: 'CONFLICT',
-            message: e.message,
-          });
-        }
-
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: '글을 생성하는 중 오류가 발생했습니다.',
-        });
-      }
-    }),
-
   getPosts: publicProcedure
     .input(
       z.object({
@@ -273,53 +232,6 @@ export const postRouter = router({
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: '태그를 불러오는 중 오류가 발생했습니다.',
-        });
-      }
-    }),
-
-  update: protectedProcedure
-    .input(
-      z.object({
-        slug: z.string(),
-        payload: z.object({
-          title: z.string().min(1).max(100),
-          description: z.string().min(1),
-          tags: z.array(z.string()),
-          thumbnail: z.string().optional(),
-        }),
-      }),
-    )
-    .mutation(async ({ input }) => {
-      const { slug, payload } = input;
-
-      try {
-        const post = await updatePostMeta({ slug, payload });
-
-        await Promise.all([
-          revalidateTag('all-posts-ko', 'max'),
-          revalidateTag('all-posts-en', 'max'),
-          revalidateTag(`post-ko-${slug}`, 'max'),
-          revalidateTag(`post-en-${slug}`, 'max'),
-        ]);
-
-        return {
-          post,
-          message: '글을 업데이트하였습니다.',
-        };
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          'code' in error &&
-          error.code === 'ENOENT'
-        ) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: '해당 글이 없습니다.',
-          });
-        }
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: '글을 업데이트하는 중 오류가 발생했습니다.',
         });
       }
     }),

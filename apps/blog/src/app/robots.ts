@@ -18,13 +18,13 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/admin/', '/api/', '/private/'],
+        disallow: ['/api/', '/private/'],
         crawlDelay: 1,
       },
       {
         userAgent: ['Googlebot', 'Bingbot', 'NaverBot', 'Yeti'],
         allow: '/',
-        disallow: ['/admin/', '/api/', '/private/'],
+        disallow: ['/api/', '/private/'],
       },
       {
         userAgent: [
@@ -41,7 +41,7 @@ export default function robots(): MetadataRoute.Robots {
           'Meta-ExternalAgent',
         ],
         allow: '/',
-        disallow: ['/admin/', '/api/', '/private/'],
+        disallow: ['/api/', '/private/'],
       },
       {
         userAgent: ['AhrefsBot', 'SemrushBot', 'MJ12bot', 'DotBot'],

@@ -4,11 +4,7 @@ import { Link } from '@/i18n/navigation';
 type MdxLinkProps = ComponentPropsWithoutRef<'a'>;
 
 const isInternalPath = (href: string) =>
-  href.startsWith('/') &&
-  !href.startsWith('//') &&
-  !href.startsWith('/api') &&
-  !href.startsWith('/admin') &&
-  !href.startsWith('/login');
+  href.startsWith('/') && !href.startsWith('//') && !href.startsWith('/api');
 
 export function MdxLink({ href, ...props }: MdxLinkProps) {
   if (typeof href !== 'string') {

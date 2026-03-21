@@ -29,23 +29,6 @@ export const devRobots: Metadata['robots'] = {
 };
 
 export const pageRobots = {
-  admin: {
-    index: false,
-    follow: false,
-    noarchive: true,
-    nosnippet: true,
-    noimageindex: true,
-    nocache: true,
-    googleBot: {
-      index: false,
-      follow: false,
-      noimageindex: true,
-      'max-video-preview': 0,
-      'max-image-preview': 'none',
-      'max-snippet': 0,
-    },
-  } as Metadata['robots'],
-
   blogPost: {
     index: true,
     follow: true,
@@ -102,18 +85,6 @@ export const pageRobots = {
     index: false,
     follow: false,
     noarchive: true,
-    nocache: true,
-    googleBot: {
-      index: false,
-      follow: false,
-    },
-  } as Metadata['robots'],
-
-  auth: {
-    index: false,
-    follow: false,
-    noarchive: true,
-    nosnippet: true,
     nocache: true,
     googleBot: {
       index: false,

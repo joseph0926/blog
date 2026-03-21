@@ -1,6 +1,4 @@
 import { type NextRequest } from 'next/server';
-import { getAdminCookie } from '@/lib/auth/cookie';
-import { verifyAccessToken } from '@/lib/auth/token';
 
 export async function createTRPCContext({
   req,
@@ -8,23 +6,8 @@ export async function createTRPCContext({
   headers: Headers;
   req?: NextRequest;
 }) {
-  const token = await getAdminCookie();
-
-  let user = null;
-
-  if (token) {
-    try {
-      const result = await verifyAccessToken(token);
-      if (result.isAdmin) {
-        user = { isAdmin: true };
-      }
-    } catch {
-      // 토큰 검증 실패 시 user는 null로 유지
-    }
-  }
-
   return {
-    user,
+    user: null,
     req,
   };
 }
