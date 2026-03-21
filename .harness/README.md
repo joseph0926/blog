@@ -161,11 +161,21 @@ Created: YYYY-MM-DD
 
 ## 시각화 정책
 
-아키텍처 변경이 포함된 작업의 VERIFY 게이트에서 시각화를 생성한다.
+### 아키텍처 다이어그램
+
+아키텍처 변경이 포함된 작업의 VERIFY 게이트에서 다이어그램을 생성한다.
 
 tool: mermaid-cli
 output: svg
 path: .harness/<토픽>/diagrams/
+
+### 비주얼 피드백
+
+UI 변경이 포함된 작업의 VERIFY 게이트에서 Playwright MCP로 페이지를 캡처하고 AI가 판단한다.
+
+tool: playwright-mcp
+actions: browser_navigate → browser_take_screenshot
+용도: 페이지 렌더링 확인, 레이아웃 검증, 비주얼 리그레션 판단
 
 ## 병렬 세션 충돌 방지
 
