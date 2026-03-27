@@ -1,0 +1,297 @@
+---
+slug: '2026-03-27-what-makes-a-test-failure-trustworthy'
+title: 'Why should good tests make failures believable?'
+description: 'When tests in React Router or TanStack Query fail, I usually inspect my code first. When tests I wrote fail, I sometimes end up re-checking the test itself as well. That difference made me rethink the boundary between unit, integration, browser, and e2e tests.'
+date: '2026-03-27'
+thumbnail: '/post/react.webp'
+tags: ['testing', 'vitest', 'playwright']
+---
+
+# Why should good tests make failures believable?
+
+Lately, one thought keeps coming back whenever I look at tests.
+
+When I read or modify open source code like React Router or TanStack Query and an existing test fails, I usually inspect my code first.
+
+"Did I change the behavior incorrectly?"  
+"Did I break a contract that the code used to guarantee?"
+
+That does not mean those tests are always right. But at least that is my starting point. If the test fails, I first look at my code.
+
+Tests I wrote in my own projects have felt a bit different at times.
+
+When one of those tests failed, I looked at the code, but I also re-checked the test itself.
+
+"Is my code wrong?"  
+"Or is this test too tied to implementation details?"  
+"Did it catch a real behavior change, or just a refactor?"
+
+It is still "a test failure" in both cases, but one feels immediately believable while the other needs interpretation first. That difference kept bothering me.
+
+Of course, not every test has to be judged by the same standard. Some tests are mainly about quick feedback. Some tests really do need to lock down a specific implementation. But for frontend UI tests, I have gradually started caring more about one thing: how quickly can I trust the failure when it happens?
+
+This post is a record of how that question made me rethink the boundary between unit, integration, browser, and e2e tests.
+
+---
+
+## What do you suspect first when a test fails?
+
+Tests are supposed to fail sometimes. That is part of the point.
+
+But not every failure feels like the same kind of signal.
+
+Some failures feel close to "the product behavior changed." In those cases, I jump straight into the code. Other failures feel closer to "the test was too sensitive." In those cases, I start by re-reading the test before I even know whether there is a bug.
+
+That difference eventually collapses into one question.
+
+What do I suspect first when a test fails?
+
+These days, that question feels more important to me than the number of tests or the coverage percentage. Coverage can be a useful guardrail, but the number itself does not tell me how trustworthy a failure will be.
+
+If a failing test sends me straight to the code, I tend to think that test is doing its job well. If a failing test immediately makes me wonder whether the test itself needs to be rewritten, then I start to see it differently.
+
+It is hard to define a good test in one sentence. Still, I have come to think of a good test as one that makes me examine the behavior of my code first when it breaks.
+
+---
+
+## Why I started using "Can I trust this failure?" as a test criterion
+
+Writing many tests and being able to trust tests turned out to be slightly different things.
+
+Frontend tests especially tend to drift toward two extremes.
+
+- Very fast tests for tiny units, but highly sensitive to implementation details
+- Very strong tests of real user flows, but slow and expensive to maintain
+
+Somewhere between those two, the criterion I kept coming back to was: can I trust this failure?
+
+In more concrete terms, I started caring about things like this.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Question</th>
+        <th>What I tend to trust more</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>What is being verified?</td>
+        <td>User-visible outcomes over internal function calls</td>
+      </tr>
+      <tr>
+        <td>What stays real?</td>
+        <td>As many real components, hooks, stores, and queries as possible</td>
+      </tr>
+      <tr>
+        <td>Where is the boundary?</td>
+        <td>A clear edge like the network or an external system</td>
+      </tr>
+      <tr>
+        <td>How refactor-resistant is it?</td>
+        <td>The test survives when behavior stays the same</td>
+      </tr>
+      <tr>
+        <td>How expensive is failure interpretation?</td>
+        <td>The failure makes me inspect product behavior before test code</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+This is not an entirely new idea. [Testing Library's guiding principles](https://testing-library.com/docs/guiding-principles/) also push in the direction of tests that resemble real usage.
+
+But for me, that principle became much more concrete when I reframed it as "Can I trust this failure?" instead of just "Is it user-centered?"
+
+---
+
+## Why frontend tests so easily get tied to implementation
+
+I think frontend tests are structurally prone to this problem.
+
+Even a single UI interaction often crosses more layers than it first seems.
+
+```text
+Component
+  -> Hook
+  -> Form state
+  -> Store
+  -> React Query
+  -> Service
+  -> Axios interceptor
+  -> Router
+  -> Toast
+```
+
+Once you try to control all of those layers quickly, mocks start to multiply.
+
+```tsx
+vi.mock('react-router', () => ({ useNavigate: () => mockedNavigate }));
+vi.mock('@/services/auth/login', () => ({ login: mockedLogin }));
+vi.mock('@/store/user', () => ({ useUserStore: mockedStore }));
+vi.mock('sonner', () => ({ toast: mockedToast }));
+
+it('redirects to home after login', async () => {
+  mockedLogin.mockResolvedValue({ ok: true });
+
+  render(<LoginForm />);
+
+  await user.type(screen.getByLabelText('Email'), 'test@example.com');
+  await user.type(screen.getByLabelText('Password'), '1234');
+  await user.click(screen.getByRole('button', { name: 'Login' }));
+
+  expect(mockedLogin).toHaveBeenCalled();
+  expect(mockedStore.setAuth).toHaveBeenCalled();
+  expect(mockedToast.success).toHaveBeenCalled();
+  expect(mockedNavigate).toHaveBeenCalledWith('/');
+});
+```
+
+I do not mean this kind of test is always wrong. It can be useful for quickly checking a branch.
+
+The problem is that as tests like this accumulate, they become sensitive to different things.
+
+- Internal call order rather than what the user sees
+- Implementation paths rather than public behavior
+- Current structure rather than the product contract
+
+Those tests can break from a refactor alone. And when they do, the first thought is often not "A bug was introduced," but "Was this test coupled too tightly to the current structure?"
+
+At that point, a test failure starts to feel less like a bug report and more like a log that needs interpretation.
+
+---
+
+## Why I started seeing integration tests as the default
+
+After running into that pattern enough times, I gradually started seeing integration tests as the default for UI tests.
+
+That does not mean "make everything real." If anything, it means becoming more deliberate about where the boundary is.
+
+This is the shape I currently prefer.
+
+- Keep components, hooks, stores, React Query, and interceptors real when possible
+- Mock only the external API or network edge
+- Assert on screen results and user behavior rather than call traces
+
+Something closer to this:
+
+```tsx
+import { http, HttpResponse } from 'msw';
+import { server } from '@/mocks/server';
+
+it('shows an error message for a wrong password', async () => {
+  server.use(
+    http.post('/api/login', () => {
+      return HttpResponse.json(
+        { result: false, message: 'Password is incorrect.' },
+        { status: 401 },
+      );
+    }),
+  );
+
+  render(<LoginForm />);
+
+  await user.type(screen.getByLabelText('Email'), 'test@example.com');
+  await user.type(screen.getByLabelText('Password'), 'wrong-password');
+  await user.click(screen.getByRole('button', { name: 'Login' }));
+
+  expect(await screen.findByText('Password is incorrect.')).toBeInTheDocument();
+});
+```
+
+This is not always easier. There is setup cost, fixture design, and the boundary still has to be chosen carefully.
+
+Still, I have found this direction better for most UI tests. If I reorganize the implementation but preserve the visible behavior, the test is more likely to survive. And when it fails, I am more likely to ask "Did the behavior really change?" before asking whether the test itself is fragile.
+
+That was also what brought me back to Kent C. Dodds' [Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications). In frontend work, the space between unit and e2e often matters more than I used to think.
+
+Another part of this was isolation. When testing React Query, I ended up preferring a fresh `QueryClient` per test. With Zustand, I also found that leaving shared state behind between tests makes failures harder to trust. That is why I went back to [TkDodo's React Query post](https://tkdodo.eu/blog/testing-react-query) and the [Zustand testing guide](https://zustand.docs.pmnd.rs/guides/testing). Keep as much real logic as possible, but do not let state leak across tests.
+
+MSW also started making more sense to me for the same reason. If I cut at the network boundary instead of mocking the request client directly, I can reuse the same mock shape in node and browser environments, and the test becomes less coupled to the details of axios or fetch. That is also how I now read the [MSW docs](https://mswjs.io/docs/quick-start/): focus on how the network should behave, not on mocking a specific client implementation.
+
+There are still obvious exceptions. For pure functions, schema validation, mappers, and adapters with clear input and output, unit tests remain the better fit. I do not think unit tests should disappear. I just no longer see them as the default home for most UI behavior.
+
+---
+
+## That does not mean browser tests and e2e disappear
+
+Seeing integration tests as the default did not make browser tests or e2e less necessary. It made their role clearer.
+
+### Why browser tests still matter
+
+happy-dom based tests are fast and convenient. But they are still not real browsers, and some things remain ambiguous there.
+
+- focus trap behavior
+- keyboard navigation
+- clipboard and file APIs
+- actual layout or CSS-driven state
+- browser-specific behavior
+
+That is where something like [Vitest Browser Mode](https://vitest.dev/guide/browser/) fits better. The key insight for me was not simply "it runs in a browser," but that it sharpens what should be tested there. If something is fundamentally about browser behavior, forcing it into a simulated DOM environment makes the assertion fuzzier than it needs to be.
+
+### Why e2e still matters
+
+Some things are still hard to explain away with integration or browser tests alone.
+
+- real routing
+- real hydration
+- authentication flow
+- page-to-page navigation
+- async Server Component rendering
+
+In particular, [Next.js' Vitest guide](https://nextjs.org/docs/app/guides/testing/vitest) points out the limitations of directly testing async Server Components in the current setup and suggests e2e for those cases. I read that as a reminder that some contracts really do need to be checked from the outside.
+
+So now I see e2e less as "the strongest test" and more as "the last layer for contracts that other layers cannot replace well."
+
+That said, e2e can become fragile in exactly the same way if it starts following implementation details too closely. [Playwright's best practices](https://playwright.dev/docs/best-practices) and [locator guide](https://playwright.dev/docs/locators) both push you toward roles, labels, and visible text first. Once selectors start mirroring the DOM structure too closely, the test is no longer really checking product behavior. It is checking today's markup.
+
+So even in e2e, the principle ended up feeling similar. The layer is different, but the question is still the same: what are we actually attaching the test to?
+
+---
+
+## The boundary I am using for now
+
+This will probably keep changing, but for now my boundary looks roughly like this.
+
+### Unit
+
+Pure functions, schemas, mappers, and adapters with clear input and output.
+
+Fast feedback matters most here. Verifying some implementation detail is often acceptable because the unit itself is the product of interest.
+
+### Integration
+
+Tests that let a component, hook, store, query, and service move together.
+
+This is the layer I now see as closest to the default home for UI behavior. The boundary still matters, though. I have found it more reliable to cut at something explicit like the network. [MSW](https://mswjs.io/docs/quick-start/) fits that boundary well.
+
+### Browser
+
+UI tests that genuinely need a real browser.
+
+Focus handling, keyboard movement, CSS state, and clipboard behavior are the kinds of things I would rather verify here.
+
+### E2E
+
+Core user journeys and framework-level contracts.
+
+Login, page transitions, and real rendering boundaries are things I still want to verify end to end at least once. But I try not to push every validation branch or every small component interaction all the way up into e2e.
+
+Once I started dividing tests this way, it felt less like reducing tests and more like clarifying what kind of failure each test should produce.
+
+---
+
+## Closing
+
+I used to think that writing many tests was close to having good test coverage in practice.
+
+Now I see it a bit differently.
+
+For me, a good test is not simply a test that exists. It is a test whose failure I can believe without too much hesitation. At least in frontend UI work, that has become a more useful standard for me.
+
+That standard may change again later. Testing strategy depends on the team, the product, the framework, and the environment. But one question has stayed with me.
+
+When a test fails, what do I suspect first?
+
+I have found that the answer to that question shapes more of my testing decisions than I expected.

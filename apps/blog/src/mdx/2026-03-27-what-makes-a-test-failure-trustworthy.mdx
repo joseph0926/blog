@@ -1,0 +1,301 @@
+---
+slug: '2026-03-27-what-makes-a-test-failure-trustworthy'
+title: '좋은 테스트는 왜 실패를 믿게 해줘야 할까'
+description: 'React Router와 TanStack Query의 테스트는 실패를 바로 믿게 되는데, 내가 작성한 테스트는 먼저 테스트 코드부터 다시 보게 될 때가 있었습니다. 그 차이를 기준으로 unit, integration, browser, e2e의 경계를 다시 정리해봅니다.'
+date: '2026-03-27'
+thumbnail: '/post/react.webp'
+tags: ['testing', 'vitest', 'playwright']
+---
+
+# 좋은 테스트는 왜 실패를 믿게 해줘야 할까
+
+요즘 테스트 코드를 보면서 자주 드는 생각이 하나 있습니다.
+
+React Router나 TanStack Query 같은 오픈소스 코드를 읽거나 수정할 때, 기존 테스트가 깨지면 저는 보통 먼저 제 코드를 봅니다.
+
+"내가 동작을 잘못 바꿨나?"  
+"원래 보장하던 계약을 깨뜨린 건 아닐까?"
+
+물론 테스트가 잘못됐을 가능성이 아예 없는 건 아닙니다. 하지만 적어도 출발점은 그렇습니다. 테스트가 깨졌다면, 먼저 제 코드 쪽을 보게 됩니다.
+
+반면 프로젝트에서 제가 직접 작성한 테스트는 조금 다를 때가 있었습니다.
+
+테스트가 깨졌을 때, 코드를 보는 것과 동시에 테스트도 같이 봤습니다.
+
+"내 코드가 잘못된 건가?"  
+"아니면 이 테스트가 구현 디테일에 너무 묶여 있었던 건가?"  
+"이건 실제 동작이 바뀐 걸 잡은 건가, 아니면 리팩터링을 잡은 건가?"
+
+같은 "테스트 실패"인데, 한쪽은 바로 믿게 되고 다른 한쪽은 먼저 해석하게 됩니다. 이 차이가 계속 걸렸습니다.
+
+물론 모든 테스트를 같은 기준으로 볼 수는 없습니다. 빠른 피드백이 더 중요한 테스트도 있고, 특정 구현을 고정해야 하는 테스트가 필요한 순간도 있습니다. 다만 프론트엔드 UI를 다루는 테스트에서는, 저는 점점 "깨졌을 때 이 실패를 얼마나 바로 믿을 수 있는가"를 더 중요하게 보게 됐습니다.
+
+이 글은 그 기준으로 unit, integration, browser, e2e 테스트의 경계를 다시 정리해본 기록입니다.
+
+---
+
+## 테스트가 깨졌을 때 먼저 무엇을 의심하는가
+
+테스트는 원래 깨질 수 있습니다. 버그를 잡기 위해 존재하니까요.
+
+그런데 모든 실패가 같은 품질의 신호는 아니었습니다.
+
+어떤 실패는 제품 동작이 바뀌었다는 신호에 가깝습니다. 이런 경우에는 테스트 로그를 보는 순간 바로 코드로 들어갑니다. 반대로 어떤 실패는 테스트 코드가 예민하다는 신호에 더 가까웠습니다. 이 경우에는 코드를 보기 전에 테스트부터 다시 해석하게 됩니다.
+
+이 차이를 생각해보면, 결국 질문은 하나로 모입니다.
+
+테스트가 깨졌을 때, 내가 먼저 의심하게 되는 것은 무엇인가.
+
+저는 요즘 이 질문이 테스트 개수나 커버리지 숫자보다 더 중요하게 느껴집니다. 커버리지는 방어선이 될 수 있지만, 그 숫자만으로 실패를 얼마나 믿을 수 있는지까지 말해주지는 않았기 때문입니다.
+
+테스트 실패가 나를 코드로 바로 데려간다면, 그 테스트는 믿을 만한 편이라고 느낍니다. 반대로 테스트 실패가 늘 "테스트도 같이 수정해야 하나?"라는 고민으로 이어진다면, 그 테스트는 해석이 더 필요한 편이라고 보게 됩니다.
+
+좋은 테스트를 한 문장으로 정의하기는 어렵습니다. 그래도 실패했을 때 내 코드의 동작을 먼저 돌아보게 만드는 테스트를, 저는 더 좋은 테스트에 가깝다고 느끼고 있습니다.
+
+---
+
+## 그래서 저는 "실패를 믿을 수 있는가"를 보게 됐다
+
+테스트를 많이 작성하는 것과 테스트를 신뢰할 수 있는 것은 조금 다른 문제였습니다.
+
+특히 프론트엔드에서는 테스트가 쉽게 두 극단으로 가곤 합니다.
+
+- 아주 작은 단위를 빠르게 검증하지만 구현 디테일에 민감한 테스트
+- 실제 사용자 흐름을 강하게 검증하지만 느리고 비싼 테스트
+
+이 사이에서 제가 계속 찾게 된 기준이 "실패를 믿을 수 있는가"였습니다.
+
+조금 더 풀어보면 이런 조건들입니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>기준</th>
+        <th>제가 신뢰하게 되는 쪽</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>무엇을 검증하는가</td>
+        <td>내부 함수 호출보다 사용자에게 보이는 결과</td>
+      </tr>
+      <tr>
+        <td>어디까지 실제로 두는가</td>
+        <td>가능하면 실제 컴포넌트, hook, store, query를 함께 통과</td>
+      </tr>
+      <tr>
+        <td>어디서 끊는가</td>
+        <td>네트워크나 외부 시스템 같은 명확한 경계</td>
+      </tr>
+      <tr>
+        <td>리팩터링 내성</td>
+        <td>구현이 바뀌어도 동작이 같으면 유지되는 테스트</td>
+      </tr>
+      <tr>
+        <td>실패 해석 비용</td>
+        <td>테스트 코드보다 제품 동작을 먼저 의심하게 만드는 테스트</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+이 기준은 완전히 새로운 이야기는 아닙니다. [Testing Library의 guiding principles](https://testing-library.com/docs/guiding-principles/)도 결국 사용자가 소프트웨어를 사용하는 방식에 가까울수록 더 유용한 테스트가 된다는 방향을 이야기합니다.
+
+다만 저는 이 원칙이 추상적인 "사용자 중심"이라는 말보다, "실패를 믿을 수 있는가"라는 질문으로 바뀌었을 때 더 구체적으로 다가왔습니다.
+
+---
+
+## 프론트엔드 테스트는 왜 구현에 묶이기 쉬울까
+
+프론트엔드 테스트가 구현에 묶이기 쉬운 이유는 구조적으로 그렇기 때문이라고 느꼈습니다.
+
+UI 하나만 렌더링해도 내부에는 생각보다 많은 층이 있습니다.
+
+```text
+Component
+  -> Hook
+  -> Form state
+  -> Store
+  -> React Query
+  -> Service
+  -> Axios interceptor
+  -> Router
+  -> Toast
+```
+
+이 많은 층을 빠르게 통제하려다 보면 자연스럽게 mock이 늘어납니다.
+
+```tsx
+vi.mock('react-router', () => ({ useNavigate: () => mockedNavigate }));
+vi.mock('@/services/auth/login', () => ({ login: mockedLogin }));
+vi.mock('@/store/user', () => ({ useUserStore: mockedStore }));
+vi.mock('sonner', () => ({ toast: mockedToast }));
+
+it('로그인 후 홈으로 이동한다', async () => {
+  mockedLogin.mockResolvedValue({ ok: true });
+
+  render(<LoginForm />);
+
+  await user.type(screen.getByLabelText('이메일'), 'test@example.com');
+  await user.type(screen.getByLabelText('비밀번호'), '1234');
+  await user.click(screen.getByRole('button', { name: '로그인' }));
+
+  expect(mockedLogin).toHaveBeenCalled();
+  expect(mockedStore.setAuth).toHaveBeenCalled();
+  expect(mockedToast.success).toHaveBeenCalled();
+  expect(mockedNavigate).toHaveBeenCalledWith('/');
+});
+```
+
+이 테스트가 틀렸다는 뜻은 아닙니다. 빠르게 분기를 확인하는 데는 유용할 수 있습니다.
+
+문제는 이런 테스트가 쌓일수록 무엇에 민감해지는지가 달라진다는 점입니다.
+
+- 사용자가 실제로 보는 결과보다 내부 함수 호출 순서
+- 공개된 동작보다 구현 경로
+- 제품 계약보다 현재 구조
+
+이런 테스트는 리팩터링만 해도 쉽게 깨집니다. 그리고 깨졌을 때도 "버그가 생겼구나"보다 "테스트가 지금 구조를 너무 강하게 고정하고 있었나?"를 먼저 떠올리게 만듭니다.
+
+저는 이 지점에서 테스트 실패가 점점 버그 알림보다 해석이 필요한 로그처럼 느껴지기 시작했습니다.
+
+---
+
+## 그래서 integration test를 기본값에 더 가깝게 보게 됐다
+
+이런 경험이 쌓이면서 저는 점점 integration test를 기본값에 더 가깝게 보게 됐습니다.
+
+여기서 말하는 integration test는 "모든 것을 실제로 붙인다"는 뜻은 아닙니다. 오히려 어디서 끊을지를 더 명확하게 정하는 쪽에 가깝습니다.
+
+제가 지금 더 선호하는 방식은 이렇습니다.
+
+- 컴포넌트, hook, store, React Query, interceptor는 가능한 실제로 둔다
+- 외부 API나 네트워크만 mock한다
+- 검증은 함수 호출보다 화면 결과와 사용자 행동에 붙인다
+
+예를 들면 이런 쪽입니다.
+
+```tsx
+import { http, HttpResponse } from 'msw';
+import { server } from '@/mocks/server';
+
+it('잘못된 비밀번호일 때 에러 메시지를 보여준다', async () => {
+  server.use(
+    http.post('/api/login', () => {
+      return HttpResponse.json(
+        { result: false, message: '비밀번호가 올바르지 않습니다.' },
+        { status: 401 },
+      );
+    }),
+  );
+
+  render(<LoginForm />);
+
+  await user.type(screen.getByLabelText('이메일'), 'test@example.com');
+  await user.type(screen.getByLabelText('비밀번호'), 'wrong-password');
+  await user.click(screen.getByRole('button', { name: '로그인' }));
+
+  expect(
+    await screen.findByText('비밀번호가 올바르지 않습니다.'),
+  ).toBeInTheDocument();
+});
+```
+
+이 방식이 항상 더 쉽다는 뜻은 아닙니다. setup 비용이 있고, fixture 설계도 필요하고, 네트워크 경계도 잘 잡아야 합니다.
+
+그래도 저는 이쪽이 더 낫다고 느꼈습니다. 구현을 조금 정리했더라도 사용자가 보는 동작이 같으면 테스트도 유지될 가능성이 높기 때문입니다. 그리고 테스트가 깨졌을 때도 "실제 동작이 바뀌었나?"를 먼저 보게 됩니다.
+
+Kent C. Dodds의 [Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications)를 다시 보게 된 것도 이 지점이었습니다. 프론트엔드에서는 unit과 e2e 사이를 메워주는 integration test의 비중이 생각보다 크다고 느꼈습니다.
+
+또 한 가지는 상태 격리였습니다. React Query를 테스트할 때는 테스트마다 새로운 `QueryClient`를 두는 편이 더 낫다고 느꼈고, Zustand도 테스트 간 상태가 남지 않도록 reset을 해주지 않으면 결과를 믿기 어려웠습니다. [TkDodo의 React Query 글](https://tkdodo.eu/blog/testing-react-query)이나 [Zustand testing guide](https://zustand.docs.pmnd.rs/guides/testing)를 다시 보게 된 것도 이 때문입니다. 실제 로직은 최대한 두되, 테스트끼리 상태가 섞이지 않게 만드는 쪽이 더 안정적이었습니다.
+
+MSW를 다시 보게 된 이유도 비슷했습니다. request client를 mock하는 대신 네트워크 경계에서 끊으면, node 환경과 browser 환경에서 같은 mock을 재사용할 수 있고 테스트가 axios나 fetch 구현에 덜 묶이기 때문입니다. [MSW 문서](https://mswjs.io/docs/quick-start/)가 "네트워크가 어떻게 동작해야 하는지"에 집중하라고 말하는 이유도 결국 여기에 있다고 느꼈습니다.
+
+물론 여기에도 예외는 있습니다. 순수 함수, schema validation, mapper, adapter처럼 입출력이 명확한 로직은 unit test가 더 잘 맞습니다. 저는 지금도 unit test를 줄여야 한다고 생각하지는 않습니다. 다만 UI 테스트의 기본값으로는 integration이 더 맞는 경우가 많다고 보고 있습니다.
+
+---
+
+## 그렇다고 browser test와 e2e가 사라지는 것은 아니다
+
+integration test를 선호하게 됐다고 해서 browser test와 e2e가 불필요해지는 것은 아니었습니다. 오히려 이 둘의 자리가 더 명확해졌습니다.
+
+### browser test가 남아야 하는 이유
+
+happy-dom 기반 테스트는 빠르고 편합니다. 하지만 실제 브라우저가 아니기 때문에 놓치는 것이 있습니다.
+
+- focus trap
+- keyboard navigation
+- clipboard, file API
+- 실제 layout이나 CSS 상태
+- 브라우저별 동작 차이
+
+이런 부분은 [Vitest Browser Mode](https://vitest.dev/guide/browser/) 같은 실제 브라우저 환경이 더 잘 맞습니다. 제가 browser test를 따로 보게 된 이유도 "이건 DOM 흉내 환경으로는 확인이 부족하다"는 경우들이 반복됐기 때문입니다.
+
+Vitest Browser Mode를 다시 보면서 인상적이었던 것은, 브라우저에서 실제로 테스트를 돌린다는 점보다도 그 때문에 검증 대상이 더 선명해진다는 점이었습니다. focus, keyboard, file API처럼 실제 브라우저가 아니면 애매해지는 것들을 억지로 happy-dom에 맞추기보다, 브라우저에서 확인해야 할 것을 브라우저로 보내는 편이 더 자연스러웠습니다.
+
+### e2e가 남아야 하는 이유
+
+반대로 어떤 것은 integration이나 browser test로도 다 설명되지 않습니다.
+
+- 실제 라우팅
+- 실제 hydration
+- 인증 흐름
+- 페이지 간 전환
+- Async Server Component 렌더링
+
+특히 [Next.js의 Vitest 가이드](https://nextjs.org/docs/app/guides/testing/vitest)는 async Server Components를 현재 테스트 러너만으로 직접 검증하는 데 한계가 있다고 설명하고, 이 경우 e2e를 안내합니다. 이건 결국 "어떤 레이어는 정말 브라우저에서 전체 흐름으로 봐야 한다"는 이야기로 읽혔습니다.
+
+그래서 지금은 e2e를 "가장 강한 테스트"라기보다, "다른 레이어가 대신하기 어려운 계약을 확인하는 마지막 레이어"에 더 가깝게 보고 있습니다.
+
+이때도 구현 디테일을 따라가기 시작하면 다시 흔들리기 쉽습니다. [Playwright의 best practices](https://playwright.dev/docs/best-practices)와 [locator 가이드](https://playwright.dev/docs/locators)를 보면 역할, 레이블, 텍스트처럼 사용자가 보는 표면을 먼저 찾으라고 권합니다. CSS selector나 DOM 구조를 길게 따라가면 테스트가 다시 제품 동작이 아니라 현재 마크업 구조를 검증하게 되기 때문입니다.
+
+결국 e2e에서도 기준은 비슷했습니다. 끝에서 끝까지 본다는 점은 다르지만, 그 안에서 무엇을 기준으로 요소를 찾고 무엇을 assert할지는 여전히 사용자 표면에 가까울수록 낫다고 느꼈습니다.
+
+---
+
+## 지금 제가 잡고 있는 경계
+
+이 경계도 나중에는 바뀔 수 있겠지만, 지금은 대체로 이런 식으로 잡고 있습니다.
+
+### Unit
+
+순수 함수, schema, mapper, adapter처럼 입출력이 명확한 로직.
+
+이 레이어에서는 빠른 피드백이 중요합니다. 구현 세부를 조금 직접 검증하더라도 얻는 이점이 큽니다.
+
+### Integration
+
+컴포넌트 + hook + store + query + service를 함께 통과시키는 테스트.
+
+저는 지금 이 레이어를 UI 테스트의 기본값에 가장 가깝게 보고 있습니다. 다만 mock 경계는 네트워크처럼 분명한 곳에 두는 편이 더 낫다고 느끼고 있습니다. [MSW](https://mswjs.io/docs/quick-start)는 이 경계를 다루는 데 꽤 잘 맞았습니다.
+
+### Browser
+
+실제 브라우저 동작이 필요한 UI 테스트.
+
+포커스, 키보드 이동, CSS 상태, clipboard 같은 것들은 여기서 보는 편이 더 낫다고 생각합니다.
+
+### E2E
+
+핵심 사용자 여정과 프레임워크 레벨 계약.
+
+로그인, 페이지 전환, 실제 렌더링 경계처럼 "이건 끝에서 끝까지 한 번은 봐야 한다"는 것들을 남깁니다. 대신 폼 검증의 모든 분기나 컴포넌트의 세세한 상호작용까지 다 올리지는 않으려 합니다.
+
+이렇게 나누고 나니 오히려 테스트를 줄인다는 느낌보다, 각 테스트가 어떤 실패를 만들어야 하는지가 조금 더 선명해졌습니다.
+
+---
+
+## 마무리
+
+저는 예전에는 테스트를 많이 작성하는 것이 곧 테스트를 잘 갖추는 것에 가깝다고 생각했던 적이 있습니다.
+
+지금은 조금 다르게 보고 있습니다.
+
+좋은 테스트는 많이 있는 테스트라기보다, 깨졌을 때 그 실패를 비교적 바로 믿을 수 있는 테스트에 더 가깝다고 생각합니다. 적어도 프론트엔드 UI를 다루는 제 경험에서는 그랬습니다.
+
+물론 앞으로 기준이 또 바뀔 수도 있습니다. 테스트 전략은 팀, 제품, 프레임워크, 배포 환경에 따라 달라지기 때문입니다. 그래도 지금 시점에서 제가 가장 자주 떠올리는 질문은 남아 있습니다.
+
+테스트가 깨졌을 때, 나는 무엇을 먼저 의심하게 되는가.
+
+그 질문에 대한 답이, 어떤 테스트를 어디에 둘지 생각할 때 생각보다 많은 것을 정해준다고 느끼고 있습니다.
