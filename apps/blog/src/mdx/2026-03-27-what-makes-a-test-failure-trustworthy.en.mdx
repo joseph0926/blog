@@ -206,7 +206,7 @@ Still, I have found this direction better for most UI tests. If I reorganize the
 
 That was also what brought me back to Kent C. Dodds' [Testing Trophy](https://kentcdodds.com/blog/the-testing-trophy-and-testing-classifications). In frontend work, the space between unit and e2e often matters more than I used to think.
 
-Another part of this was isolation. When testing React Query, I ended up preferring a fresh `QueryClient` per test. With Zustand, I also found that leaving shared state behind between tests makes failures harder to trust. That is why I went back to [TkDodo's React Query post](https://tkdodo.eu/blog/testing-react-query) and the [Zustand testing guide](https://zustand.docs.pmnd.rs/guides/testing). Keep as much real logic as possible, but do not let state leak across tests.
+Another part of this was isolation. When testing React Query, I ended up preferring a fresh `QueryClient` per test. With Zustand, I also found that leaving shared state behind between tests makes failures harder to trust. That is why I went back to [TkDodo's React Query post](https://tkdodo.eu/blog/testing-react-query) and the [Zustand testing guide](https://zustand.docs.pmnd.rs/learn/guides/testing). Keep as much real logic as possible, but do not let state leak across tests.
 
 MSW also started making more sense to me for the same reason. If I cut at the network boundary instead of mocking the request client directly, I can reuse the same mock shape in node and browser environments, and the test becomes less coupled to the details of axios or fetch. That is also how I now read the [MSW docs](https://mswjs.io/docs/quick-start/): focus on how the network should behave, not on mocking a specific client implementation.
 
