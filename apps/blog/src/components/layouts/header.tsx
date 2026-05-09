@@ -7,17 +7,21 @@ type HeaderProps = {
   size?: 'sm' | 'md' | 'lg';
 };
 
-export const Header = ({ useTitle, title, size = 'md' }: HeaderProps) => {
+export const Header = ({ useTitle, title, size = 'lg' }: HeaderProps) => {
   return (
-    <Container as="header" size={size} className="flex flex-col gap-12">
-      <Navbar />
+    <header className="border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/85 sticky top-0 z-50 border-b backdrop-blur">
+      <Container as="div" size={size}>
+        <Navbar />
+      </Container>
       {useTitle && (
-        <div className="border-t border-b py-12">
-          <h1 className="text-center text-5xl font-extrabold tracking-tighter uppercase sm:text-6xl md:text-7xl lg:text-9xl">
-            {title ?? 'joseph0926'}
-          </h1>
+        <div className="border-border/70 border-t">
+          <Container as="div" size={size} className="py-10 sm:py-12">
+            <h1 className="text-foreground text-center text-4xl font-semibold tracking-tight uppercase sm:text-5xl md:text-6xl lg:text-7xl">
+              {title ?? 'joseph0926'}
+            </h1>
+          </Container>
         </div>
       )}
-    </Container>
+    </header>
   );
 };

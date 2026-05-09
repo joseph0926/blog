@@ -20,7 +20,7 @@ export function LocaleSwitcher() {
 
   return (
     <div
-      className="border-border/60 bg-muted/40 inline-flex items-center gap-1 rounded-full border p-1"
+      className="border-border/70 bg-background inline-flex items-center gap-0.5 rounded-md border p-0.5"
       role="group"
       aria-label={t('label')}
     >
@@ -32,14 +32,15 @@ export function LocaleSwitcher() {
           variant="ghost"
           onClick={() => handleLocaleChange(item)}
           className={cn(
-            'h-7 rounded-full px-2 text-[11px] font-medium',
+            'h-7 rounded-sm px-2 font-mono text-[11px] font-medium tracking-normal tabular-nums',
             locale === item
-              ? 'bg-background text-foreground shadow-xs'
-              : 'text-muted-foreground',
+              ? 'bg-muted text-foreground'
+              : 'text-muted-foreground hover:text-foreground',
           )}
           aria-pressed={locale === item}
         >
-          {item === 'ko' ? t('ko') : t('en')}
+          <span className="sr-only">{item === 'ko' ? t('ko') : t('en')}</span>
+          <span aria-hidden="true">{item.toUpperCase()}</span>
         </Button>
       ))}
     </div>

@@ -52,3 +52,5 @@ temp.*
 .claude/settings.local.json
 
 **/prisma/migrations/
+
+research/

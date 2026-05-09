@@ -7,7 +7,6 @@ import { RecentBlogPosts } from '@/components/home/recent-blog-posts';
 import { AllBlogPostsLoading } from '@/components/loading/all-blog-posts.loading';
 import { RecentBlogPostsLoading } from '@/components/loading/recent-blog-posts.loading';
 import { Container } from '@/components/ui/container';
-import { SectionHeading } from '@/components/ui/section-heading';
 import { isAppLocale } from '@/i18n/routing';
 import {
   getAlternates,
@@ -61,22 +60,32 @@ export default async function HomePage({
 
   return (
     <>
-      <HeroSection />
-      <Container as="main" size="lg" className="mt-24 space-y-24">
-        <section>
-          <SectionHeading
-            title={t('sectionRecentTitle')}
-            description={t('sectionRecentDescription')}
-          />
+      <HeroSection locale={safeLocale} />
+      <Container as="div" size="lg" className="space-y-20 py-16 sm:py-20">
+        <section id="latest" className="scroll-mt-24">
+          <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-muted-foreground font-mono text-xs font-medium">
+                {t('sectionRecentTitle')}
+              </p>
+              <h2 className="text-foreground mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+                {t('sectionRecentDescription')}
+              </h2>
+            </div>
+          </div>
           <Suspense fallback={<RecentBlogPostsLoading />}>
             <RecentBlogPosts locale={safeLocale} />
           </Suspense>
         </section>
         <section>
-          <SectionHeading
-            title={t('sectionArchiveTitle')}
-            description={t('sectionArchiveDescription')}
-          />
+          <div className="mb-7">
+            <p className="text-muted-foreground font-mono text-xs font-medium">
+              {t('sectionArchiveTitle')}
+            </p>
+            <h2 className="text-foreground mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+              {t('sectionArchiveDescription')}
+            </h2>
+          </div>
           <Suspense fallback={<AllBlogPostsLoading />}>
             <AllBlogPosts locale={safeLocale} />
           </Suspense>

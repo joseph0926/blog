@@ -1,32 +1,25 @@
 'use client';
 
-import { motion } from 'motion/react';
-import { skeletonContainer, skeletonItem } from '@/lib/motion-variants';
-import { BlogPostSkeleton } from '../home/blog-post.skeleton';
-
 export const RecentBlogPostsLoading = () => {
   return (
-    <motion.div variants={skeletonContainer} initial="hidden" animate="visible">
-      <section className="grid grid-cols-1 gap-x-8 gap-y-12 lg:grid-cols-2">
-        <motion.div variants={skeletonItem}>
-          <BlogPostSkeleton type="col" />
-        </motion.div>
-        <motion.div
-          variants={skeletonContainer}
-          initial="hidden"
-          animate="visible"
-          className="grid grid-cols-1 gap-y-12"
+    <div className="border-border/70 border-b" role="status" aria-busy="true">
+      {Array.from({ length: 4 }).map((_, idx) => (
+        <div
+          key={idx}
+          className="grid gap-4 border-t py-5 sm:grid-cols-[5.5rem_1fr_auto]"
         >
-          {[1, 2].map((idx) => (
-            <motion.div key={idx} variants={skeletonItem}>
-              <BlogPostSkeleton type="row" />
-            </motion.div>
-          ))}
-        </motion.div>
-      </section>
-      <motion.div variants={skeletonItem} className="mt-12">
-        <BlogPostSkeleton type="row" />
-      </motion.div>
-    </motion.div>
+          <div className="space-y-2">
+            <div className="bg-muted h-3 w-12 rounded-sm" />
+            <div className="bg-muted h-3 w-10 rounded-sm" />
+          </div>
+          <div className="space-y-3">
+            <div className="bg-muted h-5 w-4/5 rounded-sm" />
+            <div className="bg-muted h-4 w-full max-w-2xl rounded-sm" />
+            <div className="bg-muted h-3 w-32 rounded-sm" />
+          </div>
+          <div className="bg-muted h-3 w-20 rounded-sm" />
+        </div>
+      ))}
+    </div>
   );
 };

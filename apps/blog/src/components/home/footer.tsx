@@ -22,41 +22,55 @@ export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
   const currentYear = new Date().getFullYear();
 
   const navbarItems = [
+    { href: '/', label: tNav('home') },
     { href: '/blog', label: tNav('blog') },
     { href: '/about', label: tNav('about') },
   ];
+  const topics = ['React', 'TypeScript', 'Performance', 'Tooling'];
 
   return (
-    <footer className="border-border mt-auto border-t">
-      <Container size={size} className="py-12">
-        <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
-          <div className="space-y-4">
-            <p className="text-foreground text-sm font-medium">joseph0926</p>
-            <p className="text-muted-foreground max-w-sm text-sm">
+    <footer className="border-border/70 mt-auto border-t">
+      <Container size={size} className="py-10 sm:py-12">
+        <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
+          <div className="space-y-3">
+            <p className="text-foreground text-sm font-semibold">joseph0926</p>
+            <p className="text-muted-foreground max-w-sm text-sm leading-6">
               {tFooter('description')}
             </p>
           </div>
-
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:gap-8">
-            <nav className="flex flex-wrap gap-4">
-              <Link
-                href="/"
-                className="text-muted-foreground hover:text-foreground text-sm transition-colors duration-150"
-              >
-                {tNav('home')}
-              </Link>
+          <div>
+            <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+              {tFooter('navigation')}
+            </p>
+            <nav className="flex flex-col gap-2">
               {navbarItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="text-muted-foreground hover:text-foreground text-sm transition-colors duration-150"
+                  className="text-foreground hover:text-muted-foreground text-sm transition-colors duration-150"
                 >
                   {item.label}
                 </Link>
               ))}
             </nav>
-
-            <div className="flex items-center gap-3">
+          </div>
+          <div>
+            <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+              {tFooter('topics')}
+            </p>
+            <ul className="flex flex-col gap-2">
+              {topics.map((topic) => (
+                <li key={topic} className="text-foreground text-sm">
+                  {topic}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
+              {tFooter('elsewhere')}
+            </p>
+            <div className="flex items-center gap-2">
               {socialLinks.map((link) => (
                 <a
                   key={link.href}
@@ -67,7 +81,7 @@ export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
                       ? undefined
                       : 'noopener noreferrer'
                   }
-                  className="text-muted-foreground hover:bg-muted hover:text-foreground rounded-md p-2 transition-colors duration-150"
+                  className="text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-ring rounded-md p-2 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                   aria-label={link.label}
                 >
                   <link.icon className="h-4 w-4" />
@@ -77,10 +91,11 @@ export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
           </div>
         </div>
 
-        <div className="border-border/50 mt-8 border-t pt-8">
-          <p className="text-muted-foreground text-center text-xs">
+        <div className="border-border/60 text-muted-foreground mt-10 flex flex-col gap-3 border-t pt-6 text-xs sm:flex-row sm:items-center sm:justify-between">
+          <p>
             &copy; {currentYear} joseph0926. {tFooter('rights')}
           </p>
+          <p>{tFooter('builtWith')}</p>
         </div>
       </Container>
     </footer>

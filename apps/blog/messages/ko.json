@@ -13,16 +13,19 @@
     "en": "English"
   },
   "home": {
-    "badge": "Frontend Developer",
-    "headlineTop": "Deep Dive into",
-    "description": "React와 TypeScript로 문제를 해결하며 배운 것들을 기록합니다",
+    "badge": "Frontend engineering notes",
+    "latestEssay": "LATEST ESSAY",
+    "headlineTop": "React와 TypeScript를 깊게 읽는 프론트엔드 노트",
+    "description": "React와 TypeScript로 문제를 해결하며 배운 것들을 기록합니다.",
+    "readEssay": "글 읽기",
     "latestPosts": "최신 포스트",
     "about": "소개",
     "scrollToContent": "본문으로 이동",
-    "sectionRecentTitle": "Recent",
-    "sectionRecentDescription": "Latest posts",
+    "sectionRecentTitle": "RECENT ESSAYS",
+    "sectionRecentDescription": "최근에 정리한 생각들",
     "sectionArchiveTitle": "Archive",
-    "sectionArchiveDescription": "All posts",
+    "sectionArchiveDescription": "연도별 아카이브",
+    "archiveIndex": "YEARS",
     "viewAllPosts": "모든 글 보기",
     "loadPostsError": "게시글을 불러오는 중 에러가 발생했습니다.",
     "emptyRecentPosts": "아직 등록된 게시글이 없습니다.",
@@ -60,6 +63,10 @@
   },
   "footer": {
     "description": "React와 TypeScript로 문제를 해결하며 배운 것들을 기록합니다.",
+    "navigation": "Navigation",
+    "topics": "Topics",
+    "elsewhere": "Elsewhere",
+    "builtWith": "Built with Next.js",
     "rights": "All rights reserved."
   },
   "error": {

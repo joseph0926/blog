@@ -13,16 +13,19 @@
     "en": "English"
   },
   "home": {
-    "badge": "Frontend Developer",
-    "headlineTop": "Deep Dive into",
+    "badge": "Frontend engineering notes",
+    "latestEssay": "LATEST ESSAY",
+    "headlineTop": "Frontend notes on React, TypeScript, and the web",
     "description": "I solve product problems with React and TypeScript, then document what I learned.",
+    "readEssay": "Read essay",
     "latestPosts": "Latest posts",
     "about": "About",
     "scrollToContent": "Scroll to content",
-    "sectionRecentTitle": "Recent",
-    "sectionRecentDescription": "Latest posts",
+    "sectionRecentTitle": "RECENT ESSAYS",
+    "sectionRecentDescription": "Recently published notes",
     "sectionArchiveTitle": "Archive",
-    "sectionArchiveDescription": "All posts",
+    "sectionArchiveDescription": "Browse by year",
+    "archiveIndex": "YEARS",
     "viewAllPosts": "View all posts",
     "loadPostsError": "An error occurred while loading posts.",
     "emptyRecentPosts": "There are no published posts yet.",
@@ -60,6 +63,10 @@
   },
   "footer": {
     "description": "I document what I learn while solving product problems with React and TypeScript.",
+    "navigation": "Navigation",
+    "topics": "Topics",
+    "elsewhere": "Elsewhere",
+    "builtWith": "Built with Next.js",
     "rights": "All rights reserved."
   },
   "error": {
