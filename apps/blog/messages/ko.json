@@ -3,8 +3,8 @@
     "home": "홈",
     "blog": "블로그",
     "about": "소개",
-    "mainNavigation": "메인 내비게이션",
-    "menu": "네비게이션",
+    "mainNavigation": "주요 내비게이션",
+    "menu": "내비게이션",
     "openMenu": "메뉴 열기"
   },
   "localeSwitcher": {
@@ -13,45 +13,69 @@
     "en": "English"
   },
   "home": {
-    "badge": "Frontend engineering notes",
-    "latestEssay": "LATEST ESSAY",
-    "headlineTop": "React와 TypeScript를 깊게 읽는 프론트엔드 노트",
-    "description": "React와 TypeScript로 문제를 해결하며 배운 것들을 기록합니다.",
+    "badge": "프론트엔드 엔지니어링 노트",
+    "latestEssay": "최근 글",
+    "headlineTop": "React와 TypeScript를 깊게 다루는 프론트엔드 노트",
+    "description": "React와 TypeScript로 문제를 해결하며 배운 점을 기록합니다.",
     "readEssay": "글 읽기",
-    "latestPosts": "최신 포스트",
+    "latestPosts": "최신 글",
     "about": "소개",
     "scrollToContent": "본문으로 이동",
-    "sectionRecentTitle": "RECENT ESSAYS",
+    "sectionRecentTitle": "최근 글",
     "sectionRecentDescription": "최근에 정리한 생각들",
-    "sectionArchiveTitle": "Archive",
+    "sectionArchiveTitle": "아카이브",
     "sectionArchiveDescription": "연도별 아카이브",
-    "archiveIndex": "YEARS",
+    "archiveIndex": "연도",
     "viewAllPosts": "모든 글 보기",
-    "loadPostsError": "게시글을 불러오는 중 에러가 발생했습니다.",
-    "emptyRecentPosts": "아직 등록된 게시글이 없습니다.",
-    "emptyArchivePosts": "더 이상 게시글이 없습니다."
+    "loadPostsError": "글을 불러오지 못했습니다.",
+    "retry": "다시 시도",
+    "emptyRecentPosts": "아직 등록된 글이 없습니다.",
+    "emptyArchivePosts": "더 불러올 글이 없습니다."
   },
   "blog": {
-    "all": "All",
+    "eyebrow": "프론트엔드 엔지니어링 노트",
+    "headline": "React와 웹 학습 기록",
+    "description": "React, TypeScript, Next.js, 성능, 테스트, 소스 코드 분석을 다룹니다. 실무에서 배운 내용을 정리하고, 다음 판단을 더 명확하게 만들기 위해 기록합니다.",
+    "searchLabel": "블로그 글 검색",
+    "all": "전체",
+    "topic": "주제",
+    "year": "연도",
+    "resultCount": "글 {count}개",
+    "activeCount": "필터 {count}개",
+    "pathCount": "글 {count}개",
+    "pathStartTitle": "처음 읽기",
+    "pathStartDescription": "처음 읽기 좋은 글 모음.",
+    "pathSourceTitle": "소스 읽기",
+    "pathSourceDescription": "코드를 읽으며 배우는 프론트엔드.",
+    "pathPerformanceTitle": "성능",
+    "pathPerformanceDescription": "성능을 이해하고 개선하기.",
+    "pathTestingTitle": "테스트",
+    "pathTestingDescription": "테스트 전략과 도구.",
+    "latestEssay": "최근 글",
+    "browseEssays": "글 둘러보기",
+    "currentlyReading": "읽는 중",
+    "minutesLeft": "{minutes}분 남음",
+    "popularPaths": "추천 경로",
     "filter": "필터",
-    "topics": "topics",
-    "postSingular": "post",
-    "postPlural": "posts",
-    "active": "active",
-    "filters": "Filters",
-    "filterPosts": "Filter Posts",
-    "category": "Category",
+    "topics": "주제",
+    "postSingular": "글",
+    "postPlural": "글",
+    "active": "적용 중",
+    "filters": "필터",
+    "filterPosts": "글 필터링",
+    "category": "카테고리",
     "searchPlaceholder": "제목 또는 설명으로 검색...",
     "clearSearch": "검색어 삭제",
     "clearAllFilters": "필터 초기화",
     "clearAll": "전체 초기화",
     "activeFilters": "활성 필터",
-    "reset": "Reset",
+    "reset": "초기화",
     "openFilters": "필터 열기",
-    "filterByCategory": "카테고리로 포스트 필터",
-    "noPostsTitle": "게시글이 없습니다",
-    "noPostsDescription": "필터를 조정하거나 나중에 다시 확인해주세요.",
-    "postsLoaded": "{count}개의 글이 로드되었습니다.",
+    "filterByCategory": "카테고리로 글 필터링",
+    "noPostsTitle": "조건에 맞는 글이 없습니다",
+    "noPostsDescription": "필터를 바꾸거나 검색어를 지워보세요.",
+    "emptyArchivePosts": "아카이브에 더 보여줄 글이 없습니다.",
+    "postsLoaded": "{count}개의 글을 불러왔습니다.",
     "loading": "로딩 중",
     "loadMore": "더 보기",
     "loadMoreAria": "더 많은 글 불러오기",
@@ -59,121 +83,119 @@
   },
   "post": {
     "notFound": "블로그 글을 찾을 수 없습니다.",
-    "fallbackNotice": "영문 번역이 없어 한국어 원문을 표시합니다."
+    "fallbackNotice": "영문 번역이 없어 한국어 원문을 보여드립니다."
   },
   "footer": {
-    "description": "React와 TypeScript로 문제를 해결하며 배운 것들을 기록합니다.",
-    "navigation": "Navigation",
-    "topics": "Topics",
-    "elsewhere": "Elsewhere",
-    "builtWith": "Built with Next.js",
-    "rights": "All rights reserved."
+    "description": "React와 TypeScript로 문제를 해결하며 배운 점을 기록합니다.",
+    "navigation": "탐색",
+    "topics": "주제",
+    "elsewhere": "다른 채널",
+    "builtWith": "Next.js로 만들었습니다.",
+    "rights": "모든 권리를 보유합니다."
   },
   "error": {
     "title": "문제가 발생했습니다",
-    "description": "예상치 못한 오류가 발생했습니다. 다시 시도해주세요.",
+    "description": "예상치 못한 오류가 발생했습니다. 다시 시도해 주세요.",
     "retry": "다시 시도",
     "goHome": "홈으로 이동"
   },
   "notFound": {
     "title": "페이지를 찾을 수 없습니다",
-    "description": "요청하신 페이지가 존재하지 않거나 이동되었을 수 있습니다.",
+    "description": "요청한 페이지가 없거나 주소가 바뀌었을 수 있습니다.",
     "goHome": "홈으로 이동",
     "goBlog": "블로그 보기"
   },
   "about": {
-    "metaTitle": "About",
-    "metaDescription": "프론트엔드 개발자 김영훈입니다. React와 TypeScript를 주로 사용하며, 웹 성능 최적화와 사용자 경험 개선에 관심이 많습니다.",
+    "metaTitle": "소개",
+    "metaDescription": "React와 TypeScript를 주로 쓰는 프론트엔드 개발자 김영훈입니다. 웹 성능과 사용자 경험 개선에 관심이 많습니다.",
+    "aboutTitle": "About",
+    "intro": "프론트엔드에서 자주 어긋나는 동작, 브라우저마다 다르게 동작해서 생기는 차이, 그대로 두면 금방 읽기 힘들어지는 코드를 주로 다룹니다. 빨리 끝내는 것보다, 시간이 지나 다시 봐도 같은 의미로 읽히는 코드를 더 중요하게 봅니다.",
     "profile": {
-      "badge": "React Router · TanStack Query 컨트리뷰터",
       "name": "김영훈",
-      "role": "Frontend Engineer",
-      "summaryPrefix": "React, TypeScript, Next.js 기반 프론트엔드 엔지니어입니다. 대규모 트래픽 환경의 사용자 플로우 안정화, 성능 최적화, 레거시 마이그레이션에 집중해왔습니다. TanStack Query·React Router 등 오픈소스에 ",
-      "summaryHighlight": "10건 PR이 머지되어 공식 릴리스에 포함",
-      "summarySuffix": "되었습니다."
+      "role": "프론트엔드 엔지니어"
     },
     "experience": {
-      "title": "Experience",
-      "description": "Work history",
+      "title": "경력",
       "items": {
         "ea": {
           "company": "EA Korea",
-          "role": "Frontend Engineer — FC 온라인 운영툴",
+          "role": "FC 온라인 운영툴",
           "period": "2025.03 - 현재",
-          "highlight1": "URL 상태 동기화로 QA 재현/로그 요청 문의 주간 10→3건 감소",
-          "highlight2": "아이템 버전 관리 플로우 재설계 후 동일 유형 배포 이슈 0건",
-          "highlight3": "운영툴 프론트엔드 전반 1인 담당 (스택 선정 ~ QA 협업 ~ 문서화)"
+          "highlight1": "URL 상태 동기화로 QA 재현/로그 요청을 주 10건에서 3건으로 감소",
+          "highlight2": "아이템 버전 관리 흐름 재설계 후 동일 유형 배포 이슈 0건 유지",
+          "highlight3": "운영툴 프론트엔드 1인 담당 (스택 선정, QA 협업, 문서화)"
         },
         "nhn": {
           "company": "NHN Injeinc",
-          "role": "Frontend Engineer — 티켓링크",
+          "role": "티켓링크",
           "period": "2024.05 - 2025.03",
-          "highlight1": "KBO 개막전, 한국시리즈 등 대규모 트래픽 예매 플로우 개발",
-          "highlight2": "JSP 기반 다국어 페이지를 React + i18next 단일 코드베이스로 통합(2→1)",
-          "highlight3": "팬클럽 등급 × 구단 정책 필터링으로 비대상 유저 플로우 진입 차단"
+          "highlight1": "KBO 개막전, 한국시리즈 등 대규모 트래픽 예매 흐름 개발",
+          "highlight2": "JSP 기반 다국어 페이지를 React + i18next 단일 코드베이스로 통합",
+          "highlight3": "팬클럽 등급과 구단 정책에 맞지 않는 사용자의 예매 진입 차단"
         },
         "pandora": {
           "company": "판도라티비",
-          "role": "Frontend Engineer — 코박(암호화폐 커뮤니티)",
+          "role": "코박, 암호화폐 커뮤니티",
           "period": "2023.07 - 2024.05",
           "highlight1": "Lighthouse SEO 점수 56→82 개선 (EJS 템플릿 동적 메타 주입)",
-          "highlight2": "하이브리드 앱 WebView 개발 (커뮤니티 + 상품 구매 플로우)",
-          "highlight3": "@멘션 기능 제안 및 구현 (알림 연동까지 end-to-end)"
+          "highlight2": "하이브리드 앱 WebView 개발 (커뮤니티, 상품 구매 흐름)",
+          "highlight3": "알림 연동까지 포함한 @멘션 기능 제안 및 구현"
         }
       }
     },
     "openSource": {
-      "title": "Open Source",
-      "description": "10 PRs merged to official releases",
-      "github": "GitHub",
-      "merged": "Merged",
+      "heading": "오픈소스 기여",
+      "lead": "TanStack Query, React Router 등에 보낸 PR 중 공식 릴리스에 포함된 항목입니다.",
       "groups": {
         "query": {
           "pr1Title": "useQueries O(N²) → O(N) 최적화",
-          "pr1Desc": "500 queries 벤치마크 함수 호출 수 4,500→2,000 (약 -55%)",
+          "pr1Desc": "500 queries 벤치마크 함수 호출 수 4,500→2,000 (약 -55%).",
           "pr2Title": "persist + memoized combine 버그 수정",
-          "pr2Desc": "새로고침 후 UI 미갱신 문제 해결",
+          "pr2Desc": "새로고침 후 UI가 갱신되지 않던 문제 해결.",
           "pr3Title": "CI 타임아웃 수정",
-          "pr3Desc": "Nx Cloud 분산 실행 설정 불일치 안정화"
+          "pr3Desc": "Nx Cloud 분산 실행 설정 불일치로 인한 CI 타임아웃 안정화."
         },
         "router": {
           "pr1Title": "middleware skipRevalidation 누락 수정",
-          "pr1Desc": "부모 loader 불필요 재실행 해결",
+          "pr1Desc": "불필요한 부모 loader 재실행 방지.",
           "pr2Title": "브라우저 스토리지 제한 환경 대응",
-          "pr2Desc": "시크릿 모드 세션 저장 실패 안전 처리",
+          "pr2Desc": "시크릿 모드에서 세션 저장 실패를 안전하게 처리.",
           "pr3Title": "fetcher.submit JSON 버그 수정",
-          "pr3Desc": "SSR 환경 회귀 테스트 추가",
+          "pr3Desc": "SSR 환경 회귀 테스트 추가.",
           "pr4Title": "generatePath suffix 파라미터 수정",
-          "pr4Desc": ":id.json 경로 생성 실패 해결",
+          "pr4Desc": ":id.json 경로 생성 실패 해결.",
           "pr5Title": "<Links /> crossOrigin 속성 추가",
-          "pr5Desc": "CDN CORS CSS preload 이슈 대응"
+          "pr5Desc": "CDN CORS CSS preload 이슈 대응."
         },
         "rhf": {
           "pr1Title": "useController 타입 회귀 수정",
-          "pr1Desc": "never 고정 문제 + 타입 테스트 추가"
+          "pr1Desc": "never 고정 문제 해결 + 타입 테스트 추가."
         },
         "tsr": {
           "pr1Title": "params.parse notFound() 처리 수정",
-          "pr1Desc": "500→404 수정 + 테스트 추가"
+          "pr1Desc": "500을 404로 바꾸고 테스트 추가."
         }
       }
     },
-    "skills": {
-      "title": "Skills",
-      "description": "Tech stack",
-      "categories": {
-        "core": "Core",
-        "stateData": "State/Data",
-        "buildTest": "Build/Test",
-        "backend": "Backend"
-      }
+    "stack": {
+      "heading": "지금 쓰는 도구",
+      "line": "React, TypeScript, Next.js를 기본으로 씁니다. 상태와 라우팅에는 TanStack Query, React Router, Zustand, 빌드와 테스트에는 Vite, Vitest, Playwright, ESLint를 씁니다. 백엔드가 필요할 때는 Node, Fastify, Prisma, tRPC를 씁니다."
+    },
+    "connect": {
+      "email": "이메일"
+    },
+    "meta": {
+      "location": "서울",
+      "activeSince": "2023.07 - 현재",
+      "openSourceTotal": "공식 릴리스에 포함된 PR 10건",
+      "stackLine": "React · TypeScript · Next.js · TanStack Query · React Router · Vite · Vitest · Playwright · Node · Fastify · Prisma · tRPC"
     }
   },
   "meta": {
     "homeTitle": "김영훈 블로그",
-    "homeDescription": "프론트엔드 개발자 김영훈의 블로그입니다. React, 웹 성능 최적화, 최신 개발 기술 및 경험을 공유합니다.",
-    "blogTitle": "Blog - 김영훈 | 프론트엔드 기술 블로그",
-    "blogDescription": "프론트엔드 개발, React, TypeScript, 웹 성능 최적화에 대한 기술 블로그입니다.",
+    "homeDescription": "프론트엔드 개발자 김영훈의 블로그입니다. React와 웹 성능을 공부하며 얻은 실무 기록을 공유합니다.",
+    "blogTitle": "블로그 - 김영훈 | 프론트엔드 기술 블로그",
+    "blogDescription": "React, TypeScript, 웹 성능을 다루는 프론트엔드 기술 블로그입니다.",
     "postFallbackTitle": "김영훈 블로그",
     "postFallbackDescription": "프론트엔드 개발자 김영훈의 블로그입니다"
   }

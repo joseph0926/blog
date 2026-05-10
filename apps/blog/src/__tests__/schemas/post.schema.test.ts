@@ -20,7 +20,7 @@ describe('schemas/post.schema를 테스트합니다.', () => {
       });
       expect(result.success).toBe(false);
       if (!result.success) {
-        expect(result.error.issues[0].message).toBe('제목을 입력해주세요.');
+        expect(result.error.issues[0].message).toBe('제목을 입력해 주세요.');
       }
     });
 
@@ -53,7 +53,7 @@ describe('schemas/post.schema를 테스트합니다.', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error.issues[0].message).toBe(
-          '최소 1개 이상의 태그를 선택해주세요.',
+          '태그를 1개 이상 선택해 주세요.',
         );
       }
     });

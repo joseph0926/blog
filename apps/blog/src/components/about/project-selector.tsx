@@ -43,7 +43,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         repo: 'TanStack/query',
         issue: '#8604',
         pr: '#8641',
-        status: 'Merged ✓',
+        status: '머지됨',
         impact: '55% 성능 향상',
         description: 'useQueries O(N²) → O(N) 최적화',
         details: {
@@ -59,7 +59,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         repo: 'remix-run/react-router',
         issue: '#14156',
         pr: '#14156',
-        status: 'In Review',
+        status: '리뷰 중',
         impact: '경로 생성 정확도 개선',
         description: 'relative() 절대경로 버그 해결',
         details: {
@@ -75,11 +75,11 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         repo: 'shadcn-ui/ui',
         issue: '#7949',
         pr: '#7949',
-        status: 'Open',
-        impact: 'Radix Slot 완벽 호환',
-        description: 'asChild prop 에러 해결',
+        status: '열림',
+        impact: 'Radix Slot 호환성 개선',
+        description: 'asChild prop 오류 해결',
         details: {
-          problem: 'React.Children.only 에러 발생',
+          problem: 'React.Children.only 오류 발생',
           analysis: 'Radix Slot과 복수 children 충돌',
           solution: '조건부 렌더링으로 분기 처리',
         },
@@ -109,7 +109,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   }, []);
 
   const getStatusBadgeClass = useCallback((status: string) => {
-    return status.includes('Merged')
+    return status.includes('머지됨')
       ? 'bg-green-500/20 text-green-500'
       : 'bg-yellow-500/20 text-yellow-500';
   }, []);
@@ -189,7 +189,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           </div>
 
           <div className="text-muted-foreground mt-4 text-center text-xs sm:text-left">
-            클릭하여 선택하세요...
+            자세히 볼 프로젝트를 선택하세요.
           </div>
         </motion.div>
       )}
@@ -200,7 +200,7 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           animate={{ opacity: 1 }}
           className="text-muted-foreground pl-2 text-sm sm:pl-4"
         >
-          선택 중: {selectedProject?.id}
+          선택 중...
           <span className="bg-foreground ml-1 inline-block h-3 w-1 animate-pulse sm:h-4 sm:w-2" />
         </motion.div>
       )}

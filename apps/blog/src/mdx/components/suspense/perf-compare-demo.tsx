@@ -171,10 +171,10 @@ export function PerformanceComparisonDemo() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <BarChart className="h-5 w-5" />
-          성능 비교: 전통적 방법 vs Suspense
+          성능 비교: 기존 방식 vs Suspense
         </CardTitle>
         <CardDescription>
-          동일한 데이터를 로드할 때 두 방식의 렌더링 차이를 비교합니다
+          같은 데이터를 불러올 때 두 방식의 렌더링 차이를 비교합니다
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -188,7 +188,7 @@ export function PerformanceComparisonDemo() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="space-y-3">
             <h3 className="flex items-center gap-2 text-lg font-semibold">
-              <span className="text-orange-600">전통적 방법</span>
+              <span className="text-orange-600">기존 방식</span>
               <span className="text-muted-foreground text-sm font-normal">
                 (useState)
               </span>
@@ -244,8 +244,8 @@ export function PerformanceComparisonDemo() {
             {itemCount > 0 && (
               <div className="space-y-2 rounded-lg bg-blue-100 p-4 text-black">
                 <p className="text-sm">
-                  <strong className="text-black">특징:</strong> Promise 해결까지
-                  렌더링 중단
+                  <strong className="text-black">특징:</strong> Promise가 끝날
+                  때까지 렌더링 보류
                 </p>
                 <p className="text-sm">
                   <strong className="text-black">장점:</strong> 불필요한 중간
@@ -270,7 +270,7 @@ export function PerformanceComparisonDemo() {
                 <div className="flex items-start gap-2">
                   <span className="text-orange-600">•</span>
                   <div>
-                    <strong>전통적 방법:</strong> 상태 변경에 따른 다중 렌더링
+                    <strong>기존 방식:</strong> 상태 변경에 따른 여러 번의 렌더링
                     <div className="text-muted-foreground text-xs">
                       초기 렌더 → 로딩 상태 → 완료 상태 (평균 2-3회)
                     </div>
@@ -281,7 +281,7 @@ export function PerformanceComparisonDemo() {
                   <div>
                     <strong>Suspense:</strong> 데이터 준비 후 단일 렌더링
                     <div className="text-muted-foreground text-xs">
-                      컴포넌트 마운트를 지연시켜 최적화
+                      데이터가 준비된 뒤 컴포넌트를 렌더링
                     </div>
                   </div>
                 </div>

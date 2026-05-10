@@ -1,6 +1,7 @@
 export type TagResponse = {
   id: string;
   name: string;
+  count?: number;
 };
 
 export type PostResponse = {

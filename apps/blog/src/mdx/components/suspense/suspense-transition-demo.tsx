@@ -30,17 +30,17 @@ const fetchTabData = (
         overview: {
           title: '프로젝트 개요',
           content:
-            '이 프로젝트는 React 19의 새로운 기능들을 활용한 모던 웹 애플리케이션입니다. Suspense와 startTransition을 통해 더 나은 사용자 경험을 제공합니다.',
+            'React 19의 Suspense와 startTransition을 함께 쓰는 탭 UI 예시입니다. 새 탭을 불러오는 동안 이전 화면을 유지합니다.',
         },
         details: {
           title: '상세 정보',
           content:
-            '프로젝트는 Next.js 15, React 19, Tailwind CSS 4를 사용하여 구축되었습니다. 서버 컴포넌트와 클라이언트 컴포넌트를 적절히 조합하여 최적의 성능을 달성했습니다.',
+            'Next.js 15, React 19, Tailwind CSS 4로 구성한 예시입니다. 서버 컴포넌트와 클라이언트 컴포넌트의 역할을 나눠 렌더링 흐름을 보여줍니다.',
         },
         team: {
           title: '팀 소개',
           content:
-            '우리 팀은 5명의 개발자로 구성되어 있으며, 각자 프론트엔드, 백엔드, 디자인, QA 분야에서 전문성을 보유하고 있습니다.',
+            '프론트엔드, 백엔드, 디자인, QA 담당자가 함께 작업하는 가상의 팀 예시입니다.',
         },
       };
       resolve(data[tab as keyof typeof data]);
@@ -83,7 +83,7 @@ export function SuspenseTransitionDemo() {
       <CardHeader>
         <CardTitle>Suspense + startTransition 조합</CardTitle>
         <CardDescription>
-          탭을 전환할 때 이전 컨텐츠를 유지하면서 새 컨텐츠를 로드합니다
+          탭을 전환할 때 이전 콘텐츠를 유지하면서 새 콘텐츠를 불러옵니다
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -131,11 +131,11 @@ export function SuspenseTransitionDemo() {
         </div>
 
         <div className="bg-muted mt-6 space-y-2 rounded-lg p-4">
-          <p className="text-sm font-semibold">startTransition의 장점:</p>
+          <p className="text-sm font-semibold">startTransition의 좋은 점:</p>
           <ul className="text-muted-foreground space-y-1 text-sm">
-            <li>• 탭 전환 시 이전 컨텐츠가 즉시 사라지지 않음</li>
-            <li>• 로딩 중에도 UI가 반응성을 유지</li>
-            <li>• 사용자가 빠르게 탭을 전환해도 안정적</li>
+            <li>• 탭 전환 중에도 이전 콘텐츠가 바로 사라지지 않음</li>
+            <li>• 새 콘텐츠를 불러오는 동안 UI가 계속 반응함</li>
+            <li>• 빠르게 탭을 바꿔도 화면 흐름이 끊기지 않음</li>
             <li>• {isPending ? '현재 전환 중입니다!' : '대기 중...'}</li>
           </ul>
           <div className="text-muted-foreground mt-2 text-xs">

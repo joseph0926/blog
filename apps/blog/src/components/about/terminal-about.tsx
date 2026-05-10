@@ -63,10 +63,10 @@ export const TerminalAbout = () => {
                     <OutputDisplay delay={100}>
                       <div className="space-y-1">
                         <div className="text-chart-3 dark:text-chart-3 text-lg font-bold break-words sm:text-xl">
-                          김영훈 | Frontend Engineer
+                          김영훈 | 프론트엔드 엔지니어
                         </div>
                         <div className="text-muted-foreground text-sm sm:text-base">
-                          오픈소스 기여자 | 성능 최적화 전문 | 2년차
+                          오픈소스 기여 · 성능 최적화 · 2023.07~
                         </div>
                       </div>
                     </OutputDisplay>
@@ -91,7 +91,7 @@ export const TerminalAbout = () => {
                       <div className="space-y-2">
                         <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2 sm:gap-4 sm:text-sm">
                           <div className="break-words">
-                            <span className="text-muted-foreground">위치:</span>
+                            <span className="text-muted-foreground">소속:</span>
                             <span className="ml-1 sm:ml-2">
                               EA Korea (Frontend)
                             </span>
@@ -115,7 +115,7 @@ export const TerminalAbout = () => {
                               주요 성과:
                             </span>
                             <span className="text-chart-2 dark:text-chart-2 ml-1 sm:ml-2">
-                              API 55% 감소
+                              함수 호출 55% 감소
                             </span>
                           </div>
                         </div>
@@ -148,17 +148,17 @@ export const TerminalAbout = () => {
                         animate={{ opacity: 1 }}
                       >
                         <div className="text-chart-2 dark:text-chart-2 text-sm">
-                          ✓ 분석 완료: 5개 프로젝트, 12개 PR
+                          ✓ 분석 완료: 주요 프로젝트 2개, 릴리스 포함 PR 10건
                         </div>
                         <div className="space-y-1 pl-2 text-xs sm:pl-4 sm:text-sm">
                           <div className="break-words">
-                            1. React Query: useQueries 성능 개선 (Merged)
+                            1. React Query: useQueries 성능 개선 (머지됨)
                           </div>
                           <div className="break-words">
                             2. React Router: 경로 버그 수정
                           </div>
                           <div className="break-words">
-                            3. shadcn/ui: Radix 호환성 개선 (Merged)
+                            3. shadcn/ui: Radix 호환성 개선 (머지됨)
                           </div>
                           <div className="text-muted-foreground">...</div>
                         </div>

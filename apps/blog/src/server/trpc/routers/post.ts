@@ -23,6 +23,7 @@ export const postRouter = router({
           .object({
             category: z.string().optional(),
             search: z.string().optional(),
+            year: z.string().regex(/^\d{4}$/).optional(),
           })
           .optional(),
       }),
@@ -32,6 +33,7 @@ export const postRouter = router({
       const end = perfTimer('trpc:getPosts');
       const categoryFilter = filter?.category?.toLowerCase();
       const searchFilter = filter?.search?.toLowerCase().trim();
+      const yearFilter = filter?.year;
 
       const cacheKey = ['posts', `locale:${locale}`];
       if (categoryFilter) {
@@ -39,6 +41,9 @@ export const postRouter = router({
       }
       if (searchFilter) {
         cacheKey.push(`q:${searchFilter}`);
+      }
+      if (yearFilter) {
+        cacheKey.push(`year:${yearFilter}`);
       }
       cacheKey.push(`limit:${limit}`);
       if (cursor) {
@@ -71,6 +76,24 @@ export const postRouter = router({
             );
           }
 
+          const availableYears = Array.from(
+            new Set(
+              filteredPosts.map((post) =>
+                new Date(post.createdAt).getFullYear().toString(),
+              ),
+            ),
+          );
+
+          if (yearFilter) {
+            filteredPosts = filteredPosts.filter(
+              (post) =>
+                new Date(post.createdAt).getFullYear().toString() ===
+                yearFilter,
+            );
+          }
+
+          const totalCount = filteredPosts.length;
+
           let startIndex = 0;
           if (cursor) {
             const cursorIndex = filteredPosts.findIndex(
@@ -89,6 +112,8 @@ export const postRouter = router({
           return {
             posts: slicedPosts,
             nextCursor,
+            totalCount,
+            availableYears,
           };
         },
         cacheKey,
@@ -112,17 +137,21 @@ export const postRouter = router({
           hasCursor: Boolean(cursor),
           hasCategory: Boolean(categoryFilter),
           hasSearch: Boolean(searchFilter),
+          hasYear: Boolean(yearFilter),
           locale,
           resultCount: result.posts.length,
+          totalCount: result.totalCount,
           hasNextCursor: Boolean(result.nextCursor),
         });
 
         return {
           posts: result.posts,
           nextCursor: result.nextCursor,
+          totalCount: result.totalCount,
+          availableYears: result.availableYears,
           message: result.posts.length
-            ? '최신 글을 불러왔습니다.'
-            : '글이 없습니다.',
+            ? '글을 불러왔습니다.'
+            : '조건에 맞는 글이 없습니다.',
           cacheHit,
         };
       } catch {
@@ -132,12 +161,13 @@ export const postRouter = router({
           hasCursor: Boolean(cursor),
           hasCategory: Boolean(categoryFilter),
           hasSearch: Boolean(searchFilter),
+          hasYear: Boolean(yearFilter),
           locale,
           error: true,
         });
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: '글을 불러오는 중 오류가 발생했습니다.',
+          message: '글을 불러오지 못했습니다.',
         });
       }
     }),
@@ -169,7 +199,7 @@ export const postRouter = router({
           if (!post) {
             throw new TRPCError({
               code: 'NOT_FOUND',
-              message: `${slug}에 해당하는 글을 찾을 수 없습니다.`,
+              message: `${slug} 글을 찾을 수 없습니다.`,
             });
           }
 
@@ -201,7 +231,7 @@ export const postRouter = router({
         end({ cacheHit, slug, locale, error: 'INTERNAL_SERVER_ERROR' });
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: '글을 불러오는 중 오류가 발생했습니다.',
+          message: '글을 불러오지 못했습니다.',
         });
       }
     }),
@@ -218,9 +248,20 @@ export const postRouter = router({
       const locale = input?.locale ?? defaultLocale;
       const end = perfTimer('trpc:getTags');
       try {
-        const tags = (await getAllTags(locale)).map((tag) => ({
+        const [tagNames, posts] = await Promise.all([
+          getAllTags(locale),
+          getAllPosts(locale),
+        ]);
+        const tagCounts = posts.reduce<Record<string, number>>((acc, post) => {
+          post.tags.forEach((tag) => {
+            acc[tag.name] = (acc[tag.name] ?? 0) + 1;
+          });
+          return acc;
+        }, {});
+        const tags = tagNames.map((tag) => ({
           id: tag,
           name: tag,
+          count: tagCounts[tag] ?? 0,
         }));
         end({ count: tags.length, locale });
         return {
@@ -231,7 +272,7 @@ export const postRouter = router({
         end({ error: true, locale });
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: '태그를 불러오는 중 오류가 발생했습니다.',
+          message: '태그를 불러오지 못했습니다.',
         });
       }
     }),

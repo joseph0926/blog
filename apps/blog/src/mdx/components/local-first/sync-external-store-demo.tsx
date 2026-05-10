@@ -106,7 +106,7 @@ export function SyncExternalStoreDemo() {
               <Zap className="h-5 w-5 text-purple-600" />
               <span className="font-medium">메모리 캐시</span>
             </div>
-            <div className="text-muted-foreground text-xs">동기 브릿지</div>
+            <div className="text-muted-foreground text-xs">동기 브리지</div>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">구독자</span>

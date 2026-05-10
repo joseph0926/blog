@@ -23,7 +23,7 @@ export default function Error({
           문제가 발생했습니다
         </h1>
         <p className="text-muted-foreground mb-4 text-lg">
-          예상치 못한 오류가 발생했습니다. 다시 시도해주세요.
+          예상치 못한 오류가 발생했습니다. 다시 시도해 주세요.
         </p>
         {error.digest && (
           <p className="text-muted-foreground/60 mb-4 font-mono text-xs">

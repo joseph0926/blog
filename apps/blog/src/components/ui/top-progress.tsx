@@ -18,7 +18,7 @@ export const TopProgress = () => {
   const scaleX = useTransform(progress, [0, 1], [0, 1]);
 
   return (
-    <div className="bg-muted/30 fixed top-0 left-0 z-10 h-2 w-full overflow-hidden">
+    <div className="bg-muted/30 fixed top-0 left-0 z-[60] h-1 w-full overflow-hidden">
       <motion.div
         style={{ scaleX }}
         className="bg-primary h-full w-full origin-left will-change-transform"

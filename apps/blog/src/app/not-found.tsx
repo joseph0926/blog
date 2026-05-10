@@ -10,7 +10,7 @@ export default function NotFound() {
           페이지를 찾을 수 없습니다
         </h2>
         <p className="text-muted-foreground mb-6 text-lg">
-          요청하신 페이지가 존재하지 않거나 이동되었을 수 있습니다.
+          요청한 페이지가 없거나 주소가 바뀌었을 수 있습니다.
         </p>
       </div>
       <div className="flex gap-4">

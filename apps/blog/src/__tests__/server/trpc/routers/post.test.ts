@@ -61,7 +61,7 @@ describe('trpc/routers/postRouter를 테스트합니다.', () => {
 
         expect(result.posts).toHaveLength(5);
         expect(result.nextCursor).toBeUndefined();
-        expect(result.message).toBe('최신 글을 불러왔습니다.');
+        expect(result.message).toBe('글을 불러왔습니다.');
 
         for (let i = 0; i < result.posts.length - 1; i++) {
           expect(

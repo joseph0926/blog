@@ -121,7 +121,7 @@ export function AutoSyncComparison() {
       <div className="space-y-2">
         <h3 className="text-lg font-semibold">autoSync: true vs false 비교</h3>
         <p className="text-muted-foreground text-sm">
-          TTL 5초 기준으로 자동 동기화와 수동 동기화의 차이를 비교합니다.
+          TTL 5초를 기준으로 자동 동기화와 수동 동기화의 차이를 비교합니다.
         </p>
       </div>
 
@@ -280,7 +280,7 @@ export function AutoSyncComparison() {
         </div>
         <ul className="text-muted-foreground list-inside list-disc space-y-1 text-sm">
           <li>
-            <strong>Local-First 철학:</strong> 로컬 데이터가 진실의 원천입니다
+            <strong>Local-First 철학:</strong> 로컬 데이터를 기준으로 삼습니다
           </li>
           <li>
             <strong>예측 가능성:</strong> 사용자가 명시적으로 제어합니다
@@ -289,7 +289,7 @@ export function AutoSyncComparison() {
             <strong>네트워크 비용:</strong> 불필요한 API 호출을 방지합니다
           </li>
           <li>
-            <strong>유연성:</strong> 필요한 경우 true로 변경 가능합니다
+            <strong>유연성:</strong> 필요한 경우 true로 바꿀 수 있습니다
           </li>
         </ul>
       </div>

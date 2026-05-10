@@ -28,11 +28,34 @@
     "archiveIndex": "YEARS",
     "viewAllPosts": "View all posts",
     "loadPostsError": "An error occurred while loading posts.",
+    "retry": "Try again",
     "emptyRecentPosts": "There are no published posts yet.",
     "emptyArchivePosts": "No more posts to display."
   },
   "blog": {
+    "eyebrow": "FRONTEND ENGINEERING NOTES",
+    "headline": "Engineering essays about the frontend.",
+    "description": "React, TypeScript, Next.js, performance, testing, and source-code reading. I document what I learn in practice so the next decision is clearer.",
+    "searchLabel": "Search blog posts",
     "all": "All",
+    "topic": "Topic",
+    "year": "Year",
+    "resultCount": "{count} results",
+    "activeCount": "{count} active",
+    "pathCount": "{count} posts",
+    "pathStartTitle": "Start here",
+    "pathStartDescription": "A good first reading path.",
+    "pathSourceTitle": "Source reading",
+    "pathSourceDescription": "Frontend lessons from code.",
+    "pathPerformanceTitle": "Performance",
+    "pathPerformanceDescription": "Understand and improve runtime cost.",
+    "pathTestingTitle": "Testing",
+    "pathTestingDescription": "Testing strategy and tools.",
+    "latestEssay": "Latest essay",
+    "browseEssays": "Browse essays",
+    "currentlyReading": "Currently reading",
+    "minutesLeft": "{minutes} min left",
+    "popularPaths": "Popular paths",
     "filter": "Filter",
     "topics": "topics",
     "postSingular": "post",
@@ -51,6 +74,7 @@
     "filterByCategory": "Filter posts by category",
     "noPostsTitle": "No posts found",
     "noPostsDescription": "Try adjusting your filters or check back later.",
+    "emptyArchivePosts": "No more posts in the archive.",
     "postsLoaded": "{count} posts loaded.",
     "loading": "Loading",
     "loadMore": "Load more",
@@ -84,37 +108,34 @@
   "about": {
     "metaTitle": "About",
     "metaDescription": "I am a frontend engineer focused on React and TypeScript, with strong interest in web performance and user experience.",
+    "aboutTitle": "About the work",
+    "intro": "I work on the parts of a frontend that wobble: behavior that depends on the browser, the small differences a runtime creates, and the seams where code starts to be hard to read again. I would rather write something a future reader can understand than something that ships a week earlier.",
     "profile": {
-      "badge": "React Router · TanStack Query Contributor",
       "name": "Younghoon Kim",
-      "role": "Frontend Engineer",
-      "summaryPrefix": "I am a frontend engineer focused on React, TypeScript, and Next.js. I have worked on stabilizing user flows under high traffic, performance optimization, and legacy migrations. I have contributed to open source projects including TanStack Query and React Router with ",
-      "summaryHighlight": "10 merged PRs included in official releases",
-      "summarySuffix": "."
+      "role": "Frontend Engineer"
     },
     "experience": {
-      "title": "Experience",
-      "description": "Work history",
+      "title": "Career",
       "items": {
         "ea": {
           "company": "EA Korea",
-          "role": "Frontend Engineer — FC Online Operations Tool",
+          "role": "FC Online operations tool",
           "period": "Mar 2025 - Present",
-          "highlight1": "Reduced weekly QA reproduction/log request tickets from 10 to 3 by syncing URL state.",
+          "highlight1": "Cut weekly QA reproduction and log requests from 10 to 3 by keeping URL state in sync with the UI.",
           "highlight2": "After redesigning the item version-management flow, similar deployment issues dropped to zero.",
-          "highlight3": "Owned the end-to-end frontend workflow (stack selection, QA collaboration, and documentation)."
+          "highlight3": "Sole frontend owner of the operations tool: stack selection, QA collaboration, and documentation."
         },
         "nhn": {
           "company": "NHN Injeinc",
-          "role": "Frontend Engineer — Ticketlink",
+          "role": "Ticketlink",
           "period": "May 2024 - Mar 2025",
-          "highlight1": "Built reservation flows for large-traffic events such as KBO Opening Day and the Korean Series.",
-          "highlight2": "Unified JSP-based multilingual pages into a single React + i18next codebase (2 -> 1).",
+          "highlight1": "Built reservation flows for high-traffic events including KBO Opening Day and the Korean Series.",
+          "highlight2": "Unified JSP-based multilingual pages into a single React + i18next codebase.",
           "highlight3": "Blocked non-eligible users from entering booking flows via fan-club-tier and team-policy filtering."
         },
         "pandora": {
           "company": "PandoraTV",
-          "role": "Frontend Engineer — Cobak (Crypto Community)",
+          "role": "Cobak, crypto community",
           "period": "Jul 2023 - May 2024",
           "highlight1": "Improved Lighthouse SEO score from 56 to 82 using dynamic meta injection in EJS templates.",
           "highlight2": "Developed a hybrid-app WebView flow for community and product purchase journeys.",
@@ -123,18 +144,16 @@
       }
     },
     "openSource": {
-      "title": "Open Source",
-      "description": "10 PRs merged to official releases",
-      "github": "GitHub",
-      "merged": "Merged",
+      "heading": "Merged open-source work",
+      "lead": "Pull requests to TanStack Query, React Router, and a few others that landed in official releases.",
       "groups": {
         "query": {
           "pr1Title": "Optimized useQueries from O(N²) to O(N)",
-          "pr1Desc": "Reduced function calls in the 500-query benchmark from 4,500 to 2,000 (~55%).",
+          "pr1Desc": "Reduced function calls in the 500-query benchmark from 4,500 to 2,000 (about -55%).",
           "pr2Title": "Fixed persist + memoized combine bug",
           "pr2Desc": "Resolved stale UI after page refresh.",
           "pr3Title": "Fixed CI timeout",
-          "pr3Desc": "Stabilized mismatch in Nx Cloud distributed execution config."
+          "pr3Desc": "Stabilized a mismatch in the Nx Cloud distributed execution config."
         },
         "router": {
           "pr1Title": "Fixed missing middleware skipRevalidation handling",
@@ -150,7 +169,7 @@
         },
         "rhf": {
           "pr1Title": "Fixed useController type regression",
-          "pr1Desc": "Resolved never-lock issue and added type tests."
+          "pr1Desc": "Resolved the never-lock issue and added type tests."
         },
         "tsr": {
           "pr1Title": "Fixed params.parse notFound() handling",
@@ -158,15 +177,18 @@
         }
       }
     },
-    "skills": {
-      "title": "Skills",
-      "description": "Tech stack",
-      "categories": {
-        "core": "Core",
-        "stateData": "State/Data",
-        "buildTest": "Build/Test",
-        "backend": "Backend"
-      }
+    "stack": {
+      "heading": "What I reach for",
+      "line": "React, TypeScript, and Next.js as a base. TanStack Query, React Router, and Zustand for state and routing. Vite, Vitest, Playwright, and ESLint to keep build and tests honest. Node, Fastify, Prisma, and tRPC when I need a backend."
+    },
+    "connect": {
+      "email": "email"
+    },
+    "meta": {
+      "location": "Seoul, Korea",
+      "activeSince": "Jul 2023 - present",
+      "openSourceTotal": "10 PRs in official releases",
+      "stackLine": "React · TypeScript · Next.js · TanStack Query · React Router · Vite · Vitest · Playwright · Node · Fastify · Prisma · tRPC"
     }
   },
   "meta": {

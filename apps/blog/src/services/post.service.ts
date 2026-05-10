@@ -6,7 +6,7 @@ import type { AppLocale } from '@/i18n/routing';
 import { defaultLocale } from '@/i18n/routing';
 import { perfTimer } from '@/lib/perf-log';
 
-type PostMeta = {
+export type PostMeta = {
   slug: string;
   title: string;
   description: string;

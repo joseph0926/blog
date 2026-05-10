@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { BlogListServer } from '@/components/blog/blog-list.server';
-import { BlogPostSkeleton } from '@/components/home/blog-post.skeleton';
 import { Container } from '@/components/ui/container';
 import { isAppLocale } from '@/i18n/routing';
 import {
@@ -88,13 +87,26 @@ export default async function BlogPage({
   const safeLocale = isAppLocale(locale) ? locale : 'ko';
 
   return (
-    <Container as="section" size="md" className="relative min-h-[70vh]">
+    <Container as="section" size="lg" className="relative min-h-[70vh]">
       <Suspense
         fallback={
-          <div className="grid h-full w-full grid-cols-1 gap-x-4 gap-y-8 py-4 sm:grid-cols-2 md:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, idx) => (
-              <BlogPostSkeleton type="col" key={idx} />
-            ))}
+          <div className="space-y-8 py-10 sm:py-14">
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,520px)]">
+              <div className="space-y-4">
+                <div className="bg-muted h-12 w-full max-w-xl rounded-md" />
+                <div className="bg-muted h-4 w-full max-w-md rounded-md" />
+              </div>
+              <div className="bg-muted h-12 rounded-md" />
+            </div>
+            <div className="grid gap-0 border-y md:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <div key={idx} className="space-y-3 border-border/70 p-6">
+                  <div className="bg-muted h-8 w-8 rounded-md" />
+                  <div className="bg-muted h-5 w-28 rounded-md" />
+                  <div className="bg-muted h-4 w-20 rounded-md" />
+                </div>
+              ))}
+            </div>
           </div>
         }
       >
