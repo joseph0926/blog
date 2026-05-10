@@ -46,7 +46,7 @@ export function PostCodeBlock({
       <pre
         ref={preRef}
         className={cn(
-          'm-0 max-h-[640px] overflow-x-auto bg-transparent p-5 pr-14 font-mono text-[13px] leading-6 shadow-none',
+          'text-foreground m-0 max-h-[640px] overflow-x-auto bg-transparent p-5 pr-14 font-mono text-[13px] leading-6 shadow-none [&_code]:text-inherit',
           className,
         )}
         {...props}
