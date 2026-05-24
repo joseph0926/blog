@@ -19,7 +19,6 @@ function useInView(options?: IntersectionObserverInit) {
     const hasIOSupport = !!window.IntersectionObserver;
 
     if (!hasIOSupport || !node) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInView(true);
       return;
     }
