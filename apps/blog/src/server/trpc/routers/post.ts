@@ -23,7 +23,10 @@ export const postRouter = router({
           .object({
             category: z.string().optional(),
             search: z.string().optional(),
-            year: z.string().regex(/^\d{4}$/).optional(),
+            year: z
+              .string()
+              .regex(/^\d{4}$/)
+              .optional(),
           })
           .optional(),
       }),

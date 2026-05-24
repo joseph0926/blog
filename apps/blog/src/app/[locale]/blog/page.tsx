@@ -100,7 +100,7 @@ export default async function BlogPage({
             </div>
             <div className="grid gap-0 border-y md:grid-cols-4">
               {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="space-y-3 border-border/70 p-6">
+                <div key={idx} className="border-border/70 space-y-3 p-6">
                   <div className="bg-muted h-8 w-8 rounded-md" />
                   <div className="bg-muted h-5 w-28 rounded-md" />
                   <div className="bg-muted h-4 w-20 rounded-md" />

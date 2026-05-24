@@ -270,7 +270,8 @@ export function PerformanceComparisonDemo() {
                 <div className="flex items-start gap-2">
                   <span className="text-orange-600">•</span>
                   <div>
-                    <strong>기존 방식:</strong> 상태 변경에 따른 여러 번의 렌더링
+                    <strong>기존 방식:</strong> 상태 변경에 따른 여러 번의
+                    렌더링
                     <div className="text-muted-foreground text-xs">
                       초기 렌더 → 로딩 상태 → 완료 상태 (평균 2-3회)
                     </div>
