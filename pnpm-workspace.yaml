@@ -2,6 +2,12 @@ packages:
   - apps/*
   - packages/*
 
+overrides:
+  postcss: ^8.5.10
+  '@hono/node-server': ^1.19.13
+  'uuid@<11.1.1': ^11.1.1
+  tmp: ^0.2.4
+
 allowBuilds:
   '@parcel/watcher': true
   '@prisma/engines': true
