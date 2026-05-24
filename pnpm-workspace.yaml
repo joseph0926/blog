@@ -24,5 +24,6 @@ onlyBuiltDependencies:
   - es5-ext
   - esbuild
   - prisma
+  - puppeteer
   - sharp
   - unrs-resolver
