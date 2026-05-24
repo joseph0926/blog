@@ -4,32 +4,26 @@ packages:
 
 overrides:
   postcss: ^8.5.10
-  '@hono/node-server': ^1.19.13
   'uuid@<11.1.1': ^11.1.1
   tmp: ^0.2.4
 
 allowBuilds:
   '@parcel/watcher': true
-  '@prisma/engines': true
   '@swc/core': true
   bcrypt: true
   es5-ext: true
-  prisma: true
   puppeteer: true
   sharp: true
   unrs-resolver: true
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
-  - '@prisma/client'
-  - '@prisma/engines'
   - '@swc/core'
   - '@tailwindcss/oxide'
   - '@vercel/speed-insights'
   - bcrypt
   - es5-ext
   - esbuild
-  - prisma
   - puppeteer
   - sharp
   - unrs-resolver
