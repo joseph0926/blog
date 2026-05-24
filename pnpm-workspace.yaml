@@ -2,6 +2,17 @@ packages:
   - apps/*
   - packages/*
 
+allowBuilds:
+  '@parcel/watcher': true
+  '@prisma/engines': true
+  '@swc/core': true
+  bcrypt: true
+  es5-ext: true
+  prisma: true
+  puppeteer: true
+  sharp: true
+  unrs-resolver: true
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - '@prisma/client'
