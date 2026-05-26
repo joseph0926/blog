@@ -1,0 +1,446 @@
+---
+slug: '2026-05-26-feature-delivery-before-you-code'
+title: 'Why you should not start coding when you get a feature request'
+description: 'How do you handle vague requests like "make it faster" or "make it prettier"?'
+date: '2026-05-26'
+tags: ['frontend', 'spec']
+thumbnail: '/post/js.webp'
+---
+
+# Why you should not start coding when you get a feature request
+
+I think many of us jump straight into code when we get a feature or bug-fix request. I used to do the same.
+
+When I was working at PandoraTV, I got a request: "Add a draft-save feature to the post editor." I started coding right away without much thought.
+
+The flow went roughly like this.
+
+```
+[Request]: Add draft-save to the existing post editor
+[Snap judgment]: Reuse the editor component, add a flag state, branch on it.
+[Design]: State needs to survive reloads, so put draft status in the URL.
+[Implementation]: Add branching logic to "/write" and "/edit" components ...
+```
+
+It worked. But URL-state-based branches piled up inside a single component, and eventually any small change required re-reading the entire flow. When a follow-up request like "resume editing from the drafts list" came in, adding one more branch broke the existing ones.
+
+Looking back, it was not just a code quality problem. I was pouring a broad request straight into code without breaking it into workable units, so every undecided detail got filled with snap judgments, and those judgments accumulated into fragile code.
+
+This post covers what I studied and thought about since then - how a frontend developer can turn a broad request into workable units before writing any code.
+
+---
+
+## "Make it faster" and "Make it prettier" are not specs
+
+Most feature requests arrive like this.
+
+> "Make sure users aren't too inconvenienced when a payment fails."
+> "Make the cart a bit faster."
+> "Protect users from accidentally losing something."
+
+These are natural sentences, and most initial requirements are communicated this way. But if you take them at face value and start coding, you will eventually hear "That's not what I meant."
+
+When you are asked to "make it faster" or "make it prettier," you probably have some intuitive sense of what to do.
+
+But if you trust only that intuition and jump into code, you will collapse in the same "undecided, ambiguous zones" as the first example.
+
+For instance, given "make the home screen prettier," you might think "the gradient looks tacky, so I'll tone it down to near-solid." But follow-up decisions keep coming: how much to tone it down, what to do with text colors that were tuned to the gradient, and so on. Each time you have to resolve it by guessing.
+
+"Faster" is no different. You might think "cart loading is slow, so I'll cache the API response." But unless you define how fast is fast enough, whether it's button-click response or full-page load, and whether you measure by average or p95, the same problem repeats.
+
+That is why you need a SPEC. A SPEC turns vague language into verifiable conditions.
+
+```
+"faster"
+-> "Processing" feedback appears within 300ms after button click (p95)
+-> Payment confirmation screen loads within 5 seconds (p95)
+```
+
+You are not removing adjectives. You are splitting the risks behind those adjectives into conditions you can later verify as done or not done.
+
+### 8 SPEC fields
+
+When I get a feature request, I try to fill in these 8 fields. I cannot always fill all of them, but the more I fill, the fewer surprises come later.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Field</th>
+        <th>One-line description</th>
+        <th>Example (faster cart)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Goal</td>
+        <td>What the user should get</td>
+        <td>Instant response when interacting with the cart</td>
+      </tr>
+      <tr>
+        <td>Scope</td>
+        <td>What we build this time</td>
+        <td>List caching + optimistic update on quantity change</td>
+      </tr>
+      <tr>
+        <td>Non-goal</td>
+        <td>What we do not build this time</td>
+        <td>Payment flow speed, product search performance</td>
+      </tr>
+      <tr>
+        <td>Domain contract</td>
+        <td>What resources and states change</td>
+        <td>cart-items: cache-first on read, invalidate on write</td>
+      </tr>
+      <tr>
+        <td>Acceptance</td>
+        <td>Definition of "done"</td>
+        <td>Feedback within 300ms after quantity change click (p95)</td>
+      </tr>
+      <tr>
+        <td>Edge cases</td>
+        <td>Exception scenarios</td>
+        <td>50-item cart, 3G network, cache-server mismatch</td>
+      </tr>
+      <tr>
+        <td>TBD</td>
+        <td>Undecided + who decides by when</td>
+        <td>Target device spec - PM by 6/15</td>
+      </tr>
+      <tr>
+        <td>Verification</td>
+        <td>How to test</td>
+        <td>Lighthouse CI, p95 response time dashboard</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+Two fields matter especially.
+
+Stating Non-goals explicitly. If you do not write down "we are not touching payment flow speed this time," someone will later ask "wasn't that obviously included?" Stating what is excluded is also part of the spec.
+
+I will cover this in the next post, but this is similar to how you prevent AI coding tools from doing unintended work "while they are at it."
+
+Attaching names and deadlines to TBDs. If undecided items are just labeled "TBD," developers fill them in by guessing. Code built on "probably this" becomes "who told you to do it like that?" later.
+
+On the flip side, overusing TBD is not great either. If every item is deferred as TBD, decisions keep slipping, and developers end up guessing anyway.
+
+---
+
+## "Done" is not just what you see on screen
+
+When you actually try to fill the Acceptance field in a SPEC, you tend to write only what is visible on screen - "a modal appears when you click the button," "a new item appears in the list." But acceptance criteria fall into 7 categories.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Category</th>
+        <th>What it verifies</th>
+        <th>What you miss on the frontend</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>User-visible behavior</td>
+        <td>What the user sees on screen</td>
+        <td>Most people only write this one</td>
+      </tr>
+      <tr>
+        <td>Server authority</td>
+        <td>The server makes the final call</td>
+        <td>Disabled button bypassed via direct API call</td>
+      </tr>
+      <tr>
+        <td>Client recovery</td>
+        <td>How the client recovers on failure</td>
+        <td>Blank screen on network error</td>
+      </tr>
+      <tr>
+        <td>Data consistency</td>
+        <td>Data integrity guarantee</td>
+        <td>Editing from two tabs loses one side</td>
+      </tr>
+      <tr>
+        <td>Performance</td>
+        <td>Response time, render performance</td>
+        <td>"Feels slow" with no measurable baseline</td>
+      </tr>
+      <tr>
+        <td>Accessibility</td>
+        <td>Keyboard, screen reader access</td>
+        <td>Feature unusable without a mouse</td>
+      </tr>
+      <tr>
+        <td>Observability</td>
+        <td>Logs to narrow down issues after deploy</td>
+        <td>Staying up all night tracing "something broke"</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+As a frontend developer, looking at these 7 categories, you might think "Isn't Server authority or Data consistency the backend's job?" But all 7 affect frontend code as well.
+
+Server authority does not end with disabling a button on the frontend.
+
+- Button disabled - can be toggled off in DevTools
+- localStorage lock - accessible from another browser
+- Client-side validation - bypassed by calling the API directly
+
+For anything that could cause real money or data problems - permission checks, duplicate payment prevention, stock verification - the server must make the final call. The frontend's role is to guide and help the user, not to enforce rules.
+
+Client recovery is not just showing `alert('Something went wrong')`. What happens to data the user was composing? Is there a retry button? What screen do you show when something partially succeeded?
+
+If you do not cover these criteria, you end up in "I built the feature, so why do support tickets keep coming in?"
+
+### Writing Given/When/Then makes it transferable to tests
+
+It can be hard to fill all 7 categories every time. At least writing Given/When/Then gives you a minimum testable baseline.
+
+Bad acceptance
+
+```
+The cart should work fast.
+```
+
+Good acceptance
+
+```
+Given there are 20 items in the cart,
+When the user clicks the quantity change button,
+Then the updated quantity is reflected on screen within 300ms
+     and an optimistic update is visible until the server responds.
+And if the server responds with failure, the quantity rolls back.
+```
+
+The first one is a feeling. The second one is a condition you can directly translate into test code. This difference determines the answer to "how do I verify this feature actually works?" later.
+
+---
+
+## Why starting from the UI causes problems
+
+We have written the SPEC and split acceptance criteria. Now it is time to implement the quantity change we scoped, and the order of approach matters.
+
+### Wrong approach - UI first
+
+```
+Scope: quantity change optimistic update
+Developer: build input UI -> wire onChange -> done!
+
+Found later:
+  Spamming the + button -> 5 requests to server -> stock mismatch
+  Stock is 0 but UI still allows increasing quantity
+  No feedback on network error
+  Changed quantity gone after refresh
+```
+
+### Right approach - data flow first
+
+```
+Scope: quantity change optimistic update
+Developer:
+  1. What does it write to the server? -> PATCH /cart-items/:id
+  2. Permissions? -> own cart only
+  3. Duplicate requests? -> debounce + server idempotency
+  4. Stock exceeded? -> server rejects, client shows error
+  5. Failure recovery? -> rollback to previous quantity + retry button
+  6. State separation: server vs UI vs optimistic update
+  7. UI state list: loading, success, failure, stock exceeded, no permission
+  8. Thinnest end-to-end -> first PR
+```
+
+The difference is clear. The first starts from the screen; the second starts from data flow.
+
+### Intake - surfacing hidden requirements
+
+Behind the single line "quantity change optimistic update" in the Scope, things like these are hiding.
+
+- What data does this change write to the server? (write path)
+- Who is allowed to do this? (permission)
+- What if two people change the same item at the same time? (conflict)
+- What does the user see when the request fails? (failure path)
+- Is async processing needed? (async)
+
+Surfacing these before coding is called Intake. Skip Intake, and after you have built the entire UI, someone says "this needs to be blocked on the server."
+
+### State Ownership - do not mix state
+
+One of the most common frontend bugs is state mixing.
+
+```
+Server state      -> cart contents (API response, source of truth)
+Client state      -> modal open/close, current tab
+Draft input       -> quantity the user is typing (not yet saved)
+Optimistic update -> quantity shown before server responds
+```
+
+Mixing these four into a single state causes problems like:
+
+- Refreshing loses client state and shows a broken screen
+- Server rejects the request but the changed value remains on screen
+- Draft input and server data conflict, causing "I just changed it, why didn't it update?"
+
+Server data, client-only state, unsaved draft input, and optimistic updates need to be managed separately. Libraries like TanStack Query and SWR separating server state are based on this same principle.
+
+---
+
+## How to split and ship code
+
+We have written the SPEC, split acceptance criteria, and designed data flow first. Now it is time to write code and open PRs.
+
+There are two common mistakes here.
+
+**Too broad first PR.**
+
+```
+Entire Scope in one PR
+  Optimistic update + list caching + cache invalidation + error state refinement
+  -> Reviewer is overwhelmed by thousands of lines
+```
+
+**Too thin first PR.**
+
+```
+Quantity change UI only
+  Number display + +/- buttons + disabled style
+  -> No server connection, reset on refresh
+```
+
+The screen looks nice but sends nothing to the server, so merging this deploys "a feature that does not work."
+
+### Thin Vertical Slice - the right first piece
+
+The first PR should be **the minimum flow where one user goal makes a round trip to the server**.
+
+```
+Quantity change - Thin Slice
+  Quantity input UI (simple)
+  PATCH /cart-items/:id request
+  Success/failure screen based on server response
+  Error message on stock exceeded
+  Concurrent request prevention (pending state)
+```
+
+The UI does not need to be polished. What matters is the server round trip. Only with a server round trip can you catch real issues like network errors, server rejections, and response delays in the first PR.
+
+The rest gets added as follow-up PRs after this slice stabilizes.
+
+- List caching + cache invalidation -> separate slice
+- Empty cart state, animations -> UI polish PR
+- Error state refinement -> separate PR
+
+### Release Slicing - split by risk
+
+Once the first slice stabilizes and the feature is complete, it is time to deploy. Shipping everything at once is risky here too.
+
+```
+Everything in one PR
+  Optimistic update logic + API response change + cache strategy change + old sync code deletion
+  -> Instantly exposed to all users
+
+When something goes wrong
+  No idea what to roll back
+  Cache already changed, rolling back code breaks consistency
+```
+
+Split by "risk isolation," not "PR size."
+
+```
+PR 1: contract expand
+      Add optimistic_version field to PATCH /cart-items response (no impact on existing behavior)
+
+PR 2: hidden implementation
+      Add optimistic update logic, feature flag off to keep existing behavior
+
+PR 3: guarded exposure
+      Flag on for internal team only, check error rate / response time
+
+PR 4: ramp
+      5% -> 25% -> 100% gradual rollout
+
+PR 5: cleanup
+      Remove flag and old sync update code
+```
+
+Each stage is isolated, so if a problem occurs at stage 3, you just turn the flag off. Stages 1 and 2 are unaffected.
+
+### Expand -> Migrate -> Contract
+
+When changing an API response structure, do not delete the old one first.
+
+```
+Bad order:
+  Replace cart-items API response with v2 format -> existing code looks for v1 fields and errors
+
+Good order:
+  1. expand   - add v2 fields as optional (keep v1 fields)
+  2. migrate  - switch frontend to reference v2 fields
+  3. contract - remove v1 fields
+```
+
+Following this order keeps things safe even when deploys overlap. At any point, old code and new code can coexist.
+
+### Feature flags - useful but not a silver bullet
+
+Feature flags let you toggle features on and off without deploying code. But there are things flags cannot guarantee.
+
+- Server permission checks - hiding UI with a flag does not stop direct API calls
+- DB constraints - data gets written regardless of the flag
+- Already-written data - turning off the flag does not undo data already created
+
+The point is not "we have a flag, so we are fine," but knowing exactly what a flag can and cannot stop.
+
+---
+
+## Wrap-up
+
+To be honest, the theoretical stuff above is laid out neatly, but doing all of it manually every time is hard.
+
+That said, with AI being actively adopted in many environments, working through these steps together with AI has made it possible to deliver without things falling apart.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Step</th>
+        <th>What to check</th>
+        <th>If you skip it</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Write SPEC</td>
+        <td>Did you concretely fill Goal, Scope, Non-goal, Edge cases, TBD?</td>
+        <td>"That's not what I meant"</td>
+      </tr>
+      <tr>
+        <td>Classify Acceptance</td>
+        <td>
+          Beyond UI - did you cover server authority, recovery, consistency, performance, accessibility, observability?
+        </td>
+        <td>"Feature works, but why do tickets keep coming?"</td>
+      </tr>
+      <tr>
+        <td>Data flow first</td>
+        <td>What does it write to the server, who has permission, what happens on conflict?</td>
+        <td>"This needs server-side blocking" after UI is done</td>
+      </tr>
+      <tr>
+        <td>Thin Slice</td>
+        <td>Does the first PR make a minimum round trip to the server?</td>
+        <td>Pretty UI-only PR, merged but does not work</td>
+      </tr>
+      <tr>
+        <td>Release Slicing</td>
+        <td>Are you isolating risk and deploying in stages?</td>
+        <td>Everything in one PR -> cannot roll back</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+The important thing was not following these steps mechanically, but knowing what I might be missing before writing code. As that sense built up, I started being able to judge which steps I could skip and which I absolutely had to follow.
+
+In the next post, I will cover why SPEC becomes even more important when you ask AI coding tools to build features.
