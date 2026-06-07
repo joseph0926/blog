@@ -28,6 +28,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
+import { getPostsQueryInput } from '@/lib/post-query';
 import { trpc } from '@/lib/trpc';
 import type { PostResponse, TagResponse } from '@/types/post.type';
 
@@ -98,11 +99,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
     fetchNextPage,
     refetch,
   } = trpc.post.getPosts.useInfiniteQuery(
-    {
-      limit: 16,
-      locale,
-      filter: { category, search, year },
-    },
+    getPostsQueryInput(locale, { category, search, year }),
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
       staleTime: 1000 * 60 * 5,

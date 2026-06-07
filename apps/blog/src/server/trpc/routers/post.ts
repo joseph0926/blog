@@ -5,7 +5,6 @@ import { defaultLocale } from '@/i18n/routing';
 import { perfTimer } from '@/lib/perf-log';
 import {
   getAllPosts,
-  getAllTags,
   getPostBySlug as getPostBySlugFromMdx,
 } from '@/services/post.service';
 import { publicProcedure, router } from '../trpc';
@@ -250,29 +249,45 @@ export const postRouter = router({
     .query(async ({ input }) => {
       const locale = input?.locale ?? defaultLocale;
       const end = perfTimer('trpc:getTags');
+      let cacheHit = true;
+
+      const cachedFn = unstable_cache(
+        async () => {
+          cacheHit = false;
+
+          const posts = await getAllPosts(locale);
+          const tagCounts = posts.reduce<Map<string, number>>((acc, post) => {
+            post.tags.forEach((tag) => {
+              acc.set(tag.name, (acc.get(tag.name) ?? 0) + 1);
+            });
+            return acc;
+          }, new Map());
+
+          return Array.from(tagCounts.entries())
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([tag, count]) => ({
+              id: tag,
+              name: tag,
+              count,
+            }));
+        },
+        ['tags', `locale:${locale}`],
+        {
+          tags: [`all-tags-${locale}`, `all-posts-${locale}`],
+          revalidate: 300,
+        },
+      );
+
       try {
-        const [tagNames, posts] = await Promise.all([
-          getAllTags(locale),
-          getAllPosts(locale),
-        ]);
-        const tagCounts = posts.reduce<Record<string, number>>((acc, post) => {
-          post.tags.forEach((tag) => {
-            acc[tag.name] = (acc[tag.name] ?? 0) + 1;
-          });
-          return acc;
-        }, {});
-        const tags = tagNames.map((tag) => ({
-          id: tag,
-          name: tag,
-          count: tagCounts[tag] ?? 0,
-        }));
-        end({ count: tags.length, locale });
+        const tags = await cachedFn();
+        end({ cacheHit, count: tags.length, locale });
         return {
           tags,
           message: '태그를 불러왔습니다.',
+          cacheHit,
         };
       } catch {
-        end({ error: true, locale });
+        end({ cacheHit, error: true, locale });
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: '태그를 불러오지 못했습니다.',

@@ -10,10 +10,13 @@ import {
   localizedPath,
   toAbsoluteUrl,
 } from '@/i18n/seo';
+import { parsePostListFilter } from '@/lib/post-query';
 import { commonOpenGraph } from '@/meta/open-graph';
 import { pageRobots } from '@/meta/robots';
 
-export const dynamic = 'force-static';
+// 필터(?category/?q/?year)별 server prefetch를 위해 searchParams를 읽으므로
+// 이 라우트는 의도적으로 dynamic이다(필터 URL도 SSR + 크롤 가능).
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,
@@ -80,11 +83,18 @@ export async function generateMetadata({
 
 export default async function BlogPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{
+    category?: string | string[];
+    q?: string | string[];
+    year?: string | string[];
+  }>;
 }) {
   const { locale } = await params;
   const safeLocale = isAppLocale(locale) ? locale : 'ko';
+  const filter = parsePostListFilter(await searchParams);
 
   return (
     <Container as="section" size="lg" className="relative min-h-[70vh]">
@@ -110,7 +120,7 @@ export default async function BlogPage({
           </div>
         }
       >
-        <BlogListServer locale={safeLocale} />
+        <BlogListServer locale={safeLocale} filter={filter} />
       </Suspense>
     </Container>
   );

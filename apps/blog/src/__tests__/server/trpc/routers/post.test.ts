@@ -1,5 +1,7 @@
+import { unstable_cache } from 'next/cache';
 import fs from 'node:fs';
 import path from 'node:path';
+import { defaultLocale } from '@/i18n/routing';
 import { postRouter } from '@/server/trpc/routers/post';
 import { createCallerFactory } from '@/server/trpc/trpc';
 import { createPost } from '@/services/post/create-post.service';
@@ -120,6 +122,27 @@ describe('trpc/routers/postRouter를 테스트합니다.', () => {
 
       expect(tags).toContain(tagName);
       expect(result.message).toBe('태그를 불러왔습니다.');
+    });
+
+    it('태그 목록을 캐시하고 포스트 메타 스캔을 한 번만 수행해야 합니다.', async () => {
+      await Promise.all(
+        Array.from({ length: 3 }, (_, i) => createDummyPost(i)),
+      );
+      const readdirSpy = vi.spyOn(fs.promises, 'readdir');
+
+      const result = await caller.getTags();
+
+      expect(unstable_cache).toHaveBeenCalledWith(
+        expect.any(Function),
+        ['tags', `locale:${defaultLocale}`],
+        {
+          tags: [`all-tags-${defaultLocale}`, `all-posts-${defaultLocale}`],
+          revalidate: 300,
+        },
+      );
+      expect(readdirSpy).toHaveBeenCalledTimes(1);
+      expect(result.cacheHit).toBe(false);
+      expect(result.tags.find((tag) => tag.name === tagName)?.count).toBe(3);
     });
   });
 });
