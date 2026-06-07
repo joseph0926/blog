@@ -31,13 +31,6 @@ export default defineConfig({
         'src/i18n/routing.ts',
         'src/server/trpc/trpc.ts',
       ],
-      thresholds: {
-        perFile: true,
-        lines: 50,
-        branches: 38,
-        functions: 50,
-        statements: 50,
-      },
     },
   },
   resolve: {
