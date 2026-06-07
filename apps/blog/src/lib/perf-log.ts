@@ -44,7 +44,7 @@ export const perfLog = (label: string, data?: PerfLogData) => {
 
 export const perfTimer = (label: string) => {
   if (!perfDebugEnabled) {
-    return (_data?: PerfLogData) => {};
+    return () => {};
   }
 
   const start = performance.now();
