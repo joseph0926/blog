@@ -107,45 +107,70 @@
   },
   "about": {
     "metaTitle": "소개",
-    "metaDescription": "React와 TypeScript를 주로 쓰는 프론트엔드 개발자 김영훈입니다. 웹 성능과 사용자 경험 개선에 관심이 많습니다.",
+    "metaDescription": "React와 TypeScript로 운영툴의 반복 업무, 검증 흐름, 상태 재현성을 다루는 프론트엔드 개발자 김영훈입니다.",
     "aboutTitle": "About",
-    "intro": "프론트엔드에서 자주 어긋나는 동작, 브라우저마다 다르게 동작해서 생기는 차이, 그대로 두면 금방 읽기 힘들어지는 코드를 주로 다룹니다. 빨리 끝내는 것보다, 시간이 지나 다시 봐도 같은 의미로 읽히는 코드를 더 중요하게 봅니다.",
+    "intro": "React와 TypeScript로 운영자, QA, CS가 반복 업무를 안정적으로 처리할 수 있도록 내부 웹 도구의 상태 재현성, 입력 계약, 검증 흐름을 정리해 왔습니다. 최근에는 FC 온라인 운영툴에서 계정 조회와 수정 반복 진입, 서버 상태 캐시 갱신, gRPC 테스트 UI, Content Manager 검증 흐름을 담당하고 있습니다.",
     "profile": {
       "name": "김영훈",
       "role": "프론트엔드 엔지니어"
     },
+    "profileFacts": {
+      "location": "위치",
+      "active": "활동 기간",
+      "openSource": "오픈소스",
+      "stack": "주요 스택",
+      "stackValue": "React, TypeScript, Next.js"
+    },
+    "stats": {
+      "heading": "요약",
+      "pullRequests": "공식 릴리스 PR",
+      "careerChapters": "실무 경험",
+      "activeSince": "활동 시작",
+      "primaryStack": "주요 스택"
+    },
+    "focus": {
+      "heading": "관심사",
+      "items": {
+        "developerExperience": "운영자와 QA가 같은 상태로 다시 진입할 수 있는 흐름",
+        "reliableInterfaces": "폼, URL, 테스트 UI가 공유하는 입력 계약",
+        "runtimeBehavior": "브라우저와 런타임 차이에서 생기는 회귀",
+        "openSource": "공식 릴리스에 들어간 오픈소스 PR"
+      }
+    },
     "experience": {
+      "eyebrow": "경력 타임라인",
       "title": "경력",
       "items": {
         "ea": {
           "company": "EA Korea",
           "role": "FC 온라인 운영툴",
           "period": "2025.03 - 현재",
-          "highlight1": "URL 상태 동기화로 QA 재현/로그 요청을 주 10건에서 3건으로 감소",
-          "highlight2": "아이템 버전 관리 흐름 재설계 후 동일 유형 배포 이슈 0건 유지",
-          "highlight3": "운영툴 프론트엔드 1인 담당 (스택 선정, QA 협업, 문서화)"
+          "highlight1": "계정 조회와 수정 화면을 URL 상태와 React Query 캐시 기준으로 맞춰 QA가 같은 화면 상태를 다시 열 수 있게 정리",
+          "highlight2": "폼, URL 파라미터, 내부 검증 도구가 같은 입력 규칙을 쓰도록 TypeScript와 Zod 계약을 고정하고, 데이터 변경 뒤 이전 값이 남던 9개 흐름을 최신 상태로 갱신",
+          "highlight3": "Content Manager 검증 흐름과 gRPC 테스트 UI를 운영툴에 묶고, Vite 8 전환과 chunk/preload 조정으로 entry JS gzip 195.9KB를 111.1KB로 축소"
         },
         "nhn": {
           "company": "NHN Injeinc",
           "role": "티켓링크",
           "period": "2024.05 - 2025.03",
-          "highlight1": "KBO 개막전, 한국시리즈 등 대규모 트래픽 예매 흐름 개발",
-          "highlight2": "JSP 기반 다국어 페이지를 React + i18next 단일 코드베이스로 통합",
-          "highlight3": "팬클럽 등급과 구단 정책에 맞지 않는 사용자의 예매 진입 차단"
+          "highlight1": "React Query 캐시로 목록, 상세, 예매 화면의 필터와 스크롤 맥락을 탭 이동 뒤에도 유지",
+          "highlight2": "루프 스와이프의 렌더링과 페인팅 이벤트를 156회/초에서 32회/초로 감소",
+          "highlight3": "구형 iPhone Safari에서 긴 목록 크래시를 완화하고 20fps 이하 구간을 평균 50fps 이상으로 끌어올림"
         },
         "pandora": {
           "company": "판도라티비",
           "role": "코박, 암호화폐 커뮤니티",
           "period": "2023.07 - 2024.05",
-          "highlight1": "Lighthouse SEO 점수 56→82 개선 (EJS 템플릿 동적 메타 주입)",
-          "highlight2": "하이브리드 앱 WebView 개발 (커뮤니티, 상품 구매 흐름)",
-          "highlight3": "알림 연동까지 포함한 @멘션 기능 제안 및 구현"
+          "highlight1": "앱 결제 완료 알림 뒤 돌아온 화면에서 결제와 멤버십 상태를 다시 조회해 중복 요청과 상태 어긋남을 방지",
+          "highlight2": "긴 글 작성 중 앱 종료나 뒤로가기로 내용이 사라지지 않도록 임시저장 흐름을 서버 개발자와 설계",
+          "highlight3": "검색 유입 공개 페이지를 Next.js SSR 경계로 분리하고 100개 이상 파일을 JS에서 TS, React 16에서 18로 기능 단위 이관"
         }
       }
     },
     "openSource": {
-      "heading": "오픈소스 기여",
-      "lead": "TanStack Query, React Router 등에 보낸 PR 중 공식 릴리스에 포함된 항목입니다.",
+      "eyebrow": "증거",
+      "heading": "오픈소스 PR",
+      "lead": "성능, SSR 회귀 테스트, 런타임 호환성, 타입 안정성, CI 안정화 범위에서 공식 릴리스에 포함된 PR입니다.",
       "groups": {
         "query": {
           "pr1Title": "useQueries O(N²) → O(N) 최적화",
@@ -165,7 +190,7 @@
           "pr4Title": "generatePath suffix 파라미터 수정",
           "pr4Desc": ":id.json 경로 생성 실패 해결.",
           "pr5Title": "<Links /> crossOrigin 속성 추가",
-          "pr5Desc": "CDN CORS CSS preload 이슈 대응."
+          "pr5Desc": "CDN CORS 환경의 CSS preload 실패와 캐시 충돌 완화."
         },
         "rhf": {
           "pr1Title": "useController 타입 회귀 수정",
@@ -179,16 +204,24 @@
     },
     "stack": {
       "heading": "지금 쓰는 도구",
-      "line": "React, TypeScript, Next.js를 기본으로 씁니다. 상태와 라우팅에는 TanStack Query, React Router, Zustand, 빌드와 테스트에는 Vite, Vitest, Playwright, ESLint를 씁니다. 백엔드가 필요할 때는 Node, Fastify, Prisma, tRPC를 씁니다."
+      "line": "React, TypeScript, Next.js를 기본으로 씁니다. 상태와 라우팅에는 TanStack Query, React Router, Zustand, 빌드와 테스트에는 Vite, Vitest, Playwright, ESLint를 씁니다. 백엔드가 필요할 때는 Node, Fastify, Prisma, tRPC를 씁니다.",
+      "groups": {
+        "core": "기본",
+        "state": "상태/라우팅",
+        "quality": "빌드/테스트",
+        "backend": "백엔드"
+      }
     },
     "connect": {
+      "heading": "연락",
+      "description": "운영툴, React/TypeScript, 오픈소스 PR에 대해 구체적인 이야기를 나눌 수 있습니다.",
       "email": "이메일"
     },
     "meta": {
       "location": "서울",
       "activeSince": "2023.07 - 현재",
       "openSourceTotal": "공식 릴리스에 포함된 PR 10건",
-      "stackLine": "React · TypeScript · Next.js · TanStack Query · React Router · Vite · Vitest · Playwright · Node · Fastify · Prisma · tRPC"
+      "stackLine": "React, TypeScript, Next.js, TanStack Query, React Router, Vite, Vitest, Playwright, Node, Fastify, Prisma, tRPC"
     }
   },
   "meta": {

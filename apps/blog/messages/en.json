@@ -107,45 +107,70 @@
   },
   "about": {
     "metaTitle": "About",
-    "metaDescription": "I am a frontend engineer focused on React and TypeScript, with strong interest in web performance and user experience.",
+    "metaDescription": "Frontend engineer Younghoon Kim, working on repeatable operations tooling, verification flows, and state reproduction with React and TypeScript.",
     "aboutTitle": "About the work",
-    "intro": "I work on the parts of a frontend that wobble: behavior that depends on the browser, the small differences a runtime creates, and the seams where code starts to be hard to read again. I would rather write something a future reader can understand than something that ships a week earlier.",
+    "intro": "I build internal web tools with React and TypeScript so operators, QA, and support teams can repeat work with stable state, clear input contracts, and visible verification steps. Recent work includes FC Online account lookup and edit flows, server-state refresh, gRPC test UI, Content Manager validation, and build cost reduction.",
     "profile": {
       "name": "Younghoon Kim",
       "role": "Frontend Engineer"
     },
+    "profileFacts": {
+      "location": "Location",
+      "active": "Active",
+      "openSource": "Open source",
+      "stack": "Primary stack",
+      "stackValue": "React, TypeScript, Next.js"
+    },
+    "stats": {
+      "heading": "Impact at a glance",
+      "pullRequests": "Official-release PRs",
+      "careerChapters": "Career chapters",
+      "activeSince": "Active since",
+      "primaryStack": "Primary stack"
+    },
+    "focus": {
+      "heading": "What I care about",
+      "items": {
+        "developerExperience": "Flows that let operators and QA reopen the same state",
+        "reliableInterfaces": "Input contracts shared by forms, URLs, and test tools",
+        "runtimeBehavior": "Regressions caused by browser and runtime differences",
+        "openSource": "Open-source PRs that landed in official releases"
+      }
+    },
     "experience": {
+      "eyebrow": "Experience timeline",
       "title": "Career",
       "items": {
         "ea": {
           "company": "EA Korea",
           "role": "FC Online operations tool",
           "period": "Mar 2025 - Present",
-          "highlight1": "Cut weekly QA reproduction and log requests from 10 to 3 by keeping URL state in sync with the UI.",
-          "highlight2": "After redesigning the item version-management flow, similar deployment issues dropped to zero.",
-          "highlight3": "Sole frontend owner of the operations tool: stack selection, QA collaboration, and documentation."
+          "highlight1": "Aligned account lookup and edit screens around URL state and React Query cache so QA can reopen the same screen state.",
+          "highlight2": "Kept forms, URL params, and internal validation tools on the same TypeScript and Zod input contract; refreshed nine stale-after-mutation flows.",
+          "highlight3": "Grouped Content Manager validation and a gRPC test UI inside the operations tool; reduced entry JS gzip from 195.9KB to 111.1KB through Vite 8, chunk, and preload changes."
         },
         "nhn": {
           "company": "NHN Injeinc",
           "role": "Ticketlink",
           "period": "May 2024 - Mar 2025",
-          "highlight1": "Built reservation flows for high-traffic events including KBO Opening Day and the Korean Series.",
-          "highlight2": "Unified JSP-based multilingual pages into a single React + i18next codebase.",
-          "highlight3": "Blocked non-eligible users from entering booking flows via fan-club-tier and team-policy filtering."
+          "highlight1": "Preserved filters and scroll context across list, detail, and reservation screens with React Query cache.",
+          "highlight2": "Reduced loop-swipe rendering and painting events from 156 per second to 32 per second.",
+          "highlight3": "Mitigated long-list crashes on older iPhone Safari and raised sub-20fps sections to an average above 50fps."
         },
         "pandora": {
           "company": "PandoraTV",
           "role": "Cobak, crypto community",
           "period": "Jul 2023 - May 2024",
-          "highlight1": "Improved Lighthouse SEO score from 56 to 82 using dynamic meta injection in EJS templates.",
-          "highlight2": "Developed a hybrid-app WebView flow for community and product purchase journeys.",
-          "highlight3": "Proposed and implemented @mention support end-to-end, including notification integration."
+          "highlight1": "Refetched payment and membership state after app payment-completion notifications to prevent duplicate requests and stale status.",
+          "highlight2": "Designed a draft autosave flow with a backend developer so long posts survive app exits and back navigation.",
+          "highlight3": "Separated public search-entry pages behind a Next.js SSR boundary and migrated 100+ files from JS to TS and React 16 to 18 by feature."
         }
       }
     },
     "openSource": {
+      "eyebrow": "Evidence",
       "heading": "Merged open-source work",
-      "lead": "Pull requests to TanStack Query, React Router, and a few others that landed in official releases.",
+      "lead": "PRs that landed in official releases across performance, SSR regression tests, runtime compatibility, type safety, and CI stability.",
       "groups": {
         "query": {
           "pr1Title": "Optimized useQueries from O(N²) to O(N)",
@@ -165,7 +190,7 @@
           "pr4Title": "Fixed generatePath suffix parameter handling",
           "pr4Desc": "Resolved failures generating :id.json paths.",
           "pr5Title": "Added crossOrigin attribute to <Links />",
-          "pr5Desc": "Addressed CDN CORS CSS preload issues."
+          "pr5Desc": "Mitigated CSS preload failures and cache conflicts in CDN CORS environments."
         },
         "rhf": {
           "pr1Title": "Fixed useController type regression",
@@ -179,16 +204,24 @@
     },
     "stack": {
       "heading": "What I reach for",
-      "line": "React, TypeScript, and Next.js as a base. TanStack Query, React Router, and Zustand for state and routing. Vite, Vitest, Playwright, and ESLint to keep build and tests honest. Node, Fastify, Prisma, and tRPC when I need a backend."
+      "line": "React, TypeScript, and Next.js as a base. TanStack Query, React Router, and Zustand for state and routing. Vite, Vitest, Playwright, and ESLint to keep build and tests honest. Node, Fastify, Prisma, and tRPC when I need a backend.",
+      "groups": {
+        "core": "Core",
+        "state": "State/routing",
+        "quality": "Build/test",
+        "backend": "Backend"
+      }
     },
     "connect": {
+      "heading": "Let's connect",
+      "description": "Available for concrete conversations about operations tooling, React/TypeScript, and open-source PRs.",
       "email": "email"
     },
     "meta": {
       "location": "Seoul, Korea",
       "activeSince": "Jul 2023 - present",
       "openSourceTotal": "10 PRs in official releases",
-      "stackLine": "React · TypeScript · Next.js · TanStack Query · React Router · Vite · Vitest · Playwright · Node · Fastify · Prisma · tRPC"
+      "stackLine": "React, TypeScript, Next.js, TanStack Query, React Router, Vite, Vitest, Playwright, Node, Fastify, Prisma, tRPC"
     }
   },
   "meta": {
