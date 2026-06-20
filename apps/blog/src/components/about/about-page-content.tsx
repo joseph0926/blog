@@ -2,8 +2,12 @@ import { getTranslations } from 'next-intl/server';
 import { Container } from '@/components/ui/container';
 import type { AppLocale } from '@/i18n/routing';
 
+const careerIds = ['ea', 'nhn', 'pandora'] as const;
+
+type CareerId = (typeof careerIds)[number];
+
 type CareerEntry = {
-  id: 'ea' | 'nhn' | 'pandora';
+  id: CareerId;
   period: string;
   company: string;
   role: string;
@@ -18,8 +22,6 @@ type PrEntry = {
   title: string;
   desc: string;
 };
-
-const careerIds = ['ea', 'nhn', 'pandora'] as const;
 
 const prSources = [
   {
