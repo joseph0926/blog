@@ -32,7 +32,7 @@ export const HomePostRow = ({ post, locale, className }: HomePostProps) => {
     <article className={cn('group', className)}>
       <Link
         href={`/post/${post.slug}`}
-        className="focus-visible:ring-ring hover:bg-muted/30 grid gap-4 border-t py-5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none sm:grid-cols-[5.5rem_1fr_auto]"
+        className="focus-visible:ring-ring border-border/70 hover:bg-muted/25 grid gap-4 border-t py-5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none sm:grid-cols-[5.5rem_1fr_auto]"
       >
         <time
           dateTime={new Date(post.createdAt).toISOString()}
@@ -79,7 +79,7 @@ export const CompactPostLink = ({ post, locale, className }: HomePostProps) => {
     <article className={cn('group', className)}>
       <Link
         href={`/post/${post.slug}`}
-        className="focus-visible:ring-ring hover:bg-muted/30 grid gap-3 py-4 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none sm:grid-cols-[6rem_1fr_auto]"
+        className="focus-visible:ring-ring hover:bg-muted/25 grid gap-3 py-4 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none sm:grid-cols-[6rem_1fr_auto]"
       >
         <time
           dateTime={new Date(post.createdAt).toISOString()}

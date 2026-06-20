@@ -20,6 +20,7 @@ export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
   const tNav = await getTranslations({ locale, namespace: 'nav' });
   const tFooter = await getTranslations({ locale, namespace: 'footer' });
   const currentYear = new Date().getFullYear();
+  const brandName = tFooter('brandName');
 
   const navbarItems = [
     { href: '/', label: tNav('home') },
@@ -33,7 +34,7 @@ export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
       <Container size={size} className="py-10 sm:py-12">
         <div className="grid gap-10 md:grid-cols-[1.5fr_1fr_1fr_1fr]">
           <div className="space-y-3">
-            <p className="text-foreground text-sm font-semibold">joseph0926</p>
+            <p className="text-foreground text-sm font-semibold">{brandName}</p>
             <p className="text-muted-foreground max-w-sm text-sm leading-6">
               {tFooter('description')}
             </p>
@@ -93,7 +94,7 @@ export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
 
         <div className="border-border/60 text-muted-foreground mt-10 flex flex-col gap-3 border-t pt-6 text-xs sm:flex-row sm:items-center sm:justify-between">
           <p>
-            &copy; {currentYear} joseph0926. {tFooter('rights')}
+            &copy; {currentYear} {brandName}. {tFooter('rights')}
           </p>
           <p>{tFooter('builtWith')}</p>
         </div>

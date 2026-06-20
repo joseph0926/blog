@@ -20,6 +20,7 @@ export const Navbar = () => {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const brandName = t('brandName');
 
   const navbarItems = [
     { href: '/', label: t('home') },
@@ -39,11 +40,10 @@ export const Navbar = () => {
     >
       <Link
         href="/"
-        aria-label={t('home')}
         className="focus-visible:ring-ring -ml-2 inline-flex items-center rounded-md px-2 py-1.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
         <span className="text-foreground text-sm font-semibold tracking-tight">
-          joseph0926
+          {brandName}
         </span>
       </Link>
 

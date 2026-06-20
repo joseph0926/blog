@@ -23,7 +23,7 @@ export const RecentBlogPosts = async ({ locale }: RecentBlogPostsProps) => {
     posts = result.posts;
     message = result.message;
   } catch {
-    // 에러 발생 시 posts는 null로 유지되어 에러 UI 표시
+    posts = null;
   }
 
   if (!posts) {

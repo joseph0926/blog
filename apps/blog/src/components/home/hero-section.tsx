@@ -65,7 +65,7 @@ export async function HeroSection({ locale }: HeroSectionProps) {
 
   return (
     <section className="border-border/70 border-b">
-      <div className="mx-auto grid max-w-[1260px] gap-10 px-4 py-14 sm:py-18 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,26rem)] lg:items-center lg:py-20">
+      <div className="mx-auto grid max-w-[1260px] gap-10 px-4 py-12 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,25rem)] lg:items-center lg:py-18">
         <div className="max-w-3xl">
           <p className="text-primary mb-5 font-mono text-xs font-medium tracking-normal">
             {featuredPost ? t('latestEssay') : t('badge')}
@@ -114,7 +114,9 @@ export async function HeroSection({ locale }: HeroSectionProps) {
             </a>
           </div>
         </div>
-        <EditorialDiagram post={featuredPost} />
+        <div className="w-full max-w-sm lg:max-w-none">
+          <EditorialDiagram post={featuredPost} />
+        </div>
       </div>
     </section>
   );

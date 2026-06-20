@@ -25,7 +25,7 @@ export const AllBlogPosts = async ({ locale }: AllBlogPostsProps) => {
     posts = result.posts;
     message = result.message;
   } catch {
-    // 에러 발생 시 posts는 null로 유지되어 에러 UI 표시
+    posts = null;
   }
 
   if (!posts) {
@@ -54,11 +54,11 @@ export const AllBlogPosts = async ({ locale }: AllBlogPostsProps) => {
     {},
   );
   const years = Object.keys(postsByYear).sort((a, b) => Number(b) - Number(a));
-  const archivePreview = posts.slice(0, 8);
+  const archivePreview = posts.length > 5 ? posts.slice(5, 13) : posts;
 
   return (
-    <div className="border-border/70 grid overflow-hidden rounded-md border lg:grid-cols-[16rem_1fr]">
-      <aside className="border-border/70 bg-muted/20 border-b p-5 lg:border-r lg:border-b-0">
+    <div className="border-border/70 grid border-y lg:grid-cols-[15rem_1fr]">
+      <aside className="border-border/70 border-b py-5 lg:border-r lg:border-b-0 lg:pr-5">
         <p className="text-muted-foreground mb-4 font-mono text-xs font-medium">
           {t('archiveIndex')}
         </p>
@@ -78,7 +78,7 @@ export const AllBlogPosts = async ({ locale }: AllBlogPostsProps) => {
           ))}
         </div>
       </aside>
-      <div className="p-5">
+      <div className="py-2 lg:pl-5">
         <div className="divide-border/70 divide-y">
           {archivePreview.map((post) => (
             <CompactPostLink key={post.id} post={post} locale={locale} />

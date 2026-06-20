@@ -1,5 +1,6 @@
 {
   "nav": {
+    "brandName": "Younghoon Kim",
     "home": "Home",
     "blog": "Blog",
     "about": "About",
@@ -86,6 +87,7 @@
     "fallbackNotice": "English translation is not available yet. Showing the Korean original."
   },
   "footer": {
+    "brandName": "Younghoon Kim",
     "description": "I document what I learn while solving product problems with React and TypeScript.",
     "navigation": "Navigation",
     "topics": "Topics",
