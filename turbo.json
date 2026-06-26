@@ -4,16 +4,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", ".react-router", "build"],
-      "env": [
-        "CLOUDINARY_API_KEY",
-        "CLOUDINARY_API_SECRET",
-        "CLOUDINARY_CLOUD_NAME",
-        "UPSTASH_REDIS_REST_TOKEN",
-        "UPSTASH_REDIS_REST_URL",
-        "ADMIN_PASSWORD",
-        "ACCESS_EXPIRES",
-        "JWT_SECRET"
-      ]
+      "env": ["APP_VERSION", "NEXT_PUBLIC_APP_ENV", "VERCEL_ENV"]
     },
     "type-check": {
       "dependsOn": ["^type-check"]

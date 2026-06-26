@@ -10,7 +10,6 @@ overrides:
 allowBuilds:
   '@parcel/watcher': true
   '@swc/core': true
-  bcrypt: true
   es5-ext: true
   puppeteer: true
   sharp: true
@@ -21,7 +20,6 @@ onlyBuiltDependencies:
   - '@swc/core'
   - '@tailwindcss/oxide'
   - '@vercel/speed-insights'
-  - bcrypt
   - es5-ext
   - esbuild
   - puppeteer
