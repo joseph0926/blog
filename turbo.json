@@ -4,7 +4,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", ".react-router", "build"],
-      "env": ["APP_VERSION", "NEXT_PUBLIC_APP_ENV", "VERCEL_ENV"]
+      "env": ["NEXT_PUBLIC_APP_ENV", "VERCEL_ENV"]
     },
     "type-check": {
       "dependsOn": ["^type-check"]

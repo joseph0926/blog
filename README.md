@@ -123,7 +123,6 @@ pnpm db:gen
 # main .env
 NEXT_PUBLIC_APP_ENV=
 VERCEL_ENV=
-APP_VERSION=
 
 # test .env
 NEXT_PUBLIC_APP_ENV=
