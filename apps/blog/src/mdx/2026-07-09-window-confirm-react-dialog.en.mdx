@@ -1,0 +1,386 @@
+---
+slug: '2026-07-09-window-confirm-react-dialog'
+title: 'Why replacing window.confirm with a React Dialog is not just a UI swap'
+description: 'What broke when I replaced blocking window.confirm with a React Dialog. I learned to separate confirmation, cancellation, and execution into request/cancel/confirm flows.'
+date: '2026-07-09'
+tags: ['react', 'frontend']
+thumbnail: '/post/react.webp'
+---
+
+# Why replacing window.confirm with a React Dialog is not just a UI swap
+
+While looking through a repository to improve the overall architecture and UI/UX, I found some legacy code that still used `window.confirm`.
+
+The browser default `window.confirm` is hard to style, and it does not fit well with the rest of an app that already has its own Dialog design. Since the project already had a custom Dialog component, my first approach felt straightforward. I thought I could replace the existing `window.confirm` calls with a custom confirm dialog, make the UI more consistent, and remove some legacy code at the same time.
+
+But once I started replacing it, the hard part was not the Dialog UI. The real problem was that `window.confirm` and a React Dialog have completely different execution behavior.
+
+`window.confirm` stops the function. The next line does not run until the user clicks confirm or cancel.
+
+A React Dialog does not stop the function. It only changes state so that the Dialog can be rendered, and the user's confirm or cancel action happens later in a different event handler.
+
+This was the part that confused me the most. Even if I update state to open a Dialog, the current event handler does not pause. But the old `window.confirm` code was written as if it could wait for the user's choice and then continue with the next action.
+
+At first, I thought I could recreate the same flow in React: "show a Dialog -> wait -> run the next line depending on the result."
+
+My first approach followed that idea. I opened the Dialog and expected the existing action below it to continue in the right way. But that made the flow break down. Sometimes the action had already run even if the user later clicked cancel. Sometimes the confirm button called the original request function again and went through the same guard one more time.
+
+From that point, I stopped looking at it as a UI replacement problem. The real question became: "Before the user confirms, what should I leave behind, and where should I leave it?" Inside a specific screen, I needed a temporary state that remembered what to run after confirmation. Once I tried to move confirm into a common abstraction, I also needed a way to return the user's choice back to the caller.
+
+The rest of the work became a process of splitting apart what `window.confirm` used to do for me. I had to separate where the flow stops, what gets remembered, and when the action resumes.
+
+---
+
+## window.confirm stops the flow
+
+With `window.confirm`, the code reads naturally from top to bottom.
+
+```ts
+const ok = window.confirm('Are you sure you want to run this?');
+
+if (!ok) {
+  return;
+}
+
+runAction();
+```
+
+The important detail is that `window.confirm` blocks the current function. Until the user clicks a button, `runAction` does not run.
+
+That makes the confirmation flow feel like a synchronous branch.
+
+```text
+button click
+  -> show confirm
+  -> user confirms
+  -> run action
+```
+
+In this model, the confirmation UI and the execution flow stay inside the same function. You only need to check the boolean returned by `confirm`.
+
+But once this is replaced with a React Dialog, that model no longer holds.
+
+---
+
+## A React Dialog does not wait
+
+A React Dialog opens through state.
+
+```ts
+setIsConfirmOpen(true);
+runAction();
+```
+
+This code does not stop at `setIsConfirmOpen(true)`. It only schedules the next render so that the Dialog can appear on the screen. The current function keeps running. So this code opens the Dialog and immediately runs `runAction`.
+
+This was also where I first got confused.
+
+Setting `isConfirmOpen` to `true` felt like waiting for the user's response. But a React state update does not interrupt the current event handler. "The Dialog is open" and "the user's answer has been received" are different things.
+
+At first, I was thinking about it almost like this.
+
+```ts
+function handleSubmit() {
+  if (needsConfirm) {
+    setIsConfirmOpen(true);
+  }
+
+  submit();
+}
+```
+
+At a glance, this looks like code that opens a Dialog when confirmation is needed. But there is no `return` or `else`, so even when `needsConfirm` is `true`, `submit` still runs.
+
+Of course, if we only look at this code, it seems like adding `return` would be enough.
+
+```ts
+function handleSubmit() {
+  if (needsConfirm) {
+    setIsConfirmOpen(true);
+    return;
+  }
+
+  submit();
+}
+```
+
+This at least prevents `submit` from running immediately after the Dialog opens. But an important question remains. When the user clicks confirm later, what should run?
+
+`return` only ends the current event handler. It does not remember the work that should continue after confirmation. In the browser confirm version, one line blocked the flow for me. With a React Dialog, I had to stop the first request and separately store the intent that should resume later.
+
+The simulator below runs the same request through `naive`, `return only`, `pending intent`, and `Promise` modes.
+
+<ConfirmFlowSimulator locale="en" />
+
+---
+
+## pending intent had to come first
+
+At first, I thought the Dialog open state would be enough.
+
+But the open state is only UI state. The fact that a Dialog is open does not tell me which action the user was trying to run.
+
+For example, imagine a user clicks a reset button on a screen with unsaved changes. If the screen is dirty, reset should not happen immediately. It should ask for confirmation first.
+
+In that case, the state I need is not just `isConfirmOpen`.
+
+```text
+isConfirmOpen: is the Dialog open?
+pendingIntent: what should run after confirmation?
+```
+
+At first, I treated these as part of the same flow.
+
+But while implementing it, I found that `isConfirmOpen` is state for the screen, while `pendingIntent` is state for the execution flow.
+
+I can end the first event handler with `return`. But without `pendingIntent`, I cannot know what to continue when the user clicks confirm later.
+
+Once I had this structure, the Dialog open state and the action execution state were finally separated.
+
+---
+
+## The confirmation flow splits into request, cancel, and confirm
+
+Once I started looking at the problem through `pendingIntent`, the confirmation flow naturally split into three stages.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>Stage</th>
+        <th>When it runs</th>
+        <th>What it should do</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>request</td>
+        <td>When the user first requests an action</td>
+        <td>Run immediately or defer as a pending intent</td>
+      </tr>
+      <tr>
+        <td>cancel</td>
+        <td>When the user cancels in the Dialog</td>
+        <td>Drop the pending intent and close</td>
+      </tr>
+      <tr>
+        <td>confirm</td>
+        <td>When the user confirms in the Dialog</td>
+        <td>Run the pending intent and clean up</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+`request` runs when the user first clicks the button. If confirmation is not needed, it runs the action immediately. If confirmation is needed, it does not run the action. It only stores the intent that should run later and opens the Dialog.
+
+`cancel` is the path that drops the stored intent. If the user cancels, the action should not run.
+
+`confirm` is the path that runs the stored intent. If this path calls the original request function again, it can hit the same guard again or open the Dialog again.
+
+```text
+request
+  -> confirmation not needed
+     -> run immediately
+
+request
+  -> confirmation needed
+     -> store pending intent
+     -> open Dialog
+     -> end current flow
+
+cancel
+  -> clear pending intent
+  -> close Dialog
+
+confirm
+  -> run pending intent
+  -> clear pending intent
+  -> close Dialog
+```
+
+In this structure, the confirm button is not "try the original request again." It is "commit the intent that was already deferred."
+
+---
+
+## Promise connects the user's later choice back to the caller
+
+`pendingIntent` worked well when a specific feature needed to remember what to run after confirmation. For example, if a component already knows it needs to run reset, it can store that intent and run it in the confirm stage.
+
+But the problem changes a bit when the confirm UI moves into a common component or a common hook.
+
+If a common confirm component contains a domain action like reset, it starts knowing too much about a specific screen. One screen may need to reset. Another may need to delete. Another may need to continue navigation. The common confirm should mostly tell the caller whether the user confirmed or canceled.
+
+This is where I needed `Promise`.
+
+```ts
+const ok = await confirm();
+
+if (!ok) {
+  return;
+}
+
+runAction();
+```
+
+From the outside, this looks similar to `window.confirm` again. But the internal behavior is different. `window.confirm` blocks the call stack and waits. A common confirm `Promise` opens the Dialog and resolves later when the user clicks confirm or cancel.
+
+So `Promise` did not turn the React Dialog into a synchronous function. It was closer to a channel for sending the later confirm/cancel result back to the code that first requested confirmation.
+
+In this structure, every point where the flow can end, such as confirm, cancel, or dismiss, has to settle the Promise.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>User path</th>
+        <th>Promise result</th>
+        <th>Caller behavior</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>confirm</td>
+        <td>
+          <code>true</code>
+        </td>
+        <td>Run the following action</td>
+      </tr>
+      <tr>
+        <td>cancel</td>
+        <td>
+          <code>false</code>
+        </td>
+        <td>Stop the following action</td>
+      </tr>
+      <tr>
+        <td>dismiss</td>
+        <td>
+          <code>false</code>
+        </td>
+        <td>Stop the following action</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+If only confirm resolves the Promise and cancel or dismiss is forgotten, the caller waits forever. If a resolver is overwritten without settling the previous Promise, a new Dialog may appear on the screen while the previous caller never receives a result.
+
+That is why, in a common confirm abstraction, I had to care more about when the pending resolver is created and cleaned up than about the Dialog open state itself. The Dialog is the UI. The Promise resolver is the path that returns a result to the caller.
+
+---
+
+## cancel and confirm both close the Dialog, but they do not mean the same thing
+
+From the UI's point of view, both cancel and confirm close the Dialog.
+
+But during implementation, I found that the two flows had to clean up different things.
+
+`cancel` means the user chose to keep the current state. So the pending intent should be dropped, and existing state such as dirty state should remain as it is.
+
+`confirm` means the user chose to run the deferred intent. So the pending intent should run, and if the action changes dirty state, that state should be updated accordingly before the Dialog closes.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>User choice</th>
+        <th>Dialog</th>
+        <th>pending intent</th>
+        <th>domain state</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>cancel</td>
+        <td>close</td>
+        <td>drop</td>
+        <td>keep</td>
+      </tr>
+      <tr>
+        <td>confirm</td>
+        <td>close</td>
+        <td>run and clear</td>
+        <td>change according to the action</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+At first, I treated both of them as "close." That made the flow blurry. For example, dirty state could remain even after confirm, or cancel and confirm could end up using almost the same cleanup logic.
+
+But cancel and confirm were not the same close event. They end the flow in different ways.
+
+---
+
+## UI blocking is only a secondary guard
+
+When a Dialog opens, it usually has a backdrop, and the user cannot click the buttons behind it.
+
+So it is tempting to think, "If the UI is blocked anyway, duplicate execution should be fine." In a normal mouse-click flow, a modal does provide some protection.
+
+But relying only on UI blocking leaves weak spots in the execution flow.
+
+The important conditions also need to exist in the event handlers and state. In a path that needs confirmation, the action should not run and the handler should end. In the confirm path, exactly one pending intent should run.
+
+UI blocking prevents user interaction. Handler conditions prevent the code from running the wrong action. They did not have the same responsibility.
+
+Because of this, I started looking at the handler branch structure before the Dialog backdrop.
+
+```text
+is confirmation needed?
+  -> yes
+     -> store pending intent
+     -> return
+
+  -> no
+     -> run immediately
+```
+
+This structure has to be closed first, so the execution flow stays correct even if the Dialog UI changes.
+
+---
+
+## The tests had to follow the user flow, not internal state
+
+Testing this change also could not stop at "the Dialog opens."
+
+The important part of a confirmation flow is whether the action runs or does not run when the user makes a choice.
+
+The checks I needed looked more like this.
+
+- If the screen is not dirty, the action runs immediately without a Dialog.
+- If the screen is dirty and the user requests the action, the Dialog opens.
+- If the user clicks cancel, the action does not run.
+- If the user clicks confirm, the deferred action runs.
+- If confirmation is needed, the action does not run before the Dialog is confirmed.
+- `window.confirm` calls are removed from the target scope.
+
+Seen this way, the tests become closer to user behavior than to internal state names.
+
+What mattered was not whether `setIsConfirmOpen` was called, but whether execution was actually blocked when the user canceled. It was also not whether the confirm button called the request function again, but whether the deferred intent ran exactly once.
+
+After looking at it this way, the tests started to focus less on implementation details and more on what actually happened after the user's choice.
+
+---
+
+## Closing
+
+Replacing `window.confirm` with a React Dialog looked like a UI swap at first.
+
+But in practice, it meant taking a flow that used to continue inside one function and splitting it into later events.
+
+Browser confirm stops the current function. A React Dialog does not. So I had to split the flow into request, cancel, and confirm, and keep the pending intent that should run after confirmation.
+
+After this work, the way I look at confirmation UI changed a bit.
+
+Before asking whether the Dialog looks nice, I now end up asking these questions.
+
+```text
+Where does the user's first request stop?
+What does cancel discard?
+What does confirm run?
+Where is the intent to run stored?
+```
+
+I had to answer these questions before I could safely replace `window.confirm` with a React Dialog.

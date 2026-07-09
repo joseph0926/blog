@@ -1,0 +1,386 @@
+---
+slug: '2026-07-09-window-confirm-react-dialog'
+title: 'window.confirm을 React Dialog로 바꾸는 일이 왜 단순한 UI 교체가 아닐까'
+description: '동기적으로 흐름을 막는 window.confirm을 React Dialog로 바꾸며 생긴 문제들. 확인, 취소, 실행을 request/cancel/confirm 상태 전이로 나누며 배운 점을 정리합니다.'
+date: '2026-07-09'
+tags: ['react', 'frontend']
+thumbnail: '/post/react.webp'
+---
+
+# window.confirm을 React Dialog로 바꾸는 일이 왜 단순한 UI 교체가 아닐까
+
+전체적인 아키텍처와 UI/UX를 개선하려고 레포를 훑다가, 아직 `window.confirm`을 그대로 사용하는 레거시 코드를 발견했습니다.
+
+브라우저 기본 `window.confirm`은 디자인을 맞추기 어렵고, 앱 전체의 Dialog 스타일과도 어울리지 않습니다. 이미 프로젝트 안에는 커스텀 Dialog 컴포넌트가 있었기 때문에, 처음 접근은 자연스러워 보였습니다. 기존 `window.confirm` 호출을 커스텀 confirm dialog로 바꾸면 전체 UI도 맞고 레거시 코드도 줄일 수 있다고 생각했습니다.
+
+하지만 실제로 바꿔보니 어려운 지점은 Dialog UI가 아니었습니다. 문제는 `window.confirm`이 가지고 있던 실행 흐름의 성질이 React Dialog와 완전히 다르다는 점이었습니다.
+
+`window.confirm`은 함수 실행을 멈춥니다. 사용자가 확인 또는 취소를 누를 때까지 다음 줄로 넘어가지 않습니다.
+
+반대로 React Dialog는 함수 실행을 멈추지 않습니다. 상태를 바꿔 Dialog를 열 뿐이고, 사용자의 확인 또는 취소는 나중에 다른 이벤트 핸들러에서 발생합니다.
+
+제가 가장 크게 헷갈린 지점도 여기였습니다. Dialog를 열기 위해 state를 바꿔도 현재 이벤트 핸들러는 멈추지 않습니다. 그런데 기존 `window.confirm` 코드는 사용자의 선택을 기다린 뒤 다음 행동을 이어가는 구조였습니다.
+
+처음에는 `window.confirm`처럼 "Dialog를 띄운다 -> 기다린다 -> 결과에 따라 다음 줄을 실행한다"는 흐름을 React에서도 그대로 만들 수 있을 것처럼 생각했습니다.
+
+실제로 첫 접근도 그 방향이었습니다. Dialog를 열고, 그 아래에서 기존 action을 이어가면 될 줄 알았습니다. 그런데 그렇게 하면 취소를 눌러도 이미 실행 흐름이 내려가 있거나, 확인 버튼을 눌렀을 때 다시 처음 요청 함수를 호출하는 식으로 흐름이 꼬였습니다.
+
+그때부터 문제를 UI가 아니라 "확인받기 전에는 무엇을 어디에 남겨야 하는가"로 다시 보게 됐습니다. 특정 화면 안에서는 확인 후 실행할 일을 잠깐 보관할 상태가 필요했고, 공통 confirm으로 빼는 순간에는 사용자의 선택을 호출자 쪽 흐름으로 돌려줄 방법이 필요했습니다.
+
+이후 작업은 결국 `window.confirm`이 하던 일을 React Dialog 안에서 다시 나누는 과정이 됐습니다. 어디서 멈추고, 무엇을 기억하고, 언제 다시 실행할지를 하나씩 분리해야 했습니다.
+
+---
+
+## window.confirm은 흐름을 멈춘다
+
+`window.confirm`을 쓰면 코드는 자연스럽게 위에서 아래로 읽힙니다.
+
+```ts
+const ok = window.confirm('정말 실행할까요?');
+
+if (!ok) {
+  return;
+}
+
+runAction();
+```
+
+이 코드에서 중요한 점은 `window.confirm`이 현재 함수의 실행을 막는다는 것입니다. 사용자가 버튼을 누르기 전까지 `runAction`은 실행되지 않습니다.
+
+그래서 개발자는 확인 흐름을 동기적인 분기로 생각하게 됩니다.
+
+```text
+버튼 클릭
+  -> confirm 표시
+  -> 사용자가 확인
+  -> action 실행
+```
+
+이 모델에서는 확인 UI와 실행 흐름이 한 함수 안에 붙어 있습니다. `confirm`이 반환하는 boolean 값만 확인하면 됩니다.
+
+하지만 React Dialog로 바꾸면 이 모델이 그대로 유지되지 않습니다.
+
+---
+
+## React Dialog는 기다려주지 않는다
+
+React Dialog는 상태로 열립니다.
+
+```ts
+setIsConfirmOpen(true);
+runAction();
+```
+
+이 코드는 `setIsConfirmOpen(true)`에서 멈추지 않습니다. Dialog가 화면에 보이도록 다음 렌더를 예약할 뿐, 현재 함수는 계속 실행됩니다. 따라서 위 코드는 Dialog를 열자마자 `runAction`까지 실행합니다.
+
+제가 처음 헷갈렸던 지점도 여기였습니다.
+
+`isConfirmOpen`을 `true`로 바꾸면 사용자의 응답을 기다리는 것처럼 느껴졌습니다. 하지만 React state 변경은 현재 이벤트 핸들러를 중단하지 않습니다. "Dialog가 열렸다"는 것과 "사용자의 대답을 기다렸다"는 것은 다릅니다.
+
+저는 처음에 거의 이런 식으로 생각했습니다.
+
+```ts
+function handleSubmit() {
+  if (needsConfirm) {
+    setIsConfirmOpen(true);
+  }
+
+  submit();
+}
+```
+
+겉으로는 확인이 필요한 경우 Dialog를 여는 코드처럼 보입니다. 하지만 `return`이나 `else`가 없으므로 `needsConfirm`이 `true`여도 `submit`은 계속 실행됩니다.
+
+물론 이 코드만 보면 `return`을 넣으면 될 것처럼 보입니다.
+
+```ts
+function handleSubmit() {
+  if (needsConfirm) {
+    setIsConfirmOpen(true);
+    return;
+  }
+
+  submit();
+}
+```
+
+이렇게 하면 적어도 Dialog를 연 직후 `submit`이 바로 실행되는 문제는 막을 수 있습니다. 하지만 아직 중요한 질문이 남습니다. 사용자가 나중에 Dialog에서 확인을 눌렀을 때, 무엇을 실행해야 할까요?
+
+`return`은 현재 이벤트 핸들러를 끝낼 뿐입니다. 확인 후 이어갈 일을 기억해주지는 않습니다. 브라우저 confirm에서는 한 줄이 흐름을 막아줬지만, React Dialog에서는 최초 요청을 멈춘 뒤, 나중에 이어갈 의도를 따로 남겨야 했습니다.
+
+아래 시뮬레이터에서 같은 요청을 `naive`, `return only`, `pending intent`, `Promise` 방식으로 실행해볼 수 있습니다.
+
+<ConfirmFlowSimulator locale="ko" />
+
+---
+
+## pending intent가 먼저 필요했다
+
+처음에는 Dialog open 상태만 있으면 된다고 생각했습니다.
+
+하지만 open 상태는 UI 상태일 뿐입니다. Dialog가 열렸다는 사실만으로는 사용자가 어떤 action을 하려 했는지 알 수 없습니다.
+
+예를 들어 사용자가 수정 중인 화면에서 reset 버튼을 눌렀다고 해보겠습니다. dirty 상태라면 바로 reset하지 않고 확인을 받아야 합니다.
+
+이때 필요한 것은 단순히 `isConfirmOpen`이 아닙니다.
+
+```text
+isConfirmOpen: Dialog가 열려 있는가
+pendingIntent: 확인 후 무엇을 실행해야 하는가
+```
+
+처음에는 이 둘을 같은 흐름 안에 놓고 생각했습니다.
+
+그런데 작업해보니 `isConfirmOpen`은 화면을 위한 상태이고, `pendingIntent`는 실행 흐름을 위한 상태였습니다.
+
+`return`으로 최초 이벤트 핸들러를 끝낼 수는 있습니다. 하지만 `pendingIntent`가 없으면, 사용자가 나중에 confirm 버튼을 눌렀을 때 무엇을 이어서 실행해야 하는지 알 수 없습니다.
+
+이 구조를 잡고 나서야 Dialog open 상태와 action 실행 상태가 분리됐습니다.
+
+---
+
+## 그래서 확인 흐름은 request, cancel, confirm으로 나뉜다
+
+`pendingIntent`를 기준으로 보니 확인 흐름도 자연스럽게 세 단계로 나뉘었습니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>단계</th>
+        <th>언제 실행되는가</th>
+        <th>해야 하는 일</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>request</td>
+        <td>사용자가 처음 action을 요청할 때</td>
+        <td>즉시 실행하거나 pending intent로 보류</td>
+      </tr>
+      <tr>
+        <td>cancel</td>
+        <td>사용자가 Dialog에서 취소할 때</td>
+        <td>pending intent를 버리고 닫기</td>
+      </tr>
+      <tr>
+        <td>confirm</td>
+        <td>사용자가 Dialog에서 확인할 때</td>
+        <td>pending intent를 실행하고 정리</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+request는 사용자가 처음 버튼을 눌렀을 때 실행됩니다. 이때 확인이 필요 없으면 action을 바로 실행합니다. 확인이 필요하면 action을 실행하지 않고, 나중에 실행할 intent만 저장한 뒤 Dialog를 엽니다.
+
+cancel은 저장해둔 intent를 버리는 경로입니다. 사용자가 취소했다면 action은 실행되지 않아야 합니다.
+
+confirm은 저장해둔 intent를 실행하는 경로입니다. 여기서 다시 request 함수를 호출하면 같은 guard를 다시 타거나 Dialog를 다시 여는 흐름이 생길 수 있습니다.
+
+```text
+request
+  -> 확인 필요 없음
+     -> 즉시 실행
+
+request
+  -> 확인 필요함
+     -> pending intent 저장
+     -> Dialog 열기
+     -> 현재 흐름 종료
+
+cancel
+  -> pending intent 제거
+  -> Dialog 닫기
+
+confirm
+  -> pending intent 실행
+  -> pending intent 제거
+  -> Dialog 닫기
+```
+
+이 구조에서는 confirm 버튼이 "처음 요청을 다시 시도하는 버튼"이 아니라 "이미 보류된 의도를 확정하는 버튼"이 됩니다.
+
+---
+
+## Promise는 사용자의 선택을 나중에 이어준다
+
+pending intent는 특정 기능 안에서 확인 후 실행할 일을 보관하는 데 잘 맞았습니다. 예를 들어 reset 버튼처럼 어떤 action을 실행할지 이미 컴포넌트가 알고 있는 경우에는, intent 값을 저장해두고 confirm 단계에서 실행하면 됩니다.
+
+하지만 confirm UI를 공통 컴포넌트나 공통 훅으로 빼려고 하면 문제가 조금 달라집니다.
+
+공통 confirm 안에 reset 같은 도메인 action이 들어가면, confirm 컴포넌트가 특정 화면의 사정을 알게 됩니다. 어떤 화면에서는 reset을 해야 하고, 어떤 화면에서는 삭제를 해야 하고, 어떤 화면에서는 페이지 이동을 이어가야 합니다. 공통 confirm이 맡을 일은 "사용자가 확인했는가, 취소했는가"를 알려주는 데 가까웠습니다.
+
+이때 `Promise`가 필요해졌습니다.
+
+```ts
+const ok = await confirm();
+
+if (!ok) {
+  return;
+}
+
+runAction();
+```
+
+겉모습만 보면 다시 `window.confirm`과 비슷합니다. 하지만 내부 동작은 다릅니다. `window.confirm`은 브라우저가 call stack을 막고 기다립니다. 공통 confirm의 `Promise`는 Dialog를 열고, 나중에 사용자가 confirm 또는 cancel을 눌렀을 때 resolve됩니다.
+
+즉 `Promise`는 React Dialog를 동기 함수로 바꾸는 도구가 아니었습니다. 나중에 눌린 confirm/cancel 결과를 처음 confirm을 요청했던 코드 쪽으로 돌려주는 통로에 가까웠습니다.
+
+이 구조에서는 confirm, cancel, dismiss처럼 흐름이 끝나는 지점마다 Promise를 반드시 끝내야 했습니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>사용자 경로</th>
+        <th>Promise 결과</th>
+        <th>호출자 동작</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>confirm</td>
+        <td>
+          <code>true</code>
+        </td>
+        <td>이후 action 실행</td>
+      </tr>
+      <tr>
+        <td>cancel</td>
+        <td>
+          <code>false</code>
+        </td>
+        <td>이후 action 중단</td>
+      </tr>
+      <tr>
+        <td>dismiss</td>
+        <td>
+          <code>false</code>
+        </td>
+        <td>이후 action 중단</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+confirm만 resolve하고 cancel이나 dismiss를 빠뜨리면, 호출자는 영원히 기다리게 됩니다. 반대로 resolver를 덮어쓰면서 이전 Promise를 끝내지 않으면, 화면에는 새 Dialog가 떠 있어도 이전 호출자는 결과를 받지 못한 채 남습니다.
+
+그래서 공통 confirm에서는 Dialog open state보다 pending resolver를 언제 만들고 언제 정리하는지가 더 중요했습니다. Dialog는 UI이고, Promise resolver는 호출자에게 결과를 돌려주는 통로였습니다.
+
+---
+
+## cancel과 confirm은 둘 다 닫기지만 의미가 다르다
+
+Dialog UI만 보면 cancel과 confirm은 둘 다 Dialog를 닫습니다.
+
+하지만 구현해보면 두 흐름에서 정리해야 하는 것이 달랐습니다.
+
+cancel은 사용자가 기존 상태를 유지하겠다는 선택입니다. 따라서 보류된 intent를 버리고, dirty 상태 같은 기존 상태는 그대로 둬야 합니다.
+
+confirm은 사용자가 보류된 intent를 실행하겠다는 선택입니다. 따라서 pending intent를 실행하고, 필요하다면 dirty 상태를 해소한 뒤 닫아야 합니다.
+
+<div className="my-4 overflow-x-auto">
+  <table className="min-w-[720px]">
+    <thead>
+      <tr>
+        <th>사용자 선택</th>
+        <th>Dialog</th>
+        <th>pending intent</th>
+        <th>domain state</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>cancel</td>
+        <td>닫음</td>
+        <td>버림</td>
+        <td>유지</td>
+      </tr>
+      <tr>
+        <td>confirm</td>
+        <td>닫음</td>
+        <td>실행 후 제거</td>
+        <td>action 의미에 맞게 변경</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+처음에는 이 둘을 모두 "닫기"로 생각했습니다. 그래서 confirm을 눌러도 dirty 상태를 유지하거나, cancel과 confirm이 거의 같은 정리 로직을 타는 식으로 흐름이 흐려졌습니다.
+
+하지만 cancel과 confirm은 같은 close 이벤트가 아니었습니다. 둘은 서로 다른 방식으로 흐름을 끝냅니다.
+
+---
+
+## UI 차단은 보조 방어선이다
+
+Dialog가 열리면 보통 backdrop이 생기고, 사용자는 뒤의 버튼을 클릭할 수 없습니다.
+
+그래서 "어차피 UI가 막히니까 중복 실행은 괜찮지 않을까?"라는 생각을 할 수 있습니다. 실제로 일반적인 마우스 클릭 경로에서는 modal이 어느 정도 방어선이 됩니다.
+
+하지만 실행 흐름을 UI 차단에만 기대면 약한 지점이 남습니다.
+
+중요한 조건은 이벤트 핸들러와 상태에도 남아 있어야 합니다. 확인이 필요한 경로에서는 action을 실행하지 않고 종료해야 하고, confirm 경로에서는 pending intent 하나만 실행해야 합니다.
+
+UI 차단은 사용자의 상호작용을 막고, handler 조건은 코드가 잘못된 action을 실행하지 못하게 막습니다. 둘은 같은 책임이 아니었습니다.
+
+그래서 저는 이 작업을 하면서 Dialog의 backdrop보다 handler의 분기 구조를 더 먼저 보게 됐습니다.
+
+```text
+확인이 필요한가?
+  -> 필요하다
+     -> pending intent 저장
+     -> return
+
+  -> 필요 없다
+     -> 즉시 실행
+```
+
+이 구조가 닫혀 있어야 Dialog UI가 바뀌어도 실행 흐름이 유지됩니다.
+
+---
+
+## 테스트는 내부 상태보다 사용자 흐름을 봐야 했다
+
+이 작업의 검증도 단순히 "Dialog가 열린다"로는 부족했습니다.
+
+확인 흐름에서 중요한 것은 사용자가 어떤 선택을 했을 때 action이 실행되는지, 실행되지 않는지입니다.
+
+그래서 확인해야 할 항목은 이런 식이었습니다.
+
+- dirty 상태가 아니면 Dialog 없이 action이 바로 실행된다.
+- dirty 상태에서 action을 요청하면 Dialog가 열린다.
+- cancel을 누르면 action은 실행되지 않는다.
+- confirm을 누르면 보류된 action이 실행된다.
+- confirm이 필요한 경우 action은 Dialog 확인 전에는 실행되지 않는다.
+- 대상 범위에서 `window.confirm` 호출이 제거된다.
+
+이 기준으로 보면 테스트는 내부 state 이름보다 사용자 행동에 가까워집니다.
+
+중요한 것은 `setIsConfirmOpen`이 호출됐는지가 아니라, 사용자가 취소했을 때 실제로 실행이 막혔는지입니다. 또 confirm 버튼을 눌렀을 때 request 함수를 다시 부르는지가 아니라, 보류된 intent가 한 번 실행되는지입니다.
+
+이렇게 보니 테스트도 구현 디테일보다 사용자가 선택한 뒤 실제로 무엇이 실행됐는지를 확인하는 쪽으로 잡히기 시작했습니다.
+
+---
+
+## 마무리
+
+`window.confirm`을 React Dialog로 바꾸는 일은 처음엔 UI 교체처럼 보였습니다.
+
+하지만 실제로는 한 함수 안에서 이어지던 흐름을, 나중에 발생하는 이벤트들로 다시 쪼개는 일이었습니다.
+
+브라우저 confirm은 현재 함수를 멈춰줍니다. React Dialog는 멈춰주지 않습니다. 그래서 직접 request, cancel, confirm 단계를 나누고, 확인 후 실행할 pending intent를 보존해야 했습니다.
+
+이 작업을 하고 나서 확인 UI를 볼 때 기준이 조금 바뀌었습니다.
+
+Dialog가 예쁘게 뜨는가보다 먼저, 이 질문을 보게 됐습니다.
+
+```text
+사용자의 최초 요청은 어디서 멈추는가?
+취소는 무엇을 버리는가?
+확인은 무엇을 실행하는가?
+실행할 의도는 어디에 보관되는가?
+```
+
+이 질문에 답할 수 있어야 `window.confirm`을 React Dialog로 안전하게 바꿀 수 있었습니다.
