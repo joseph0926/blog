@@ -36,16 +36,19 @@ export const PostHeader = ({
 
   return (
     <header className="border-border/70 border-b pb-8 lg:pb-10">
-      <Link
-        href="/blog"
-        className="text-primary hover:text-foreground focus-visible:ring-ring mb-8 inline-flex items-center gap-2 rounded-sm text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        {label.back}
-      </Link>
-      <p className="text-primary mb-5 font-mono text-xs font-medium tracking-normal uppercase">
-        {primaryTag}
-      </p>
+      <div className="flex items-center justify-between">
+        <Link
+          href="/blog"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mb-8 inline-flex items-center gap-2 rounded-sm text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {label.back}
+        </Link>
+        <p className="mb-10 inline-flex items-center gap-2 font-mono text-xs font-medium tracking-normal text-[#5e6ad2] uppercase">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#5e6ad2]" />
+          {primaryTag}
+        </p>
+      </div>
       <h1 className="text-foreground max-w-4xl text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
         {post.title}
       </h1>
@@ -54,22 +57,30 @@ export const PostHeader = ({
           {post.description}
         </p>
       )}
-      <div className="text-muted-foreground mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-xs tabular-nums">
+      <div className="text-muted-foreground mt-7 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-xs tabular-nums">
         <time dateTime={new Date(post.date).toISOString()}>
           {formatPostDate(post.date, locale)}
         </time>
+        <span aria-hidden="true" className="text-border">
+          /
+        </span>
         <span>{label.readTime(post.readingTime)}</span>
-        {post.tags.slice(0, 4).map((tag) => (
-          <span
-            key={tag}
-            className="border-border/80 text-foreground rounded-sm border px-2 py-1 font-mono text-[11px]"
-          >
-            {tag}
+        {post.tags.length > 0 && (
+          <span className="ml-1 flex flex-wrap items-center gap-2">
+            {post.tags.slice(0, 4).map((tag) => (
+              <span
+                key={tag}
+                className="border-border/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]"
+              >
+                <span className="h-1 w-1 rounded-full bg-[#5e6ad2]/70" />
+                {tag}
+              </span>
+            ))}
           </span>
-        ))}
+        )}
       </div>
       {post.isFallback && (
-        <p className="text-muted-foreground mt-4 max-w-2xl text-sm">
+        <p className="border-border/70 bg-muted/30 text-muted-foreground mt-6 max-w-2xl rounded-md border px-4 py-3 text-sm">
           {label.fallback}
         </p>
       )}

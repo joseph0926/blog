@@ -55,7 +55,10 @@ export function PostTableOfContents({
         </p>
       )}
       <ol
-        className={cn('space-y-3 text-sm', variant === 'mobile' && 'space-y-1')}
+        className={cn(
+          'text-sm',
+          variant === 'mobile' ? 'space-y-0.5' : 'space-y-1',
+        )}
       >
         {items.map((item) => {
           const isActive = item.id === activeId;
@@ -65,18 +68,22 @@ export function PostTableOfContents({
               <a
                 href={`#${item.id}`}
                 className={cn(
-                  'hover:text-foreground focus-visible:ring-ring block rounded-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none',
-                  item.depth === 3 && variant === 'rail' && 'pl-4 text-[13px]',
-                  item.depth === 3 &&
-                    variant === 'mobile' &&
-                    'pl-4 text-[13px]',
+                  'focus-visible:ring-ring relative block rounded-sm py-1 pl-4 transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none',
+                  item.depth === 3 && 'pl-7 text-[13px]',
                   isActive
-                    ? 'text-primary font-medium'
-                    : 'text-muted-foreground',
+                    ? 'font-medium text-[#5e6ad2]'
+                    : 'text-muted-foreground hover:text-foreground',
                   variant === 'mobile' && 'py-1.5',
                 )}
                 aria-current={isActive ? 'location' : undefined}
               >
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'absolute top-1/2 left-0 h-4 w-0.5 -translate-y-1/2 rounded-full bg-[#5e6ad2] transition-opacity duration-150',
+                    isActive ? 'opacity-100' : 'opacity-0',
+                  )}
+                />
                 {item.text}
               </a>
             </li>

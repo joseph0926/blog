@@ -1,3 +1,4 @@
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
@@ -205,12 +206,13 @@ const PostMetaRail = ({
             <p className="text-muted-foreground mb-4 font-mono text-[11px] font-medium tracking-wider uppercase">
               {label.topics}
             </p>
-            <div className="flex flex-col items-start gap-2">
+            <div className="flex flex-col items-start gap-2.5">
               {post.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="text-muted-foreground font-mono text-xs"
+                  className="text-muted-foreground inline-flex items-center gap-2 font-mono text-xs"
                 >
+                  <span className="h-1 w-1 rounded-full bg-[#5e6ad2]/70" />
                   {tag}
                 </span>
               ))}
@@ -277,37 +279,43 @@ const PostAdjacentNavigation = ({
   if (!previousPost && !nextPost) return null;
 
   return (
-    <nav className="border-border/70 mt-14 grid border-y sm:grid-cols-2">
-      <div className="border-border/70 border-b py-5 sm:border-r sm:border-b-0 sm:pr-6">
-        {previousPost && (
-          <Link
-            href={`/post/${previousPost.slug}`}
-            className="focus-visible:ring-ring group block rounded-sm focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
-          >
-            <span className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
-              {label.previous}
-            </span>
-            <span className="text-foreground group-hover:text-primary mt-2 block text-sm font-medium transition-colors duration-150">
-              {previousPost.title}
-            </span>
-          </Link>
-        )}
-      </div>
-      <div className="py-5 sm:pl-6 sm:text-right">
-        {nextPost && (
-          <Link
-            href={`/post/${nextPost.slug}`}
-            className="focus-visible:ring-ring group block rounded-sm focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
-          >
-            <span className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
-              {label.next}
-            </span>
-            <span className="text-foreground group-hover:text-primary mt-2 block text-sm font-medium transition-colors duration-150">
-              {nextPost.title}
-            </span>
-          </Link>
-        )}
-      </div>
+    <nav className="border-border/70 mt-14 grid gap-3 border-t pt-8 sm:grid-cols-2">
+      {previousPost && (
+        <Link
+          href={`/post/${previousPost.slug}`}
+          className="focus-visible:ring-ring border-border/70 hover:border-primary/30 hover:bg-muted/30 group relative flex flex-col rounded-lg border py-4 pr-4 pl-5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute top-4 bottom-4 left-0 w-0.5 rounded-full bg-[#5e6ad2] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+          />
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase">
+            <ArrowLeft className="h-3 w-3" />
+            {label.previous}
+          </span>
+          <span className="text-foreground mt-2 line-clamp-2 text-sm font-medium transition-colors duration-150 group-hover:text-[#5e6ad2]">
+            {previousPost.title}
+          </span>
+        </Link>
+      )}
+      {nextPost && (
+        <Link
+          href={`/post/${nextPost.slug}`}
+          className="focus-visible:ring-ring border-border/70 hover:border-primary/30 hover:bg-muted/30 group relative flex flex-col rounded-lg border py-4 pr-4 pl-5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none sm:col-start-2 sm:items-end sm:pr-5 sm:pl-4 sm:text-right"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute top-4 bottom-4 left-0 w-0.5 rounded-full bg-[#5e6ad2] opacity-0 transition-opacity duration-150 group-hover:opacity-100 sm:right-0 sm:left-auto"
+          />
+          <span className="text-muted-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase">
+            {label.next}
+            <ArrowRight className="h-3 w-3" />
+          </span>
+          <span className="text-foreground mt-2 line-clamp-2 text-sm font-medium transition-colors duration-150 group-hover:text-[#5e6ad2]">
+            {nextPost.title}
+          </span>
+        </Link>
+      )}
     </nav>
   );
 };

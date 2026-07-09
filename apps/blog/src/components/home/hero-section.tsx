@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight } from 'lucide-react';
+import { ArrowDown, ArrowRight, Search } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
@@ -11,40 +11,7 @@ type HeroSectionProps = {
   locale: AppLocale;
 };
 
-const fallbackTopics = ['React', 'TypeScript', 'Performance'];
-
-const EditorialDiagram = ({ post }: { post: PostResponse | null }) => {
-  const topics =
-    post?.tags.slice(0, 3).map((tag) => tag.name) ?? fallbackTopics;
-
-  return (
-    <div
-      className="border-border/70 bg-muted/30 relative aspect-square overflow-hidden rounded-md border"
-      aria-hidden="true"
-    >
-      <div className="absolute inset-8">
-        <div className="bg-border absolute top-1/2 right-0 left-0 h-px" />
-        <div className="bg-border absolute top-0 bottom-0 left-1/2 w-px" />
-        <div className="bg-foreground absolute top-[28%] left-[18%] h-px w-24" />
-        <div className="bg-foreground absolute right-[18%] bottom-[26%] h-px w-20" />
-        <div className="border-foreground absolute top-[28%] left-[48%] h-20 w-20 rounded-bl-3xl border-b border-l" />
-        <div className="bg-primary absolute top-[23%] left-[44%] h-2.5 w-2.5 rounded-full" />
-        <div className="bg-primary absolute right-[19%] bottom-[31%] h-3.5 w-3.5 rounded-full" />
-        <div className="bg-foreground absolute right-[30%] bottom-[48%] h-2 w-2 rounded-full" />
-      </div>
-      <div className="absolute right-5 bottom-5 left-5 flex flex-wrap gap-2">
-        {topics.map((topic) => (
-          <span
-            key={topic}
-            className="border-border/80 bg-background/85 text-muted-foreground rounded-sm border px-2 py-1 font-mono text-[11px]"
-          >
-            {topic}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-};
+const topics = ['React', 'TypeScript', 'Performance', 'Tooling'];
 
 export async function HeroSection({ locale }: HeroSectionProps) {
   const t = await getTranslations({ locale, namespace: 'home' });
@@ -65,15 +32,16 @@ export async function HeroSection({ locale }: HeroSectionProps) {
 
   return (
     <section className="border-border/70 border-b">
-      <div className="mx-auto grid max-w-[1260px] gap-10 px-4 py-12 sm:py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,25rem)] lg:items-center lg:py-18">
-        <div className="max-w-3xl">
-          <p className="text-primary mb-5 font-mono text-xs font-medium tracking-normal">
+      <div className="mx-auto grid max-w-[1260px] gap-12 px-4 py-14 sm:py-18 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,19rem)] lg:items-start lg:py-20">
+        <div className="max-w-2xl">
+          <p className="inline-flex items-center gap-2 font-mono text-xs font-medium tracking-wide text-[#5e6ad2]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#5e6ad2]" />
             {featuredPost ? t('latestEssay') : t('badge')}
           </p>
-          <h1 className="text-foreground max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
+          <h1 className="text-foreground mt-5 text-4xl font-semibold tracking-[-0.02em] sm:text-5xl lg:text-6xl">
             {featuredPost?.title ?? t('headlineTop')}
           </h1>
-          <p className="text-muted-foreground mt-6 max-w-2xl text-base leading-7 sm:text-lg">
+          <p className="text-muted-foreground mt-5 text-base leading-7 sm:text-lg">
             {featuredPost?.description ?? t('description')}
           </p>
           {featuredPost && (
@@ -83,6 +51,11 @@ export async function HeroSection({ locale }: HeroSectionProps) {
               </time>
               <span aria-hidden="true">/</span>
               <span>{formatReadTime(featuredPost.readingTime, locale)}</span>
+              {featuredPost.tags.slice(0, 3).map((tag) => (
+                <span key={tag.id} className="text-muted-foreground/80">
+                  {tag.name}
+                </span>
+              ))}
             </div>
           )}
           {hasError && (
@@ -95,11 +68,11 @@ export async function HeroSection({ locale }: HeroSectionProps) {
               {t('emptyRecentPosts')}
             </p>
           )}
-          <div className="mt-8 flex flex-wrap items-center gap-4">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             {featuredPost && (
               <Link
                 href={`/post/${featuredPost.slug}`}
-                className="focus-visible:ring-ring bg-foreground text-background inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-transform duration-150 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:translate-y-0"
+                className="focus-visible:ring-ring inline-flex items-center gap-2 rounded-md bg-[#5e6ad2] px-4 py-2.5 text-sm font-medium text-white transition-colors duration-150 hover:bg-[#828fff] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
                 {t('readEssay')}
                 <ArrowRight className="h-4 w-4" />
@@ -114,9 +87,46 @@ export async function HeroSection({ locale }: HeroSectionProps) {
             </a>
           </div>
         </div>
-        <div className="w-full max-w-sm lg:max-w-none">
-          <EditorialDiagram post={featuredPost} />
-        </div>
+
+        <nav
+          aria-label={t('labJumpTo')}
+          className="border-border/70 bg-card/40 rounded-xl border lg:mt-1.5"
+        >
+          <Link
+            href="/blog"
+            className="focus-visible:ring-ring group border-border/70 hover:bg-muted/40 flex items-center gap-3 border-b px-4 py-3 transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+          >
+            <Search className="text-muted-foreground h-4 w-4 shrink-0" />
+            <span className="text-muted-foreground flex-1 text-sm">
+              {t('labJumpTo')}…
+            </span>
+            <kbd
+              aria-hidden="true"
+              className="border-border/70 bg-muted/60 text-muted-foreground rounded border px-1.5 py-0.5 font-mono text-[10px]"
+            >
+              ⌘K
+            </kbd>
+          </Link>
+          <p className="text-muted-foreground px-4 pt-3 pb-1 font-mono text-[10px] tracking-wider uppercase">
+            {t('topics')}
+          </p>
+          <ul className="px-2 pb-2">
+            {topics.map((topic) => (
+              <li key={topic}>
+                <Link
+                  href="/blog"
+                  className="focus-visible:ring-ring group hover:bg-muted/40 flex items-center gap-2.5 rounded-md px-2 py-2 transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
+                >
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#5e6ad2]" />
+                  <span className="text-foreground flex-1 text-sm">
+                    {topic}
+                  </span>
+                  <ArrowRight className="text-muted-foreground h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
     </section>
   );

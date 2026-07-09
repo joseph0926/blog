@@ -25,7 +25,14 @@ import {
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
 import { getPostsQueryInput } from '@/lib/post-query';
@@ -42,7 +49,7 @@ type ArchiveGroup = {
   posts: PostResponse[];
 };
 
-const pathIconClassName = 'h-7 w-7 stroke-[1.5]';
+const ACCENT = '#5e6ad2';
 
 const getTagCount = (tags: TagResponse[], name: string) =>
   tags.find((tag) => tag.name.toLowerCase() === name.toLowerCase())?.count ?? 0;
@@ -163,6 +170,29 @@ export const BlogList = ({ tags }: BlogListProps) => {
     return () => clearTimeout(timer);
   }, [searchQuery, search, createQueryString, replaceWithParams]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      const active = document.activeElement as HTMLElement | null;
+      if (
+        active &&
+        (active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          active.tagName === 'SELECT' ||
+          active.isContentEditable)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      document.getElementById('blog-search')?.focus();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
   const handleCategoryFilter = (nextCategory: string | null) => {
     replaceWithParams(
       createQueryString({
@@ -198,7 +228,6 @@ export const BlogList = ({ tags }: BlogListProps) => {
       {
         key: 'start',
         title: t('pathStartTitle'),
-        description: t('pathStartDescription'),
         count: totalCount,
         icon: List,
         category: null,
@@ -206,7 +235,6 @@ export const BlogList = ({ tags }: BlogListProps) => {
       {
         key: 'source',
         title: t('pathSourceTitle'),
-        description: t('pathSourceDescription'),
         count: getTagCount(tags, 'source-code'),
         icon: Code2,
         category: 'source-code',
@@ -214,7 +242,6 @@ export const BlogList = ({ tags }: BlogListProps) => {
       {
         key: 'performance',
         title: t('pathPerformanceTitle'),
-        description: t('pathPerformanceDescription'),
         count: getTagCount(tags, 'performance'),
         icon: Gauge,
         category: 'performance',
@@ -222,7 +249,6 @@ export const BlogList = ({ tags }: BlogListProps) => {
       {
         key: 'testing',
         title: t('pathTestingTitle'),
-        description: t('pathTestingDescription'),
         count: getTagCount(tags, 'testing'),
         icon: CheckCircle2,
         category: 'testing',
@@ -252,8 +278,6 @@ export const BlogList = ({ tags }: BlogListProps) => {
       };
     });
   }, [archivePosts]);
-
-  const popularPaths = curatedPaths.filter((path) => path.key !== 'start');
 
   const handleIntersection = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -298,9 +322,16 @@ export const BlogList = ({ tags }: BlogListProps) => {
       >
         {posts.length > 0 && t('postsLoaded', { count: posts.length })}
       </div>
-      <section className="border-border/70 grid gap-8 border-b pb-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,520px)] lg:items-start">
+      <section className="border-border/70 grid gap-8 border-b pb-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,460px)] lg:items-end">
         <div className="max-w-2xl">
-          <p className="text-muted-foreground font-mono text-xs">
+          <p
+            className="inline-flex items-center gap-2 font-mono text-xs font-medium"
+            style={{ color: ACCENT }}
+          >
+            <span
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: ACCENT }}
+            />
             {t('eyebrow')}
           </p>
           <h1 className="mt-4 max-w-2xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
@@ -310,22 +341,22 @@ export const BlogList = ({ tags }: BlogListProps) => {
             {t('description')}
           </p>
         </div>
-        <div className="lg:pt-12">
+        <div>
           <label className="sr-only" htmlFor="blog-search">
             {t('searchLabel')}
           </label>
-          <div className="relative">
-            <Search className="text-muted-foreground absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
+          <div className="focus-within:border-primary/50 border-border/80 bg-background relative rounded-lg border transition-colors">
+            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2" />
             <Input
               id="blog-search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className="border-border/80 bg-background h-12 rounded-md pr-20 pl-11 shadow-none"
+              className="h-12 rounded-lg border-0 bg-transparent pr-20 pl-11 shadow-none focus-visible:ring-0"
             />
-            <span className="border-border/80 text-muted-foreground pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border px-1.5 py-0.5 font-mono text-[10px] sm:inline-flex">
+            <kbd className="border-border/80 text-muted-foreground pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded border px-1.5 py-0.5 font-mono text-[10px] sm:inline-flex">
               /
-            </span>
+            </kbd>
             {searchQuery && (
               <button
                 type="button"
@@ -339,8 +370,8 @@ export const BlogList = ({ tags }: BlogListProps) => {
           </div>
         </div>
       </section>
-      <section className="border-border/70 grid border-b md:grid-cols-4">
-        {curatedPaths.map((path, index) => {
+      <section className="border-border/70 grid gap-3 border-b py-6 sm:grid-cols-2 lg:grid-cols-4">
+        {curatedPaths.map((path) => {
           const Icon = path.icon;
           const isActive =
             path.category === category || (!path.category && !category);
@@ -351,32 +382,53 @@ export const BlogList = ({ tags }: BlogListProps) => {
               onClick={() => handleCategoryFilter(path.category)}
               aria-pressed={isActive}
               className={cn(
-                'group border-border/70 hover:bg-muted/45 focus-visible:ring-ring flex min-h-36 flex-col items-start justify-between gap-5 border-b px-1 py-6 text-left transition-colors last:border-b-0 focus-visible:ring-2 focus-visible:outline-none sm:px-3 md:border-b-0 md:px-6',
-                index > 0 && 'md:border-l',
+                'focus-visible:ring-ring group flex items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
+                isActive
+                  ? 'border-[color:var(--accent-border)] bg-[color:var(--accent-bg)]'
+                  : 'border-border/70 hover:bg-muted/40',
               )}
+              style={
+                {
+                  '--accent-border': `${ACCENT}80`,
+                  '--accent-bg': `${ACCENT}14`,
+                } as CSSProperties
+              }
             >
-              <Icon className={pathIconClassName} />
-              <span className="w-full">
-                <span className="block text-base font-medium">
+              <span
+                className={cn(
+                  'grid h-9 w-9 shrink-0 place-items-center rounded-md border transition-colors',
+                  isActive ? 'border-transparent' : 'border-border/70',
+                )}
+                style={
+                  isActive
+                    ? { color: ACCENT, backgroundColor: `${ACCENT}1f` }
+                    : undefined
+                }
+              >
+                <Icon
+                  className={cn(
+                    'h-4 w-4 stroke-[1.5]',
+                    !isActive && 'text-muted-foreground',
+                  )}
+                />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="text-foreground block truncate text-sm font-medium">
                   {path.title}
                 </span>
-                <span className="text-muted-foreground mt-1 block text-sm">
-                  {path.description}
-                </span>
-              </span>
-              <span className="flex w-full items-center justify-between gap-3 text-sm">
-                <span className="text-muted-foreground font-mono">
+                <span className="text-muted-foreground block font-mono text-xs">
                   {t('pathCount', { count: path.count })}
                 </span>
-                <ArrowRight className="text-muted-foreground group-hover:text-foreground h-4 w-4 transition-transform group-hover:translate-x-1" />
               </span>
             </button>
           );
         })}
       </section>
       <section className="border-border/70 flex flex-col gap-4 border-b py-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-3 text-sm">
-          <span className="font-medium">{t('topic')}</span>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+          <span className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
+            {t('topic')}
+          </span>
           <button
             type="button"
             onClick={() => handleCategoryFilter(null)}
@@ -384,9 +436,10 @@ export const BlogList = ({ tags }: BlogListProps) => {
             className={cn(
               'border-b py-1 transition-colors',
               !category
-                ? 'border-foreground text-foreground'
+                ? 'border-[color:var(--accent)] font-medium text-[color:var(--accent)]'
                 : 'text-muted-foreground hover:text-foreground border-transparent',
             )}
+            style={{ '--accent': ACCENT } as CSSProperties}
           >
             {t('all')}
           </button>
@@ -399,16 +452,20 @@ export const BlogList = ({ tags }: BlogListProps) => {
               className={cn(
                 'border-b py-1 transition-colors',
                 category === tag.name
-                  ? 'border-foreground text-foreground'
+                  ? 'border-[color:var(--accent)] font-medium text-[color:var(--accent)]'
                   : 'text-muted-foreground hover:text-foreground border-transparent',
               )}
+              style={{ '--accent': ACCENT } as CSSProperties}
             >
               {getTagLabel(tag.name)}
             </button>
           ))}
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <label className="font-medium" htmlFor="blog-year">
+          <label
+            className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase"
+            htmlFor="blog-year"
+          >
             {t('year')}
           </label>
           <Select
@@ -486,125 +543,84 @@ export const BlogList = ({ tags }: BlogListProps) => {
         </section>
       )}
       {posts.length > 0 && (
-        <div className="grid gap-8 py-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-          <div className="min-w-0 space-y-8">
-            {latestPost && (
-              <section>
-                <h2 className="mb-4 text-xl font-medium tracking-tight">
-                  {t('latestEssay')}
-                </h2>
-                <Link
-                  href={`/post/${latestPost.slug}`}
-                  className="group border-border/70 focus-visible:ring-ring grid gap-6 border-y py-5 focus-visible:ring-2 focus-visible:outline-none md:grid-cols-[minmax(220px,420px)_minmax(0,1fr)]"
-                >
-                  <CodePreview />
-                  <article className="flex min-w-0 items-center justify-between gap-6">
-                    <div className="min-w-0">
-                      <h3 className="group-hover:text-primary max-w-2xl text-2xl font-medium tracking-tight text-balance">
-                        {latestPost.title}
-                      </h3>
-                      <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-6">
-                        {latestPost.description}
-                      </p>
-                      <PostMeta post={latestPost} locale={locale} />
-                    </div>
-                    <ArrowRight className="text-muted-foreground group-hover:text-foreground hidden h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1 md:block" />
-                  </article>
-                </Link>
-              </section>
-            )}
-            <section>
-              <h2 className="mb-4 text-xl font-medium tracking-tight">
-                {t('browseEssays')}
+        <div className="py-8">
+          {latestPost && (
+            <section className="mb-12">
+              <h2 className="text-muted-foreground mb-4 font-mono text-xs font-medium tracking-wider uppercase">
+                {t('latestEssay')}
               </h2>
-              {archiveGroups.length === 0 ? (
-                <div className="border-border/70 text-muted-foreground border-y py-8 text-sm">
-                  {t('emptyArchivePosts')}
-                </div>
-              ) : (
-                <div className="border-border/70 border-y">
-                  {archiveGroups.map((group, index) => (
-                    <details
-                      key={group.key}
-                      open={index === 0}
-                      className="group border-border/70 border-b last:border-b-0"
-                    >
-                      <summary className="bg-muted/45 flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 marker:hidden">
-                        <span className="font-mono text-sm font-medium">
-                          {group.label}
-                        </span>
-                        <span className="text-muted-foreground flex items-center gap-3 font-mono text-xs">
-                          {t('pathCount', { count: group.posts.length })}
-                          <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
-                        </span>
-                      </summary>
-                      <div className="grid gap-x-8 px-4 py-3 md:grid-cols-2">
-                        {group.posts.map((post) => (
-                          <ArchivePostRow
-                            key={post.id}
-                            post={post}
-                            locale={locale}
-                            dateLocale={dateLocale}
-                          />
-                        ))}
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-          <aside className="border-border/70 space-y-7 pt-1 lg:border-l lg:pl-6">
-            <section>
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-sm font-semibold">
-                  {t('currentlyReading')}
-                </h2>
-                <span className="text-muted-foreground font-mono text-xs">
-                  2 / 4
-                </span>
-              </div>
-              <div className="bg-muted mt-3 h-1">
-                <div className="bg-primary h-full w-1/2" />
-              </div>
-              <div className="mt-5 space-y-4">
-                {posts.slice(0, 2).map((post, index) => (
-                  <Link
-                    key={post.id}
-                    href={`/post/${post.slug}`}
-                    className="focus-visible:ring-ring block text-sm focus-visible:ring-2 focus-visible:outline-none"
+              <Link
+                href={`/post/${latestPost.slug}`}
+                className="focus-visible:ring-ring group border-border/70 hover:bg-muted/20 relative flex items-start justify-between gap-6 border-y py-6 pl-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute top-6 bottom-6 left-0 w-0.5 rounded-full opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  style={{ backgroundColor: ACCENT }}
+                />
+                <div className="min-w-0">
+                  <h3
+                    className="text-foreground max-w-2xl text-2xl font-medium tracking-tight text-balance transition-colors group-hover:text-[color:var(--accent)]"
+                    style={{ '--accent': ACCENT } as CSSProperties}
                   >
-                    <span className="block leading-5 font-medium">
-                      {post.title}
-                    </span>
-                    <span className="text-muted-foreground mt-1 block font-mono text-xs">
-                      {index === 0
-                        ? t('minutesLeft', { minutes: post.readingTime })
-                        : t('readTime', { minutes: post.readingTime })}
-                    </span>
-                  </Link>
+                    {latestPost.title}
+                  </h3>
+                  <p className="text-muted-foreground mt-3 max-w-2xl text-sm leading-6">
+                    {latestPost.description}
+                  </p>
+                  <PostMeta post={latestPost} locale={locale} />
+                </div>
+                <ArrowRight
+                  className="hidden h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1 md:block"
+                  style={{ color: ACCENT }}
+                />
+              </Link>
+            </section>
+          )}
+          <section>
+            <h2 className="text-muted-foreground mb-4 font-mono text-xs font-medium tracking-wider uppercase">
+              {t('browseEssays')}
+            </h2>
+            {archiveGroups.length === 0 ? (
+              <div className="border-border/70 text-muted-foreground border-y py-8 text-sm">
+                {t('emptyArchivePosts')}
+              </div>
+            ) : (
+              <div className="border-border/70 border-y">
+                {archiveGroups.map((group, index) => (
+                  <details
+                    key={group.key}
+                    open={index === 0}
+                    className="group border-border/70 border-b last:border-b-0"
+                  >
+                    <summary className="hover:bg-muted/30 flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 transition-colors marker:hidden">
+                      <span className="inline-flex items-center gap-2 font-mono text-sm font-medium">
+                        <span
+                          className="h-1.5 w-1.5 rounded-full"
+                          style={{ backgroundColor: `${ACCENT}b3` }}
+                        />
+                        {group.label}
+                      </span>
+                      <span className="text-muted-foreground flex items-center gap-3 font-mono text-xs">
+                        {t('pathCount', { count: group.posts.length })}
+                        <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                      </span>
+                    </summary>
+                    <div className="grid gap-x-8 px-4 pt-1 pb-3 md:grid-cols-2">
+                      {group.posts.map((post) => (
+                        <ArchivePostRow
+                          key={post.id}
+                          post={post}
+                          locale={locale}
+                          dateLocale={dateLocale}
+                        />
+                      ))}
+                    </div>
+                  </details>
                 ))}
               </div>
-            </section>
-            <section className="border-border/70 border-t pt-6">
-              <h2 className="text-sm font-semibold">{t('popularPaths')}</h2>
-              <div className="mt-4 space-y-4">
-                {popularPaths.map((path) => (
-                  <button
-                    key={path.key}
-                    type="button"
-                    onClick={() => handleCategoryFilter(path.category)}
-                    className="focus-visible:ring-ring block w-full text-left text-sm focus-visible:ring-2 focus-visible:outline-none"
-                  >
-                    <span className="block font-medium">{path.title}</span>
-                    <span className="text-muted-foreground mt-1 block font-mono text-xs">
-                      {t('pathCount', { count: path.count })}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          </aside>
+            )}
+          </section>
         </div>
       )}
       {hasNextPage && <div className="h-1" ref={divRef} aria-hidden="true" />}
@@ -614,7 +630,10 @@ export const BlogList = ({ tags }: BlogListProps) => {
           role="status"
           aria-label={t('loading')}
         >
-          <div className="border-primary h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" />
+          <div
+            className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent"
+            style={{ borderColor: ACCENT, borderTopColor: 'transparent' }}
+          />
         </div>
       )}
       {hasNextPage && !isFetchingNextPage && (
@@ -643,22 +662,27 @@ const PostMeta = ({
   const dateLocale = locale === 'ko' ? ko : enUS;
 
   return (
-    <div className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
-      <time
-        className="font-mono"
-        dateTime={new Date(post.createdAt).toISOString()}
-      >
+    <div className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-xs">
+      <time dateTime={new Date(post.createdAt).toISOString()}>
         {format(
           new Date(post.createdAt),
           locale === 'ko' ? 'yyyy.MM.dd' : 'MMM dd, yyyy',
           { locale: dateLocale },
         )}
       </time>
-      <span className="font-mono">
-        {t('readTime', { minutes: post.readingTime })}
+      <span aria-hidden="true" className="text-border">
+        /
       </span>
+      <span>{t('readTime', { minutes: post.readingTime })}</span>
       {post.tags.slice(0, 3).map((tag) => (
-        <span key={tag.id} className="border-border/80 border-b">
+        <span
+          key={tag.id}
+          className="border-border/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px]"
+        >
+          <span
+            className="h-1 w-1 rounded-full"
+            style={{ backgroundColor: `${ACCENT}b3` }}
+          />
           {getTagLabel(tag.name)}
         </span>
       ))}
@@ -678,7 +702,7 @@ const ArchivePostRow = ({
   return (
     <Link
       href={`/post/${post.slug}`}
-      className="border-border/60 focus-visible:ring-ring grid gap-3 border-b py-3 text-sm last:border-b-0 focus-visible:ring-2 focus-visible:outline-none sm:grid-cols-[4.75rem_minmax(0,1fr)_3.5rem] md:last:border-b"
+      className="border-border/60 focus-visible:ring-ring group grid gap-3 border-b py-3 text-sm last:border-b-0 focus-visible:ring-2 focus-visible:outline-none sm:grid-cols-[4.75rem_minmax(0,1fr)_3.5rem] md:last:border-b"
     >
       <time
         dateTime={new Date(post.createdAt).toISOString()}
@@ -691,7 +715,12 @@ const ArchivePostRow = ({
         )}
       </time>
       <span className="min-w-0">
-        <span className="block truncate font-medium">{post.title}</span>
+        <span
+          className="block truncate font-medium transition-colors group-hover:text-[color:var(--accent)]"
+          style={{ '--accent': ACCENT } as CSSProperties}
+        >
+          {post.title}
+        </span>
         <span className="text-muted-foreground mt-1 block truncate text-xs">
           {post.tags[0] ? getTagLabel(post.tags[0].name) : getPostYear(post)}
         </span>
@@ -700,26 +729,6 @@ const ArchivePostRow = ({
         {post.readingTime} min
       </span>
     </Link>
-  );
-};
-
-const CodePreview = () => {
-  return (
-    <div className="border-border/70 bg-muted/35 text-muted-foreground overflow-hidden rounded-md border p-4 font-mono text-xs leading-6">
-      <div className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3">
-        <span>1</span>
-        <span>async function loadPosts(cursor?: string) {'{'}</span>
-        <span>2</span>
-        <span>{"  const res = await fetch('/api/posts')"}</span>
-        <span>3</span>
-        <span>{'  const json = await res.json()'}</span>
-        <span>4</span>
-        <span>{'  return json.posts as Post[]'}</span>
-        <span>5</span>
-        <span>{'}'}</span>
-      </div>
-      <div className="mt-3 text-[11px]">app/blog/actions.ts</div>
-    </div>
   );
 };
 

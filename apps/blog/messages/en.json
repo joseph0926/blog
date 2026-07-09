@@ -31,7 +31,9 @@
     "loadPostsError": "An error occurred while loading posts.",
     "retry": "Try again",
     "emptyRecentPosts": "There are no published posts yet.",
-    "emptyArchivePosts": "No more posts to display."
+    "emptyArchivePosts": "No more posts to display.",
+    "labJumpTo": "Jump to a post",
+    "topics": "Topics"
   },
   "blog": {
     "eyebrow": "FRONTEND ENGINEERING NOTES",

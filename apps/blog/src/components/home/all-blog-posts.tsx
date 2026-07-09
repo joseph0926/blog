@@ -11,6 +11,9 @@ type AllBlogPostsProps = {
   locale: AppLocale;
 };
 
+const MAX_YEARS = 5;
+const MAX_PER_YEAR = 6;
+
 export const AllBlogPosts = async ({ locale }: AllBlogPostsProps) => {
   const t = await getTranslations({ locale, namespace: 'home' });
   const ctx = await createTRPCContext({ headers: new Headers() });
@@ -53,46 +56,45 @@ export const AllBlogPosts = async ({ locale }: AllBlogPostsProps) => {
     },
     {},
   );
-  const years = Object.keys(postsByYear).sort((a, b) => Number(b) - Number(a));
-  const archivePreview = posts.length > 5 ? posts.slice(5, 13) : posts;
+  const years = Object.keys(postsByYear)
+    .sort((a, b) => Number(b) - Number(a))
+    .slice(0, MAX_YEARS);
 
   return (
-    <div className="border-border/70 grid border-y lg:grid-cols-[15rem_1fr]">
-      <aside className="border-border/70 border-b py-5 lg:border-r lg:border-b-0 lg:pr-5">
-        <p className="text-muted-foreground mb-4 font-mono text-xs font-medium">
-          {t('archiveIndex')}
-        </p>
-        <div className="space-y-2">
-          {years.slice(0, 5).map((year) => (
+    <div>
+      <div className="border-border/70 divide-border/70 divide-y border-t">
+        {years.map((year) => {
+          const yearPosts = postsByYear[year] ?? [];
+          return (
             <div
               key={year}
-              className="border-border/50 grid grid-cols-[1fr_auto] items-center gap-3 border-t pt-3 first:border-t-0 first:pt-0"
+              className="grid gap-3 py-6 sm:grid-cols-[6rem_1fr] sm:gap-8"
             >
-              <span className="text-foreground font-mono text-sm tabular-nums">
-                {year}
-              </span>
-              <span className="text-muted-foreground font-mono text-xs tabular-nums">
-                {postsByYear[year]?.length ?? 0}
-              </span>
+              <div className="flex items-baseline gap-2 sm:flex-col sm:items-start sm:gap-1">
+                <span className="text-foreground font-mono text-xl font-semibold tabular-nums">
+                  {year}
+                </span>
+                <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+                  {yearPosts.length}
+                </span>
+              </div>
+              <div className="divide-border/50 divide-y">
+                {yearPosts.slice(0, MAX_PER_YEAR).map((post) => (
+                  <CompactPostLink key={post.id} post={post} locale={locale} />
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-      </aside>
-      <div className="py-2 lg:pl-5">
-        <div className="divide-border/70 divide-y">
-          {archivePreview.map((post) => (
-            <CompactPostLink key={post.id} post={post} locale={locale} />
-          ))}
-        </div>
-        <div className="pt-5">
-          <Link
-            href="/blog"
-            className="focus-visible:ring-ring text-primary hover:text-foreground inline-flex items-center gap-2 rounded-md text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
-          >
-            {t('viewAllPosts')}
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
+          );
+        })}
+      </div>
+      <div className="pt-6">
+        <Link
+          href="/blog"
+          className="focus-visible:ring-ring inline-flex items-center gap-2 rounded-md text-sm font-medium text-[#5e6ad2] transition-colors duration-150 hover:text-[#828fff] focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
+        >
+          {t('viewAllPosts')}
+          <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
     </div>
   );

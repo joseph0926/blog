@@ -152,6 +152,11 @@ export const MDX_COMPONENT_LOADERS = {
     const m = await import('@/mdx/components/rsc-build/bundle-size-comparison');
     return m.BundleSizeComparison;
   }),
+
+  ConfirmFlowSimulator: cached('ConfirmFlowSimulator', async () => {
+    const m = await import('@/mdx/components/confirm/confirm-flow-simulator');
+    return m.ConfirmFlowSimulator;
+  }),
 } as const;
 
 type Registered = keyof typeof MDX_COMPONENT_LOADERS;

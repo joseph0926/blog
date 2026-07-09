@@ -108,12 +108,17 @@ export default async function BlogPage({
               </div>
               <div className="bg-muted h-12 rounded-md" />
             </div>
-            <div className="grid gap-0 border-y md:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 4 }).map((_, idx) => (
-                <div key={idx} className="border-border/70 space-y-3 p-6">
-                  <div className="bg-muted h-8 w-8 rounded-md" />
-                  <div className="bg-muted h-5 w-28 rounded-md" />
-                  <div className="bg-muted h-4 w-20 rounded-md" />
+                <div
+                  key={idx}
+                  className="border-border/70 flex items-center gap-3 rounded-lg border px-4 py-3"
+                >
+                  <div className="bg-muted h-9 w-9 shrink-0 rounded-md" />
+                  <div className="flex-1 space-y-2">
+                    <div className="bg-muted h-4 w-24 rounded" />
+                    <div className="bg-muted h-3 w-12 rounded" />
+                  </div>
                 </div>
               ))}
             </div>
