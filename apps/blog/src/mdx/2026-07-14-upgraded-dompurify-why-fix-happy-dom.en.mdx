@@ -1,0 +1,255 @@
+---
+slug: '2026-07-14-upgraded-dompurify-why-fix-happy-dom'
+title: 'I upgraded DOMPurify, so why did I end up fixing happy-dom?'
+description: 'After deleting pnpm-lock.yaml and reinstalling, caret-range packages all jumped at once and sanitize tests broke. I isolated them one by one and pinned DOMPurify as the culprit, but the same version was fine on jsdom. Here is how I separated the version from the environment and traced it down to the root cause.'
+date: '2026-07-14'
+tags: ['testing', 'dompurify', 'happy-dom']
+thumbnail: '/post/js.webp'
+---
+
+# I upgraded DOMPurify, so why did I end up fixing happy-dom?
+
+## All I did was delete the lockfile
+
+I was upgrading the [firsttx](https://github.com/joseph0926/firsttx) monorepo's pnpm to 11. I bumped the packageManager version and moved the `pnpm.overrides` from package.json into pnpm-workspace.yaml, where pnpm 11 expects them.
+
+Then I did something habitual. I deleted pnpm-lock.yaml and ran `pnpm install`, figuring that since I was bumping the pnpm major anyway, I might as well regenerate the lockfile cleanly.
+
+That single install turned out to be the origin of this whole story.
+
+When you install without a lockfile, every caret (`^`) range in package.json gets re-resolved. This reinstall pushed vitest from 4.0.18 to 4.1.10, eslint from 9.39.2 to 9.39.4, and typescript-eslint and prettier moved too. And dompurify went from 3.3.1 to 3.4.11. The change I intended was one thing, "migrate the pnpm config," but the change that actually happened was two: "config migration" plus "a full refresh of the dependency graph."
+
+And the tests broke. Running `test:run` from the root, the package holding the sanitize logic died with exit 1.
+
+There were too many suspects. It could be pnpm 11 itself, or any one of the newly re-resolved packages. So first I split the change branch from main and confirmed the same test passes on main, narrowing the cause into this change set. Next I bumped the updated packages one at a time on top of main and ran the tests. eslint, vite, vitest, typescript, happy-dom, typescript-eslint, fake-indexeddb, testing-library, dompurify — of the nine, only dompurify reproduced the breakage (typescript-eslint was a lint regression, which I handled separately). Reverting only dompurify to 3.3.1 on the change branch made the tests pass again.
+
+At this point the conclusion looks self-evident. DOMPurify 3.4.11 broke something. Skim the release notes, pin 3.3.1, leave an issue upstream, and the story is over.
+
+This post is about why that conclusion is only half right. And the method that split that half apart is an experiment that isolates version from environment.
+
+Looking back now, deleting the lockfile was mixing two different changes into one step. If the only goal is a pnpm major bump, you don't need to delete the lockfile — the new pnpm migrates the format for you. Re-resolving dependencies is something you can do separately, in a reviewable unit, whenever you want. The price of mixing that boundary was paying, after the fact, the cost of narrowing down which change was the culprit one at a time.
+
+## Two strange failures
+
+The first thing I faced wasn't the sanitizer but the death of the test runner. Running `test:run` from the root, prepaint (the package that restores the first CSR screen from a snapshot) ran through 10 of 11 files and 119 of 163 tests before stopping at exit 1 with a Vitest unhandled EISDIR error. The error message alone reads like it failed while reading a source map file, so I first suspected vitest, which this reinstall had bumped from 4.0.18 to 4.1.10. But in the earlier matrix, updating vitest alone was harmless. The runner message is the surface; there's another failure underneath.
+
+Running only the sanitize test file to narrow it down surfaced the real thing. 3 failures out of 44 — script tag removal, HTML sanitize, safe structure preservation. All three were tests on the async path that actually runs DOMPurify, while the fallback-path tests that run on DOMParser without DOMPurify all passed.
+
+To explain the code structure briefly: the offending [`safeSetInnerHTML`](https://github.com/joseph0926/firsttx/blob/main/packages/prepaint/src/sanitize.ts) calls `sanitizeSnapshotHTML` internally, and that function dynamically imports dompurify, running `DOMPurify.sanitize` on success and its own fallback sanitizer on failure. The 3 failures were all on the DOMPurify path.
+
+Comparing the input/output of the failing tests by version looks like this.
+
+3.3.1 behaves as expected.
+
+```html
+<div onclick="alert(1)">
+  <script>
+    evil();
+  </script>
+  Safe
+</div>
+→
+<div>Safe</div>
+
+<div class="wrapper">
+  <p>Paragraph</p>
+  <span>Span</span>
+</div>
+→
+<div class="wrapper">
+  <p>Paragraph</p>
+  <span>Span</span>
+</div>
+```
+
+3.4.11, on the same input, does this.
+
+```html
+<div class="wrapper">
+  <p>Paragraph</p>
+  <span>Span</span>
+</div>
+→
+<p>Paragraph</p>
+<span>Span</span>
+```
+
+There were two symptoms.
+
+First, on safe input the outer div vanished entirely. A wrapper div with no dangerous tags and no dangerous attributes disappeared, leaving only its children. The `class` was lost too.
+
+Second, the dangerous-input side was even stranger. The input log printed right before sanitize showed up, but the output log was entirely absent. It wasn't that a wrong value came out — the code never reached the log line. Wrapping the sanitize call in try/catch caught an error.
+
+```
+Error: Failed to execute 'insertBefore' on 'Node': Only one element on document allowed.
+```
+
+sanitize wasn't returning a wrong value — it was **throwing**. And not from inside DOMPurify but from happy-dom's `HTMLDocument.insertBefore`. I noted this stack down and moved on.
+
+First I checked the config. The dangerous tag list the project passes via `FORBID_TAGS` doesn't include div. It's only things like script, iframe, form, input. class isn't a forbidden attribute either. So why does div disappear?
+
+I set up two hypotheses.
+
+1. 3.4.11 judges the `class` attribute to be dangerous
+2. When there's an attribute judged dangerous, it removes the element rather than just the attribute
+
+I verified with three inputs. A with class and a custom attribute together, B with only a custom attribute, C a bare div with no attributes at all — a control group to tell whether div dies regardless of attributes.
+
+The result: all three lost the div. Since control C died too, attributes aren't the cause. Hypotheses 1 and 2 both rejected.
+
+The div wasn't gone because of its attributes. Every hypothesis at the attribute level was rejected, and the problem was on a different layer.
+
+## Same version, different environment
+
+Stuck, while digging through config options I found something strange. Setting `WHOLE_DOCUMENT: true` in the sanitize options made the wrapper div appear to come back alive. Whether the whole document is returned decided the div's life or death.
+
+Here I set up hypothesis 3. Maybe the div wasn't deleted by a danger judgment but was outside the return range. DOMPurify returns only the body contents by default, so if the div's position inside the parsed document changed in 3.4.11 and the default return window cut it off, that would explain it.
+
+To verify, I had to look at sanitize's raw return value directly. I filled a 2×2 with two versions × two options.
+
+|                        | 3.3.1                         | 3.4.11                   |
+| ---------------------- | ----------------------------- | ------------------------ |
+| default                | div preserved                 | div lost, no throw       |
+| `WHOLE_DOCUMENT: true` | div correctly inside `<body>` | **throw** (insertBefore) |
+
+This table knocked down two things.
+
+First, `WHOLE_DOCUMENT` was not a fix. On 3.4.11, giving that option doesn't save the div — it throws outright. The result I'd read as "fixed" was me misattributing something I saw on the 3.3.1 run to 3.4.11. When you experiment while hopping between two versions, this kind of misattribution happens more easily than you'd think.
+
+Second, hypothesis 3 doesn't hold as-is either. The problem isn't "which piece gets returned" — the very way 3.4.11 manipulates the document was colliding with something.
+
+Regathering the observations at this point: the throw comes from happy-dom's `HTMLDocument.insertBefore`. The error message is "only one root element allowed on document." So for some reason DOMPurify 3.4.11 tries to insert a child directly onto the document node, and happy-dom refuses it.
+
+Actually, this wasn't the first time I'd suspected happy-dom. Earlier I'd hypothesized "since the test runs on happy-dom, maybe there's no guarantee the container is inside body," and then got refuted by my own log. The div was already gone from the sanitize output, so it had disappeared before being put into the container. The direction of suspicion was right, but the location was wrong.
+
+So this time I pinned the location correctly and isolated it. I fixed the code, the DOMPurify version, and the input, and changed only the DOM implementation. I ran the same test on jsdom instead of happy-dom.
+
+```
+3.4.11 + jsdom
+→ <html><head></head><body><div class="wrapper"><p>Paragraph</p><span>Span</span></div></body></html>
+```
+
+No throw, and the div is intact. Identical output to 3.3.1.
+
+That single run flipped the picture. DOMPurify 3.4.11 is innocent on its own. The same version, same code, same input is fine on jsdom and breaks only on happy-dom. The culprit isn't the version but the combination of 3.4.11 × happy-dom.
+
+This is why I said at the top of the post that pinning dompurify as the culprit was only half right. Package-level isolation tells you which change is the trigger, but not what the cause is. The trigger is indeed the dompurify upgrade. But the cause was in how the new version interacts with the test's DOM implementation.
+
+That said, the hypotheses I could form by observing from the outside ended here. The attribute hypothesis and the serialization-boundary hypothesis were both rejected, and the reason 3.4.11 manipulates the document wasn't visible from behavior alone. I opened the source.
+
+## The chain that turns tagName into an empty string
+
+Comparing the two versions' `purify.ts` and flagging a few suspicious diffs, the node-removal logic itself was essentially the same across versions. When DOMPurify meets an element not on the allow list, it hoists that element's children up into the parent's place (keep-content) and removes only the element. This behavior exists in 3.3.1 too.
+
+Instead, looking at the output again I noticed a familiar shape. `<div class="wrapper"><p>…</p><span>…</span></div>` becoming `<p>…</p><span>…</span>` is exactly the shape of **a div judged to be a disallowed tag, its children hoisted, and the div removed**. The WHOLE_DOCUMENT throw reads by the same logic. If `<html>` is judged a disallowed tag, its children head and body have to be inserted into the parent — that is, the document — but happy-dom allows only one root element on the document, so it refuses.
+
+The two symptoms converge into one sentence. 3.4.11 is **misjudging default-allowed tags like div and html as disallowed**.
+
+That makes the tag-name resolution code the suspect. And here was the real diff between the two versions. 3.3.1 reads the element name directly as `currentNode.nodeName`. 3.4.11 changed to a `getNodeName` path that, at module load time, pulls out the nodeName getter function from `Node.prototype`, caches it, and applies that getter to the node every time.
+
+To confirm this is really where it splits, I used the `uponSanitizeElement` hook to print the tag name DOMPurify computed.
+
+| for a div                     | happy-dom | jsdom   |
+| ----------------------------- | --------- | ------- |
+| tagName computed by DOMPurify | `""`      | `"div"` |
+| `node.nodeName` directly      | `"DIV"`   | `"DIV"` |
+
+The node itself is fine. Ask it directly and both sides answer `"DIV"`. But only in happy-dom is the value DOMPurify computed an empty string. The culprit isn't the node but **the path that reads the name**.
+
+Why the path splits becomes clear if you call the getter directly at each prototype level.
+
+```js
+const nodeGet = Object.getOwnPropertyDescriptor(Node.prototype, 'nodeName').get;
+const elGet = Object.getOwnPropertyDescriptor(
+  Element.prototype,
+  'nodeName',
+)?.get;
+
+div.nodeName;
+nodeGet.call(div);
+elGet?.call(div);
+```
+
+| nodeName getter called on div | happy-dom | jsdom              |
+| ----------------------------- | --------- | ------------------ |
+| getter of `Element.prototype` | `"DIV"`   | not defined at all |
+| getter of `Node.prototype`    | `""`      | `"DIV"`            |
+
+jsdom, per DOM spec, puts the nodeName getter in one place, `Node.prototype`. That single getter looks at the node type and returns the correct name, so you get the same value no matter which path you read it from.
+
+happy-dom defines nodeName at two levels. The `Element.prototype` override returns the real tag name, while the `Node.prototype` base getter returns an empty string for elements. Ordinary property access `div.nodeName` walks the prototype chain starting from the closest to the instance and uses the first getter it meets, so the Element side wins and the value is correct. But if, like DOMPurify, you pull the getter from `Node.prototype` and pin it, you call the Node-level base getter directly without walking the chain. Only in an implementation where the two levels have diverged do the two ways of reading give different answers.
+
+Now the whole chain connects.
+
+1. happy-dom defines nodeName at two levels, and the Node-level getter returns `""` for elements
+2. DOMPurify 3.4.x reads the name with a getter pulled and cached from `Node.prototype`
+3. every element's tagName computes to `""`
+4. `""` isn't on the allow list, so every element becomes a removal target
+5. the keep-content behavior hoists children up and removes the element
+6. under the default option the wrapper div disappears, and under WHOLE_DOCUMENT it tries to insert html's children onto the document, hits happy-dom's one-root-element limit, and throws
+
+Why 3.3.1 was unharmed is explained by the same chain. `currentNode.nodeName` direct access walks the chain and uses the Element override, so it gets the correct name.
+
+To add: even within happy-dom, nodeName is an anomalous pattern. Other properties like nodeType or parentNode have getters that read a value stored on the instance, so calling them at any level returns the correct value, whereas only nodeName has a base that returns `""` as a stub, with Element overriding it. That's why the failure was this specific.
+
+One question remains. Why did DOMPurify change from reading `div.nodeName`, which just works, to a detour that pulls a getter off the prototype? This was not a bug but a deliberate defense.
+
+## A defense born from not being able to trust the instance
+
+The reason DOMPurify uses a getter pulled off the prototype instead of `div.nodeName` is to block an attack called DOM clobbering.
+
+The HTML a sanitizer handles is, by definition, input that may have been crafted by an attacker. And HTML can contaminate the result of DOM property lookups through markup alone.
+
+```html
+<form>
+  <input name="nodeName" />
+</form>
+```
+
+In a real browser, reading this form element's `nodeName` gives not the string `"FORM"` but that very input element. HTMLFormElement supports named-property access to its child controls by name, and this lookup takes precedence over the built-in property. If a sanitizer trusts `node.nodeName` as-is, an attacker can fool the name judgment through markup alone.
+
+So DOMPurify 3.4.x chose what we saw earlier: the getter cache. No matter how contaminated the instance is, the prototype's getter can't be overwritten by markup, so on a spec-conformant DOM it always yields the real name.
+
+At first I thought the opposite. Surely on a proper DOM like a real browser you can trust the instance? The direction was reversed. The place where clobbering actually happens is precisely the real browser. In the face of attacker HTML, instance access is _less_ trustworthy the more real the DOM is, and that is the very reason this detour strategy exists. Interestingly, running the form experiment above in happy-dom still returns `"FORM"`. happy-dom doesn't even reproduce the clobbering this defense is meant to block.
+
+To put it together, DOMPurify's strategy is entirely correct under the assumption that "the DOM follows the spec." In browsers and jsdom this assumption holds. The only place it breaks is happy-dom, which defines nodeName across two levels, unlike the spec. A change that strengthened security collapsed in an environment that doesn't uphold that security's premise.
+
+The answer to the title comes out here. DOMPurify is doing the right defense on the right assumption, so the place to fix is not DOMPurify but happy-dom's nodeName.
+
+But wrapping this up as "a problem that only breaks in the test environment" felt wrong, because the nature of the breakage wasn't good.
+
+## The direction a silent failure heads
+
+Looking only at the chain so far, this bug looks like over-removal. Since every element is judged a removal target, even a div that shouldn't be removed gets removed — a loud failure the test catches immediately.
+
+But looking at the output again, something is odd. Every element was judged a removal target, yet `<p>` and `<span>` survived, tags and all. Elements remain in the output of a sanitizer that decided to remove every element.
+
+Attaching a probe to watch the traversal, it gets stranger. span was never inspected at all. It seems that while the rearrangement of hoisting children and removing elements repeats, the traversal drifts, and some nodes pass through to the output unvisited. I didn't dig all the way into the internal mechanics, but the observed facts alone make the direction clear.
+
+Over-removal is a failure that breaks the screen and catches your eye immediately. A pass that skips inspection, by contrast, is a silent failure that leaves the dangerous thing behind. In fact, reproducing the same combination with a different input confirms cases where a dangerous input's script tag remains in the output un-sanitized. There are matching symptom reports upstream too. On the happy-dom side there's an [issue that only the parent gets sanitized while children aren't processed](https://github.com/capricorn86/happy-dom/issues/1810), and on the DOMPurify side an [issue that nested elements not on the allow list are left un-removed](https://github.com/cure53/DOMPurify/issues/1094), both reported as symptoms only, without a root-cause diagnosis. Read through the chain of tagName becoming an empty string, they're explained by the same root.
+
+To put it together, in this combination the sanitizer moves from an allow-list-based sanitizer toward a filter that silently misses some nodes. It's not the inconvenience of a few broken tests but the problem of not being able to trust the sanitize result.
+
+That said, let me draw the boundary precisely. In firsttx, where this sanitize code actually runs is the browser. Only the tests were running on happy-dom, so this incident itself has no production impact. The dangerous case is a setup that uses happy-dom as a server-side DOM to run sanitize. DOMPurify's official docs also recommend jsdom on the server and advise against using happy-dom.
+
+That's why the conclusion didn't end at "pin 3.3.1 and done." My repo can block it with a pin, but there are other users who'll step on the same chain, and the root-cause diagnosis was nowhere upstream. At least, so it seemed at the time.
+
+## So where did I fix it?
+
+The action for firsttx itself was simple. Pin dompurify to 3.3.1 and finish the pnpm 11 migration that was this task's original goal. DOMPurify latest-version compatibility I split off as separate work. Not pulling a problem discovered mid-task into the current task's scope was another boundary I consciously tried to hold this time.
+
+What remained was upstream. First I checked whether it was already fixed in the latest version. Bumping happy-dom all the way to 20.10.6, the latest at the time, the probe result and the throw reproduced unchanged. The two-level structure of nodeName isn't a typo but a class-hierarchy design, so it remained as the version climbed.
+
+I also narrowed the shape of the fix. Since even within happy-dom nodeName was the anomalous stub-and-override pattern, it's a local fix: change the Node-level getter to return the name by looking at the node type, like the other properties. On the happy-dom side too, there was an [issue officially tracking DOMPurify compatibility](https://github.com/capricorn86/happy-dom/issues/1629) on the Security milestone.
+
+While preparing to contribute after getting this far, there was one mishap. With the searches I ran at investigation time I couldn't find a root-cause diagnosis, so I judged "this diagnosis doesn't exist upstream." But a later cross-check turned up [an issue with the same diagnosis](https://github.com/capricorn86/happy-dom/issues/2182) and [a fix PR in the same direction](https://github.com/capricorn86/happy-dom/pull/2183) that had been open for a month. Two general web searches could miss an issue buried in the ranking, and the judgment of "doesn't exist" should have been made only after searching directly inside the repository's issue tracker. On the upside, it did confirm I'd independently reached the same diagnosis, and I changed the contribution direction from opening a new issue to adding reproduction evidence to the open PR.
+
+## Wrapping up
+
+The judgment rules I take from this incident are three.
+
+1. Deleting the lockfile and reinstalling mixes a tool switch and a full re-resolution of dependencies into one step. If you didn't intend both, separate them.
+2. Something getting fixed by reverting is trigger confirmation, not cause confirmation. You have to isolate the version axis and the environment axis one at a time for the cause to emerge.
+3. A test's pass and failure are a function of the test environment. The DOM in particular diverges by implementation, so before concluding a breakage is a library bug, confirm whether it reproduces in the environment production actually runs in.
+
+I upgraded DOMPurify, and the place to fix was happy-dom. I hope this post becomes a shortcut to diagnosis for anyone who runs into the same symptom.
