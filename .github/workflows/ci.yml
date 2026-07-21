@@ -11,7 +11,7 @@ jobs:
   lint-and-build:
     runs-on: ubuntu-22.04
     env:
-      PNPM_VERSION: 11.10.0
+      PNPM_VERSION: 11.15.1
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v6
