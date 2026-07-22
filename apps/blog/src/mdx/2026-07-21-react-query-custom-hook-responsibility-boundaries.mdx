@@ -1,0 +1,249 @@
+---
+slug: '2026-07-21-react-query-custom-hook-responsibility-boundaries'
+title: 'React Query custom hook에 섞인 데이터 처리와 UI 책임을 나눈 이유'
+description: '서버 응답 변환, 오류 처리, 캐시 동기화, 화면 피드백이 custom hook 안에 함께 섞여 있었습니다. 이를 React와 무관한 데이터 함수, query/mutation options, component로 나누며 각 책임의 위치를 다시 정한 과정을 정리합니다.'
+date: '2026-07-21'
+thumbnail: '/post/react-query.webp'
+tags: ['react-query', 'frontend']
+---
+
+# React Query custom hook에 섞인 데이터 처리와 UI 책임을 나눈 이유
+
+## 저장 실패를 따라가자 책임의 경계가 보이지 않았습니다
+
+현업 프로젝트에서 서버 데이터를 조회하고 수정하는 코드를 기능별 custom hook으로 분리했습니다. 화면은 hook이 반환하는 데이터와 함수만 사용하고, 데이터를 가져오는 과정은 알지 않아도 되는 구조였습니다.
+
+정상적으로 저장되는 동안에는 문제가 잘 보이지 않았습니다. mutation이 성공하면 화면에 완료 메시지를 보여주고 modal을 닫으면 됐습니다. 서버 데이터를 다루는 코드도 hook에 모여 있었기 때문에 관련 로직을 찾기도 쉬워 보였습니다.
+
+문제는 저장이 실패했을 때 드러났습니다. 통신 실패를 일관된 형태로 정리하고 화면에서 처리할 오류로 전달하는 일, 사용자에게 실패를 알리는 toast, 변경됐을 수 있는 데이터를 다시 확인하도록 캐시를 맞추는 일, 입력 내용을 보존하기 위한 modal 상태가 하나의 호출 흐름에 이어져 있었습니다. 하지만 각각이 어떤 기준으로 어디에서 실행되어야 하는지는 분명하지 않았습니다.
+
+오류를 사용자에게 보여주는 책임은 hook과 화면 중 어디에 있어야 할까요? 저장에 실패한 뒤 캐시를 다시 확인하는 일은 누가 맡아야 할까요? modal을 그대로 둘지 닫을지는 데이터 처리 과정이 알아야 할까요? 화면마다 다른 반응이 필요해지자 hook은 callback을 받아 이 결정들을 다시 화면과 주고받기 시작했습니다.
+
+실제 과거 코드를 복원한 것은 아니지만, 당시 책임 관계를 단순화하면 다음과 비슷한 형태였습니다.
+
+```tsx
+function useSaveRecord({
+  onSaved,
+  onSaveFailed,
+}: {
+  onSaved: () => void;
+  onSaveFailed: (error: Error) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: saveRecord,
+    onSuccess: () => {
+      onSaved();
+    },
+    onError: (error) => {
+      onSaveFailed(error);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['records'] }),
+  });
+}
+
+function RecordModal() {
+  const saveMutation = useSaveRecord({
+    onSaved: () => {
+      toast.success('저장했습니다.');
+      closeModal();
+    },
+    onSaveFailed: () => {
+      toast.error('저장하지 못했습니다.');
+    },
+  });
+
+  return <RecordForm onSubmit={saveMutation.mutate} />;
+}
+```
+
+이 코드에서 성공과 실패 처리는 저장을 요청할 때마다 덧붙이는 동작이 아니라, hook이 mutation을 만들 때부터 등록한 공통 처리입니다. 문제는 callback이 실행되는지 여부가 아닙니다. 화면마다 달라지는 반응까지 공통 캐시 정책을 가진 hook이 함께 떠안고 있다는 점입니다.
+
+hook은 캐시를 언제 다시 맞출지 결정하면서, 동시에 저장 결과를 화면별 callback으로 전달하고 있었습니다. 재사용되는 캐시 정책과 이 modal에만 필요한 반응이 같은 실행 흐름에 묶인 것입니다.
+
+하나의 custom hook 안에는 서버 데이터의 생명주기와 화면의 생명주기가 함께 들어가 있었습니다. 이 hook이 공통 로직을 추상화하고 있는지, 아니면 서로 다른 책임을 한곳에서 전달하고만 있는지 판단하기 어려웠습니다. 이 질문이 데이터 흐름의 책임을 처음부터 다시 나누게 된 출발점이었습니다.
+
+## 화면이 사라져도 캐시 갱신은 끝나야 했습니다
+
+책임을 나누기 위해 먼저 “이 화면이 사라진 뒤에도 실행되어야 하는가?”를 물었습니다. 답은 처리마다 달랐습니다.
+
+서버 데이터가 바뀌었다면 다른 화면도 최신 데이터를 읽을 수 있도록 캐시를 다시 맞춰야 합니다. 저장을 시작한 component가 사라졌다는 이유로 이 과정까지 멈춰서는 안 됩니다. 반면 완료 메시지를 보여주거나 modal을 닫는 일은 해당 화면이 남아 있을 때만 의미가 있습니다.
+
+React Query에서는 mutation을 만들 때 모든 저장 요청에 공통으로 적용할 처리를 등록할 수 있습니다. 반대로 `mutate`를 호출하는 순간에만 callback을 덧붙일 수도 있습니다. 전자에는 화면과 무관하게 지켜야 할 데이터 규칙을, 후자에는 해당 클릭과 화면에만 필요한 반응을 두기로 했습니다.
+
+```tsx
+const saveRecordMutationOptions = (queryClient: QueryClient) =>
+  mutationOptions({
+    mutationFn: saveRecord,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['records'] }),
+  });
+
+function RecordModal() {
+  const queryClient = useQueryClient();
+  const saveMutation = useMutation({
+    ...saveRecordMutationOptions(queryClient),
+    onError: () => {
+      toast.error('저장하지 못했습니다.');
+    },
+  });
+
+  const handleSubmit = (input: RecordInput) => {
+    saveMutation.mutate(input, {
+      onSuccess: () => {
+        toast.success('저장했습니다.');
+        closeModal();
+      },
+    });
+  };
+
+  return <RecordForm onSubmit={handleSubmit} />;
+}
+```
+
+캐시 무효화는 mutation options에 남겼습니다. 저장이 끝나면 성공과 실패에 관계없이 관련 데이터를 다시 확인해야 한다는 규칙이 모든 호출에 공통이기 때문입니다. 이 처리는 Promise를 반환하므로 캐시를 다시 맞추는 과정까지 mutation의 일부로 기다릴 수 있습니다.
+
+오류 toast는 화면이 문구를 결정하되 모든 저장 요청에 적용되도록 mutation을 만들 때 등록했습니다. 성공 toast와 modal 닫기는 현재 저장 버튼을 누른 화면에만 필요한 일이므로 `mutate`를 호출할 때 전달했습니다. 저장 도중 component가 사라져 이 callback이 실행되지 않더라도, 이미 사라진 modal을 닫을 필요는 없습니다. 캐시 무효화는 화면과 관계없이 계속 실행됩니다.
+
+이 사례에서 `onSettled`로 캐시를 무효화한 것은 하나의 선택이지 모든 mutation에 적용할 규칙은 아닙니다. 실패가 서버 데이터를 전혀 바꾸지 않는다고 보장된다면 불필요한 요청이 될 수 있습니다. 중요한 점은 어떤 방식을 고르든 캐시를 다시 맞추는 책임이 화면 callback의 실행 여부에 달려서는 안 된다는 것입니다.
+
+## React Query에는 변환이 끝난 데이터만 넘겼습니다
+
+캐시와 화면의 책임을 나누고 나니, 캐시에 무엇을 저장할지도 다시 보게 됐습니다. 이전에는 hook이나 query가 통신 결과를 해석하고 서버 응답을 화면에서 사용할 형태로 바꾸는 일까지 맡고 있었습니다.
+
+이 구조에서는 React Query cache에 통신 결과가 그대로 들어가거나, query를 사용하는 쪽에서 응답 형식을 알아야 했습니다. 서버 응답의 필드가 바뀌면 데이터 함수뿐 아니라 cache를 읽는 코드와 화면까지 영향을 받을 수 있었습니다. 오류가 발생했을 때도 화면이 통신 결과의 성공과 실패를 직접 구분해야 했습니다.
+
+통신 결과를 해석하고 모델로 바꾸는 과정을 React와 무관한 비동기 함수로 옮겼습니다.
+
+```ts
+type RecordModel = {
+  id: string;
+  title: string;
+};
+
+const getRecords = async (signal?: AbortSignal): Promise<RecordModel[]> => {
+  const result = await requestRecords({ signal });
+  const response = getValueOrThrow(result);
+
+  return response.items.map(mapRecordResponse);
+};
+
+const recordsQueryOptions = () =>
+  queryOptions({
+    queryKey: ['records'],
+    queryFn: ({ signal }) => getRecords(signal),
+    staleTime: 0,
+  });
+```
+
+`requestRecords`는 요청을 보내고 성공과 실패를 일관된 결과로 정리합니다. `getRecords`는 실패 결과를 예외로 전달하고, 성공 응답은 `RecordModel[]`로 바꿉니다. React Query는 이 과정의 세부사항을 모르고 `getRecords`가 반환한 데이터나 예외만 받습니다.
+
+이제 cache에는 서버 응답이나 성공·실패를 감싼 결과가 아니라 앱에서 사용할 모델만 저장됩니다. 화면도 서버 응답의 필드나 오류 형식을 직접 해석하지 않습니다. `select`는 cache에 저장된 값을 바꾸지 않고 화면이 구독하는 결과만 바꿉니다. 그래서 이 구조에서는 서버 응답을 기본 모델로 바꾸는 작업을 `getRecords`에서 끝내고, `select`는 화면별 표시 형태를 만들 때만 사용했습니다.
+
+React 의존성이 사라지자 데이터 처리 자체를 평범한 비동기 함수처럼 테스트할 수 있었습니다. Hook을 렌더링하지 않아도 요청 값이 올바르게 전달되는지, 응답이 모델로 변환되는지, 실패가 예외로 전달되는지를 각각 확인할 수 있었습니다. React Query를 사용하는 테스트는 query key와 함수 연결, 캐시 정책에만 집중할 수 있었습니다.
+
+데이터 함수가 독립되자 custom hook에 남은 일도 줄었습니다. 여러 곳에서 같은 서버 데이터를 사용하면서 query key와 query function을 따로 적으면, 하나의 cache entry를 서로 다르게 정의할 수 있었습니다. 이를 막고 공통 freshness 설정까지 함께 재사용하기 위해 `queryOptions`로 올렸습니다.
+
+## 같은 query를 여러 곳에서 다시 정의하지 않았습니다
+
+custom hook 안에 query 설정을 두면 화면끼리는 hook을 공유할 수 있지만, 데이터를 미리 가져오거나 cache를 직접 읽는 코드는 그 hook을 사용할 수 없습니다. 결국 hook 밖에서 query key와 query function을 다시 적어야 했습니다.
+
+이 반복은 코드가 길어진다는 것보다 같은 데이터를 서로 다르게 정의할 수 있다는 점이 문제였습니다. 한쪽에서 key만 바꾸면 같은 데이터가 서로 다른 cache entry에 저장될 수 있고, 같은 key에 서로 다른 query function을 연결하면 하나의 cache entry를 가리키면서도 조회 계약은 사용처마다 달라집니다. freshness 설정이 빠진 곳에서는 같은 데이터도 다시 가져오는 시점이 달라집니다.
+
+앞에서 만든 `recordsQueryOptions`를 query를 사용하는 모든 곳의 출발점으로 삼았습니다.
+
+```tsx
+function RecordsPage() {
+  const recordsQuery = useQuery(recordsQueryOptions());
+
+  return <RecordList records={recordsQuery.data ?? []} />;
+}
+
+const prefetchRecords = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery(recordsQueryOptions());
+
+const readCachedRecords = (queryClient: QueryClient) =>
+  queryClient.getQueryData(recordsQueryOptions().queryKey);
+```
+
+화면의 조회, 미리 가져오기, cache 읽기가 같은 query key를 공유합니다. 조회와 미리 가져오기는 같은 query function과 freshness 설정도 함께 사용합니다. key나 데이터 함수가 바뀌어도 `recordsQueryOptions` 한곳만 수정하면 됩니다. `getQueryData`가 반환할 데이터 타입도 이 정의를 따라 추론됩니다.
+
+`queryOptions`가 새로운 실행 과정을 만드는 것은 아닙니다. 전달한 설정 객체를 그대로 돌려주면서 query key와 query function의 타입 관계를 보존합니다. 화면마다 달라져야 하는 `select` 같은 설정은 이 공통 정의 위에 덧붙일 수 있습니다.
+
+이렇게 query 정의를 재사용하기 위해 custom hook을 둘 필요는 없어졌습니다. 하지만 책임을 options로 옮기는 것만으로 리팩토링이 끝난 것은 아니었습니다. 여러 저장 흐름에 공통으로 연결된 QueryClient가 기능별 반환 형식과 cache key까지 알고 있었기 때문입니다.
+
+## 공용 QueryClient에는 공통 오류 처리만 남겼습니다
+
+기존의 공용 mutation 처리에는 오류를 알리는 일뿐 아니라 기능별 캐시를 갱신하는 일도 들어 있었습니다. mutation의 반환값이 특정 성공 형식인지 확인하고, 함께 전달된 query key를 찾아 무효화하는 구조였습니다. 이 방식에서는 공용 처리가 각 데이터 함수의 반환 형식과 어떤 cache entry가 영향을 받는지까지 알아야 했습니다.
+
+데이터 함수가 성공하면 모델이나 `void`를 반환하고 실패하면 예외를 전달하도록 바뀌자, 특정 반환 형식에 의존하던 공용 캐시 처리는 더 이상 맞지 않았습니다. 어떤 저장이 어떤 데이터를 오래된 상태로 만드는지는 해당 데이터를 정의한 곳이 가장 잘 알고 있습니다. 캐시 무효화는 앞에서 본 것처럼 기능별 mutation options로 옮겼습니다.
+
+공용 QueryClient에는 여러 mutation에 똑같이 적용할 수 있는 오류 처리만 남겼습니다. 다음 코드는 실제 구현을 단순화한 예시입니다.
+
+```ts
+type ErrorFeedback = 'global' | 'local' | 'silent';
+
+const mutationCache = new MutationCache({
+  onError: (error, _variables, _context, mutation) => {
+    if (mutation.meta?.errorFeedback !== 'global') return;
+
+    toast.error(getCommonErrorMessage(error));
+  },
+});
+
+const appQueryClient = new QueryClient({ mutationCache });
+
+const saveRecordMutationOptions = (queryClient: QueryClient) =>
+  mutationOptions({
+    mutationFn: saveRecord,
+    meta: { errorFeedback: 'local' satisfies ErrorFeedback },
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: recordsQueryOptions().queryKey,
+      }),
+  });
+```
+
+여기서 `errorFeedback`은 React Query가 제공하는 옵션이 아니라, 오류를 어디에서 보여줄지 나타내기 위해 mutation `meta`에 정의한 정책입니다. `global`이면 공용 오류 메시지를 보여주고, `local`이면 화면이 문맥에 맞는 메시지를 결정하며, `silent`이면 사용자에게 오류를 표시하지 않습니다.
+
+이제 공용 QueryClient는 특정 mutation의 반환값이나 기능별 query key를 해석하지 않습니다. 화면도 캐시를 언제 갱신할지 결정하지 않습니다. 공용 처리는 공통 오류 경로를, mutation options는 데이터 정합성을, 화면은 사용자가 보게 될 반응을 맡았습니다.
+
+## custom hook은 조합할 책임이 있을 때만 남겼습니다
+
+단순히 `useQuery(queryOptions())`를 다시 반환하는 custom hook은 데이터 정의에 새로운 의미를 더하지 못했습니다. query options를 직접 사용해도 key, 데이터 함수와 freshness 설정을 같은 형태로 재사용할 수 있기 때문입니다.
+
+그렇다고 모든 custom hook을 없애지는 않았습니다. React context나 route에서 입력을 가져오거나, 여러 query와 mutation을 하나의 흐름으로 조합하거나, 여러 화면이 같은 파생 상태와 행동을 사용한다면 hook 자체가 재사용할 계약을 갖습니다.
+
+```tsx
+function useRecordWorkflow() {
+  const queryClient = useQueryClient();
+  const recordsQuery = useQuery(recordsQueryOptions());
+  const saveMutation = useMutation(saveRecordMutationOptions(queryClient));
+
+  return {
+    records: recordsQuery.data ?? [],
+    saveRecord: saveMutation.mutate,
+    isPending: recordsQuery.isPending || saveMutation.isPending,
+  };
+}
+```
+
+이 hook은 query key나 데이터 함수를 새로 정의하지 않습니다. 이미 만들어 둔 query와 mutation options를 조합하고, 여러 화면이 함께 사용할 조회 결과와 저장 행동을 하나의 계약으로 제공합니다. 오류 문구나 modal 상태처럼 특정 화면에만 필요한 반응도 여전히 받지 않습니다.
+
+custom hook을 유지할지 판단할 때는 내부에서 `useQuery`를 호출하는지가 아니라, React에 묶인 입력과 생명주기 또는 여러 요청의 조합 자체가 재사용 대상인지 확인했습니다. 단순 실행만 남았다면 options를 직접 사용하고, 조합할 책임이 남았다면 hook을 유지했습니다.
+
+## 테스트도 책임의 경계를 따라 나눴습니다
+
+책임이 나뉘자 테스트도 hook 하나를 렌더링해 전체 흐름을 한꺼번에 확인할 필요가 줄었습니다. 실패한 결과가 어디에서 예외가 되고, 어떤 cache entry가 다시 확인되며, 어떤 화면 반응이 실행되는지를 각 경계에서 따로 검증할 수 있었습니다.
+
+React와 무관한 데이터 함수 테스트는 요청 값과 응답 변환, 실패의 예외 전달을 확인했습니다. Query options 테스트는 query key와 데이터 함수의 연결, freshness 설정을 확인했고, mutation options 테스트는 저장 이후 무효화할 cache entry를 확인했습니다. 공용 QueryClient 테스트는 `global`, `local`, `silent` 정책에 따라 공용 오류 메시지가 표시되거나 억제되는지 확인했습니다.
+
+화면 테스트가 필요하다면 이제 toast와 modal처럼 사용자에게 보이는 결과에 집중할 수 있습니다. 서버 응답 변환이나 query key 조립까지 화면 테스트에서 다시 검증하지 않아도 됩니다. 테스트의 경계가 코드의 책임 경계와 같아지면서 실패 원인도 더 좁은 위치에서 찾을 수 있게 됐습니다.
+
+## custom hook을 없애는 것이 목표는 아니었습니다
+
+리팩토링 뒤에는 통신 결과를 정리하는 코드, 모델을 반환하거나 예외를 전달하는 데이터 함수, query와 mutation options, 공용 QueryClient, 화면이 서로 다른 책임을 갖게 됐습니다. React에 묶인 조합이 필요한 곳에는 custom hook도 남았습니다.
+
+결과적으로 일부 custom hook은 사라졌지만, 제거 자체가 목적은 아니었습니다. 실패했을 때도 끝까지 실행되어야 하는 일과 화면이 있을 때만 의미가 있는 일, 서버 응답을 아는 일과 화면의 문맥을 아는 일을 같은 위치에 두지 않으려 한 결과였습니다.
+
+이 과정을 거치며 좋은 추상화의 단위는 비슷하게 생긴 코드를 한곳에 모으는 것이 아니라, 함께 변하고 함께 실패해야 하는 책임이라는 결론을 내렸습니다.

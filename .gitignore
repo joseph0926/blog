@@ -55,3 +55,5 @@ temp.*
 **/prisma/migrations/
 
 docs/uiux-reference-images
+
+.pnpm-store

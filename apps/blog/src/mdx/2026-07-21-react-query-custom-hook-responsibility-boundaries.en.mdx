@@ -1,0 +1,249 @@
+---
+slug: '2026-07-21-react-query-custom-hook-responsibility-boundaries'
+title: 'Why I separated data processing and UI responsibilities from React Query custom hooks'
+description: 'Server response mapping, error handling, cache synchronization, and UI feedback had become mixed inside custom hooks. This post explains how I reassigned them to React-independent data functions, query and mutation options, and components.'
+date: '2026-07-21'
+thumbnail: '/post/react-query.webp'
+tags: ['react-query', 'frontend']
+---
+
+# Why I separated data processing and UI responsibilities from React Query custom hooks
+
+## A failed save made the missing boundaries visible
+
+In a production project, I had separated the code that reads and updates server data into feature-specific custom hooks. Components only used the data and functions returned by those hooks, without needing to know how the data was fetched.
+
+As long as saves succeeded, the problem was hard to see. After a mutation succeeded, all I had to do was show a success message and close the modal. Because the server-data code lived together inside the hook, the related logic also seemed easy to find.
+
+The problem surfaced when a save failed. A single call path now had to normalize a network failure and pass it along as an error the UI could handle, show a failure toast, synchronize potentially changed data with the cache, and preserve the modal state so the user's input would not disappear. What remained unclear was where each responsibility should run and by what rule.
+
+Should the hook or the component show the error to the user? Who should recheck the cache after a failed save? Should the data-processing layer know whether to keep the modal open or close it? As different components needed different reactions, the hook began accepting callbacks and passing those decisions back and forth with the UI.
+
+The following is not a reconstruction of the original code, but a simplified version of how those responsibilities were connected.
+
+```tsx
+function useSaveRecord({
+  onSaved,
+  onSaveFailed,
+}: {
+  onSaved: () => void;
+  onSaveFailed: (error: Error) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: saveRecord,
+    onSuccess: () => {
+      onSaved();
+    },
+    onError: (error) => {
+      onSaveFailed(error);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['records'] }),
+  });
+}
+
+function RecordModal() {
+  const saveMutation = useSaveRecord({
+    onSaved: () => {
+      toast.success('Saved successfully.');
+      closeModal();
+    },
+    onSaveFailed: () => {
+      toast.error('Failed to save.');
+    },
+  });
+
+  return <RecordForm onSubmit={saveMutation.mutate} />;
+}
+```
+
+In this example, the success and failure handlers are not attached separately to each save request. They are registered when the hook creates the mutation. The problem is not whether the callbacks run. It is that a hook with a shared cache policy also owns reactions that differ from one component to another.
+
+The hook decided when to synchronize the cache while also forwarding the save result to component-specific callbacks. A reusable cache policy and reactions needed only by this modal were tied to the same execution path.
+
+One custom hook contained both the lifecycle of server data and the lifecycle of the UI. It was difficult to tell whether the hook was abstracting shared logic or merely relaying unrelated responsibilities through one place. That question led me to redraw the boundaries of the entire data flow.
+
+## Cache synchronization had to finish even after the component disappeared
+
+To separate the responsibilities, I first asked, “Does this still need to run after the component disappears?” The answer differed by task.
+
+If server data has changed, the cache must be synchronized so that other components can read the latest data. That process should not stop just because the component that started the save has disappeared. Showing a success message or closing a modal, on the other hand, matters only while that UI still exists.
+
+React Query lets you register handlers that apply to every save when the mutation is created. It also lets you add callbacks for the particular call to `mutate`. I put data rules that must hold independently of the UI in the former, and reactions needed only for a particular click and component in the latter.
+
+```tsx
+const saveRecordMutationOptions = (queryClient: QueryClient) =>
+  mutationOptions({
+    mutationFn: saveRecord,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['records'] }),
+  });
+
+function RecordModal() {
+  const queryClient = useQueryClient();
+  const saveMutation = useMutation({
+    ...saveRecordMutationOptions(queryClient),
+    onError: () => {
+      toast.error('Failed to save.');
+    },
+  });
+
+  const handleSubmit = (input: RecordInput) => {
+    saveMutation.mutate(input, {
+      onSuccess: () => {
+        toast.success('Saved successfully.');
+        closeModal();
+      },
+    });
+  };
+
+  return <RecordForm onSubmit={handleSubmit} />;
+}
+```
+
+I kept cache invalidation in the mutation options because every call follows the same rule: once a save settles, recheck the related data whether the request succeeded or failed. The handler returns a Promise, so the mutation can wait until cache synchronization finishes as part of its own lifecycle.
+
+The component chooses the error-toast copy, but the handler is registered when the mutation is created so that it applies to every save. The success toast and modal close belong only to the component where the user clicked Save, so I pass them when calling `mutate`. If that callback does not run because the component disappears during the save, there is no longer a modal to close. Cache invalidation still continues independently of the UI.
+
+Invalidating the cache in `onSettled` was a choice for this case, not a rule for every mutation. If a failed request is guaranteed not to change server data, the extra request may be unnecessary. What matters is that, whichever strategy is chosen, cache synchronization must not depend on whether a component callback runs.
+
+## React Query received only fully transformed data
+
+Once cache and UI responsibilities were separated, I reconsidered what should be stored in the cache. Previously, a hook or query had also interpreted the transport result and transformed the server response into a shape the UI could use.
+
+With that structure, the React Query cache could contain the raw transport result, or consumers of the query had to understand the response shape. A change to a server-response field could affect not only the data function but also cache readers and components. On failure, the UI also had to distinguish success from failure in the transport result.
+
+I moved the interpretation and model mapping into an asynchronous function with no React dependency.
+
+```ts
+type RecordModel = {
+  id: string;
+  title: string;
+};
+
+const getRecords = async (signal?: AbortSignal): Promise<RecordModel[]> => {
+  const result = await requestRecords({ signal });
+  const response = getValueOrThrow(result);
+
+  return response.items.map(mapRecordResponse);
+};
+
+const recordsQueryOptions = () =>
+  queryOptions({
+    queryKey: ['records'],
+    queryFn: ({ signal }) => getRecords(signal),
+    staleTime: 0,
+  });
+```
+
+`requestRecords` sends the request and normalizes success and failure into a consistent result. `getRecords` turns a failure into an exception and maps a successful response to `RecordModel[]`. React Query does not know the details of that work; it receives only the data or exception produced by `getRecords`.
+
+The cache now stores application models instead of server responses or wrappers that represent success and failure. Components no longer interpret server-response fields or error formats. `select` changes only the value observed by a component, not the value stored in the cache. In this structure, I therefore completed the server-response-to-model mapping inside `getRecords` and used `select` only for component-specific projections.
+
+Removing the React dependency also made the data processing testable as an ordinary asynchronous function. Without rendering a hook, I could test whether request values were forwarded correctly, responses were mapped into models, and failures were raised as exceptions. Tests involving React Query could then focus on the connection between the query key and function, along with the cache policy.
+
+Once the data function stood on its own, there was less work left for a custom hook. If multiple consumers declared the query key and query function separately for the same server data, they could define one cache entry in different ways. To prevent that and reuse the freshness setting with them, I moved all three into `queryOptions`.
+
+## I stopped redefining the same query in multiple places
+
+Putting query configuration inside a custom hook lets components share that hook, but code that prefetches data or reads the cache directly cannot use it. The query key and query function eventually have to be written again outside the hook.
+
+The problem with this repetition was not the number of lines. It was the possibility of defining the same data differently. If only one key changes, identical data can end up in separate cache entries. If different query functions are paired with the same key, consumers point to one cache entry while following different fetch contracts. If a freshness setting is missing in one place, even the timing of refetches differs for the same data.
+
+I made the `recordsQueryOptions` defined above the starting point for every query consumer.
+
+```tsx
+function RecordsPage() {
+  const recordsQuery = useQuery(recordsQueryOptions());
+
+  return <RecordList records={recordsQuery.data ?? []} />;
+}
+
+const prefetchRecords = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery(recordsQueryOptions());
+
+const readCachedRecords = (queryClient: QueryClient) =>
+  queryClient.getQueryData(recordsQueryOptions().queryKey);
+```
+
+The component query, prefetch, and cache read now share the same query key. The query and prefetch also share the same query function and freshness setting. If the key or data function changes, I only need to update `recordsQueryOptions`. The return type of `getQueryData` is inferred from the same definition.
+
+`queryOptions` does not create a new execution path. It returns the configuration object it receives while preserving the type relationship between the query key and query function. Settings such as `select`, which may differ by component, can be added on top of this shared definition.
+
+This meant I no longer needed a custom hook merely to reuse a query definition. But moving responsibilities into options did not complete the refactoring. The shared QueryClient used across save flows still knew about feature-specific return shapes and cache keys.
+
+## The shared QueryClient kept only common error handling
+
+The shared mutation handling previously did more than report errors. It also updated feature-specific caches. It checked whether a mutation returned a particular success shape and invalidated query keys passed alongside it. The shared handler therefore had to understand both the return shape of each data function and which cache entries it affected.
+
+Once data functions returned a model or `void` on success and raised an exception on failure, the shared cache handler that depended on a particular return shape no longer fit. The code that defines the data is in the best position to know which writes make it stale. I moved cache invalidation into feature-specific mutation options, as in the earlier example.
+
+Only error handling that could apply equally to many mutations remained in the shared QueryClient. The following is a simplified version of the implementation.
+
+```ts
+type ErrorFeedback = 'global' | 'local' | 'silent';
+
+const mutationCache = new MutationCache({
+  onError: (error, _variables, _context, mutation) => {
+    if (mutation.meta?.errorFeedback !== 'global') return;
+
+    toast.error(getCommonErrorMessage(error));
+  },
+});
+
+const appQueryClient = new QueryClient({ mutationCache });
+
+const saveRecordMutationOptions = (queryClient: QueryClient) =>
+  mutationOptions({
+    mutationFn: saveRecord,
+    meta: { errorFeedback: 'local' satisfies ErrorFeedback },
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: recordsQueryOptions().queryKey,
+      }),
+  });
+```
+
+`errorFeedback` is not an option built into React Query. It is a policy I defined in the mutation `meta` to describe where an error should be shown. `global` displays a shared error message, `local` lets the component choose a context-specific message, and `silent` suppresses user-facing error feedback.
+
+The shared QueryClient no longer interprets a particular mutation's return value or feature-specific query key. Components no longer decide when to synchronize the cache. Shared handling owns the common error path, mutation options own data consistency, and components own the reactions users see.
+
+## I kept custom hooks only when they had something to compose
+
+A custom hook that merely returned `useQuery(queryOptions())` added no new meaning to the data definition. Consumers could use the query options directly while still reusing the same key, data function, and freshness setting.
+
+That did not mean removing every custom hook. A hook still has a reusable contract when it gets inputs from React context or the route, composes multiple queries and mutations into one flow, or exposes derived state and actions shared by multiple components.
+
+```tsx
+function useRecordWorkflow() {
+  const queryClient = useQueryClient();
+  const recordsQuery = useQuery(recordsQueryOptions());
+  const saveMutation = useMutation(saveRecordMutationOptions(queryClient));
+
+  return {
+    records: recordsQuery.data ?? [],
+    saveRecord: saveMutation.mutate,
+    isPending: recordsQuery.isPending || saveMutation.isPending,
+  };
+}
+```
+
+This hook does not redefine a query key or data function. It composes the existing query and mutation options and provides a single contract for the query result and save action that multiple components can share. It still does not accept reactions needed by only one component, such as error copy or modal state.
+
+When deciding whether to keep a custom hook, I looked beyond whether it called `useQuery`. I asked whether React-bound inputs and lifecycles, or the composition of multiple requests, were themselves worth reusing. If only execution remained, I used the options directly. If there was something meaningful to compose, I kept the hook.
+
+## Tests followed the same responsibility boundaries
+
+Once the responsibilities were separated, there was less need to render one hook and verify the whole flow at once. I could test at each boundary where a failed result became an exception, which cache entry was rechecked, and which UI reaction ran.
+
+Tests for React-independent data functions checked request values, response mapping, and whether failures were raised as exceptions. Query-options tests checked the connection between query keys and data functions, as well as freshness settings. Mutation-options tests checked which cache entries were invalidated after a save. Shared QueryClient tests checked whether the shared error message was displayed or suppressed for the `global`, `local`, and `silent` policies.
+
+Component tests could now focus on user-visible results such as toasts and modal state. They no longer had to recheck server-response mapping or query-key assembly. As the test boundaries came to match the responsibility boundaries in the code, failures also became easier to locate.
+
+## Removing custom hooks was never the goal
+
+After the refactoring, the code that normalizes transport results, the data functions that return models or raise exceptions, query and mutation options, the shared QueryClient, and components each had distinct responsibilities. Custom hooks remained wherever React-bound composition was still needed.
+
+Some custom hooks disappeared as a result, but removing them was never the goal. It was the consequence of separating work that must finish even after a failure from work that matters only while a component exists, and separating knowledge of server responses from knowledge of UI context.
+
+The lesson I took from this refactoring is that a good abstraction is not a place to collect code that looks similar. It is a boundary around responsibilities that should change and fail together.
