@@ -47,10 +47,14 @@ generated
 .turbo
 
 temp.*
+artifacts/
 
 # claude code
 .claude/settings.local.json
 .claude/launch.json
+# codex
+.codex/
+
 
 **/prisma/migrations/
 
