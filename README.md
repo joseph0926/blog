@@ -1,6 +1,6 @@
 # 김영훈 기술 블로그
 
-React와 TypeScript로 제품 문제를 해결하며 배운 내용을 기록하는 개인 기술 블로그입니다.
+React와 TypeScript로 제품 문제를 해결하며 배운 내용을 기록하고, 고민과 해결 과정을 구체적인 사례로 남기는 개인 기술 블로그입니다.
 
 [블로그 바로가기](https://www.joseph0926.com) · [English](https://www.joseph0926.com/en)
 
@@ -53,7 +53,7 @@ React와 TypeScript로 제품 문제를 해결하며 배운 내용을 기록하�
 
 ## 로컬 실행
 
-Node.js 24와 pnpm 11.15.1 이상이 필요합니다. 저장소 루트에서 실행합니다.
+Node.js 24와 pnpm 11.15.1이 필요합니다. 저장소 루트에서 실행합니다.
 
 ```sh
 fnm use
@@ -66,17 +66,17 @@ pnpm dev
 
 ## 명령어
 
-| 명령어                                                        | 설명                                           |
-| ------------------------------------------------------------- | ---------------------------------------------- |
-| `pnpm dev`                                                    | Turborepo 개발 서버 실행                       |
-| `pnpm build`                                                  | 전체 워크스페이스 빌드                         |
-| `pnpm type-check`                                             | TypeScript 타입 검사                           |
-| `pnpm --filter @joseph0926/blog lint`                         | 블로그 ESLint 검사                             |
-| `pnpm --filter @joseph0926/blog format:check`                 | 블로그 포맷 검사                               |
-| `pnpm --filter @joseph0926/blog test:ci`                      | Vitest 단위·통합 테스트 실행                   |
-| `pnpm exec playwright test --config=e2e/playwright.config.ts` | Playwright E2E 테스트 실행                     |
-| `pnpm lint:fix`                                               | 전체 워크스페이스 ESLint 자동 수정             |
-| `./scripts/verify.sh`                                         | lint, format, typecheck, test, build 순차 검증 |
+| 명령어                                                        | 설명                                                       |
+| ------------------------------------------------------------- | ---------------------------------------------------------- |
+| `pnpm dev`                                                    | Turborepo 개발 서버 실행                                   |
+| `pnpm build`                                                  | 전체 워크스페이스 빌드                                     |
+| `pnpm type-check`                                             | TypeScript 타입 검사                                       |
+| `pnpm --filter @joseph0926/blog lint`                         | 블로그 ESLint 검사                                         |
+| `pnpm --filter @joseph0926/blog format:check`                 | 블로그 JS/TS 소스 Prettier 검사                            |
+| `pnpm --filter @joseph0926/blog test:ci`                      | Vitest 단위·통합 테스트 실행                               |
+| `pnpm exec playwright test --config=e2e/playwright.config.ts` | Playwright E2E 테스트 실행                                 |
+| `pnpm lint:fix`                                               | 전체 워크스페이스 ESLint 자동 수정                         |
+| `./scripts/verify.sh`                                         | lint 자동 수정 후 format, typecheck, test, build 순차 검증 |
 
 ## 글 작성
 
