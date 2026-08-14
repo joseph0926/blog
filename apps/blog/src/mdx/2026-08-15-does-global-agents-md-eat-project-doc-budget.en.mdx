@@ -1,0 +1,135 @@
+---
+slug: '2026-08-15-does-global-agents-md-eat-project-doc-budget'
+title: 'Does a global AGENTS.md really eat into the project-doc budget?'
+description: 'I kept seeing advice that a large global instruction file leaves less room for project AGENTS.md files, and my own wiki said the same. I measured the model-visible prompt input from codex debug prompt-input byte by byte and got a different result. This post covers the model I derived, how I tested it, and how it held up three days later after the files had changed.'
+date: '2026-08-15'
+tags: ['ai', 'codex', 'agents-md']
+thumbnail: '/post/ai.webp'
+---
+
+# Does a global AGENTS.md really eat into the project-doc budget?
+
+## The advice to shrink global instructions
+
+I maintain global instruction files for Claude Code, Codex, and Copilot, with a 200-line cap for each file. I keep running into that cap, so I often have to decide what to trim. One piece of advice kept coming up:
+
+> Shrink your global AGENTS.md. A large global file causes project instructions to be truncated.
+
+Codex combines `~/.codex/AGENTS.md` at global scope with `AGENTS.md` files from the repository and puts them into the prompt. The `project_doc_max_bytes` setting applies a size limit of 32 KiB by default. What was unclear was **which files count toward that limit**.
+
+The [official documentation](https://developers.openai.com/codex/guides/agents-md) says Codex stops adding files once their "combined size" reaches the limit, but it does not say whether the global file is part of that total. A third-party [configuration guide](https://thepromptshelf.dev/blog/agents-md-codex-setup-guide-2026/) makes a stronger claim: "Every byte in `~/.codex/AGENTS.md` is a byte that cannot be used by project-level files." It also recommends keeping the global file below 2 to 3 KB.
+
+My local Codex wiki said this:
+
+> Empty files are ignored. The total size is limited by `project_doc_max_bytes`, which defaults to 32 KiB.
+
+By writing "total size," I had made the same assumption. I thought the global and project files had to fit together within 32 KiB.
+
+Under that assumption, my global AGENTS.md was the first file I needed to shrink. It was 21,547 bytes at the time. Subtracting it from the default 32,768-byte limit left only about 11 KiB for project instructions.
+
+The situation was harder to reason about because truncation is **silent**. There is an [issue in the Codex repository about AGENTS.md being truncated without a warning](https://github.com/openai/codex/issues/7138). While using Codex, I could not see which file had been truncated or by how much, so I accepted the interpretation without testing it.
+
+Direct measurement showed that the interpretation was wrong.
+
+## Inspecting the model-visible prompt input
+
+Codex has a command for inspecting the model input:
+
+```bash
+codex debug prompt-input
+```
+
+The command prints the list of model-visible input messages as JSON. It shows the skills manifest, permission instructions, and the assembled AGENTS.md content as separate messages. The AGENTS.md chain appears in one developer message that begins with `# AGENTS.md instructions for <path>`.
+
+The `-c` flag can override a setting for that run:
+
+```bash
+codex debug prompt-input -c project_doc_max_bytes=5000
+```
+
+By changing `project_doc_max_bytes` and measuring the AGENTS.md block, I could infer what the limit was applied to.
+
+## Experiment setup
+
+These were the initial conditions:
+
+- codex-cli 0.147.0 on 2026-08-12
+- Working directory: one level below the repository root. The chain contained the root `AGENTS.md` at 10,563 B and the current directory's `AGENTS.md` at 11,696 B, for a total of 22,259 B
+- Global `~/.codex/AGENTS.md`: 21,547 B
+- Measurement: UTF-8 byte length of the message whose text begins with `# AGENTS.md instructions`
+
+I observed four values of `project_doc_max_bytes`, built a model from those observations, and then checked its predictions against the remaining values.
+
+## Results
+
+|                   limit | observed block | model prediction |
+| ----------------------: | -------------: | ---------------: |
+|                   5,000 |       26,675 B |         26,677 B |
+|                  15,000 |       36,679 B |         36,677 B |
+|                  20,000 |       41,677 B |         41,677 B |
+| 25,000 / default 32,768 |       43,936 B |         43,936 B |
+
+The simplest model that explained the observations was:
+
+```
+block size = global (21,547 B, unaffected by the limit)
+           + min(total project-doc bytes, project_doc_max_bytes)
+           + wrapper (130 B)
+```
+
+With a limit of 5,000, the block measured 26,675 B: the 21,547-byte global file, 5,000 bytes of project instructions, and the wrapper. Raising the limit by 10,000 raised the block size by the same amount. Once the limit exceeded the 22,259-byte project-doc total, the block stopped growing at 43,936 B.
+
+The first row identifies the scope of the limit. **The 5,000-byte limit is smaller than the 21,547-byte global file.** If the global file counted toward the limit, it would have been truncated first. Instead, the block contained the full global file, while the project instructions were truncated at 5,000 bytes.
+
+`project_doc_max_bytes` was limiting the project documents. The global file did not consume that budget and was included in full.
+
+The predictions differed from the observations by at most 2 bytes. The later retest showed that the wrapper was not constant, and the implementation also converts a byte-truncated value into a lossy UTF-8 string. I therefore did not assign the small residual to one cause. It did not affect the question I was testing: whether the global file counted toward the limit.
+
+## Retesting three days later with different inputs
+
+Before writing this post, I ran the measurements again on 2026-08-15. The CLI version was still 0.147.0, but the files had changed. The global file had grown from 21,547 to 23,284 B, and the root AGENTS.md from 10,563 to 10,741 B. These were new inputs for the model.
+
+This time I ran the command from the repository root.
+
+|          limit | observed block | model prediction |
+| -------------: | -------------: | ---------------: |
+|          5,000 |       28,403 B |         28,403 B |
+|         15,000 |       34,144 B |         34,144 B |
+|         20,000 |       34,144 B |         34,144 B |
+| default 32,768 |       34,144 B |         34,144 B |
+
+All four predictions matched byte for byte. I also checked by substring that the entire 23,284-byte global file was still present with a limit of 5,000.
+
+The retest revealed two details I had missed in the first measurement.
+
+First, **the working directory determines which files belong to the project-doc total**. When I ran the command from the root, the block stopped growing at 34,144 B once the limit reached 15,000. That was the 23,284-byte global file plus the 10,741-byte root AGENTS.md. The 11,696-byte AGENTS.md in the nested directory was not part of the chain. Codex searches from the repository root **down to the current working directory**, so a run from the root never considers files below it. The set of files consuming the budget can differ within the same repository.
+
+Second, the wrapper overhead depended on the shape of the chain. It was 119 B with one project document and 130 B with two. The header includes a path, and separators are inserted between documents. I had only observed one chain shape in the first measurement, so I had treated the wrapper as a constant.
+
+## What actually needed trimming
+
+At first, I thought I needed to shrink the 21 KiB global file to keep project instructions safe. After measuring, I started with the repository documents instead.
+
+The project-doc chain in that repository was already 22,437 B, or **68% of the default limit**. It had 10,331 B left. Adding another similarly sized AGENTS.md in a nested directory would push it over the limit. Those repository files were what I needed to trim or monitor.
+
+The global file still consumes context tokens because it is included in every session input. There are still reasons to control its size. That cost is separate from project-document truncation caused by `project_doc_max_bytes`. Treating them as one problem leads to advice that does not match the measurement: "Shrink the global file to prevent project instructions from being truncated."
+
+I updated my wiki with the reproduction steps. I replaced "The total size is limited to 32 KiB" with "The limit applies only to the project chain from the root to the working directory; the global file is not counted." The incorrect wording had been there since 2026-05-30, and for more than two months I had used it while considering whether to trim the global file.
+
+I did not originally plan this as a standalone experiment. I was reviewing my global rules against 251 failures collected from real work over the previous three months. I evaluated 18 rule candidates using a two-strike threshold: I would change a rule only after seeing the same failure twice. I discarded three candidates that lacked enough evidence.
+
+One candidate claimed that the 200-line cap on global instructions competed with the project-doc budget. Once I checked its premise, I removed that candidate from the revision list.
+
+## What one measurement changed
+
+There was no visible signal during normal use that truncation had happened, and the official documentation did not define the scope of "combined size." The guide I had read and my own wiki recorded only one interpretation, so I used that interpretation for months.
+
+One command was enough to check it:
+
+```bash
+codex debug prompt-input -c project_doc_max_bytes=5000
+```
+
+Find the message beginning with `# AGENTS.md instructions`, measure its size, and repeat with a few limits. Once I saw the full global file inside a block produced with a limit smaller than that file, a two-month misunderstanding ended in five minutes.
+
+Removing instructions has a cost because the mistakes they prevented can return. In this case, I nearly trimmed the global file before checking which files counted toward the budget. From now on, I will reproduce the truncation with this command before changing an instruction file.
