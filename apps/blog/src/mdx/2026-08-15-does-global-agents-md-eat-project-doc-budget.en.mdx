@@ -1,7 +1,7 @@
 ---
 slug: '2026-08-15-does-global-agents-md-eat-project-doc-budget'
 title: 'Does a global AGENTS.md really eat into the project-doc budget?'
-description: 'I kept seeing advice that a large global instruction file leaves less room for project AGENTS.md files, and my own wiki said the same. I measured the model-visible prompt input from codex debug prompt-input byte by byte and got a different result. This post covers the model I derived, how I tested it, and how it held up three days later after the files had changed.'
+description: 'I understood project_doc_max_bytes to apply to the combined size of global and project documents, and wrote the same thing in my wiki. Measuring the model-visible prompt with codex debug prompt-input produced a different result. This post traces how I varied the limit, identified its scope, and retested the finding after the files changed.'
 date: '2026-08-15'
 tags: ['ai', 'codex', 'agents-md']
 thumbnail: '/post/ai.webp'
@@ -9,17 +9,17 @@ thumbnail: '/post/ai.webp'
 
 # Does a global AGENTS.md really eat into the project-doc budget?
 
-## The advice to shrink global instructions
+## What counts toward the 32 KiB limit?
 
-I maintain global instruction files for Claude Code, Codex, and Copilot, with a 200-line cap for each file. I keep running into that cap, so I often have to decide what to trim. One piece of advice kept coming up:
+I maintain global instruction files for Claude Code, Codex, and Copilot, with a 200-line cap for each file. While reviewing those instructions, I linted the Codex documentation in my local wiki. Codex flagged an unclear boundary in my description of `project_doc_max_bytes`:
 
-> Shrink your global AGENTS.md. A large global file causes project instructions to be truncated.
+> Does "total size" include both global and project instructions, or only project documents? This needs to be verified.
 
 Codex combines `~/.codex/AGENTS.md` at global scope with `AGENTS.md` files from the repository and puts them into the prompt. The `project_doc_max_bytes` setting applies a size limit of 32 KiB by default. What was unclear was **which files count toward that limit**.
 
 The official [AGENTS.md guide](https://learn.chatgpt.com/docs/agent-configuration/agents-md) describes global and project instructions, then says Codex stops adding files when their "combined size" reaches `project_doc_max_bytes`. That sentence alone does not make it clear whether the global file counts toward the total. The [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference) describes the setting as the maximum number of bytes read while building "project instructions." That points toward a project-only scope, but it still does not state that the global `AGENTS.md` is excluded. The [advanced configuration guide](https://learn.chatgpt.com/docs/config-file/config-advanced) uses different wording again, describing the setting as how much to read from "each `AGENTS.md` file." The official pages did not provide one consistent, explicit account of the setting's scope.
 
-A third-party [configuration guide](https://thepromptshelf.dev/blog/agents-md-codex-setup-guide-2026/) makes a stronger claim: "Every byte in `~/.codex/AGENTS.md` is a byte that cannot be used by project-level files." It also recommends keeping the global file below 2 to 3 KB.
+I had understood the limit to cover the global and project files together. A third-party [configuration guide](https://thepromptshelf.dev/blog/agents-md-codex-setup-guide-2026/) made the same interpretation and advised shrinking the global file: "Every byte in `~/.codex/AGENTS.md` is a byte that cannot be used by project-level files." It also recommended keeping the global file below 2 to 3 KB.
 
 My local Codex wiki said this:
 
