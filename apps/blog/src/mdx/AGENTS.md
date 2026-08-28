@@ -19,7 +19,7 @@ sourceHash: sha256:<한국어 MDX 전체 bytes의 SHA-256>
 
 `sourceHash`는 번역과 최종 검수가 끝난 뒤 갱신한다. AI 도구 이름이나 검수 metadata는 저장소 파일에 기록하지 않고 completion receipt에서만 보고한다.
 
-기존 영어 번역본에 `sourceHash`가 없으면 untouched legacy로 허용한다. 한국어 또는 영어 파일을 처음 변경할 때 새 계약으로 전환하며, 그 뒤 누락되거나 오래된 hash는 오류다.
+기존 영어 번역본에 `sourceHash`가 없으면 `apps/blog/scripts/content-legacy-baseline.json`에 기록된 한국어와 영어 파일 hash가 모두 현재 bytes와 일치할 때만 approved legacy로 허용한다. 어느 파일이든 hash가 달라지면 새 계약으로 전환하며, 번역과 최종 검수 뒤 `sourceHash`를 기록하고 baseline entry를 제거해야 한다. 새 legacy entry는 자동 생성하지 않는다.
 
 ## Frontmatter와 참조
 
@@ -29,7 +29,7 @@ sourceHash: sha256:<한국어 MDX 전체 bytes의 SHA-256>
 - 실행형 대문자 JSX component는 `component-registry.ts`에 등록한다.
 - Fenced code와 inline code 안의 예시는 runtime component나 asset 참조가 아니다.
 
-기존 slug 불일치는 untouched legacy에서 경고로 허용하지만 해당 파일을 변경하면 바로잡는다.
+기존 slug 불일치는 같은 baseline의 파일 hash, expected와 actual이 모두 일치할 때만 경고로 허용한다. 해당 파일을 변경하면 slug를 바로잡고 baseline entry를 제거한다. 해결된 violation의 stale entry도 오류다.
 
 ## 검증
 

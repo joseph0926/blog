@@ -1,5 +1,4 @@
 import matter from 'gray-matter';
-import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -9,6 +8,14 @@ import { parseArgs } from 'node:util';
 const SOURCE_HASH_PATTERN = /^sha256:[a-f0-9]{64}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const REQUIRED_FIELDS = ['slug', 'title', 'description', 'date', 'tags'];
+const BASELINE_KEYS = ['missingSourceHash', 'schemaVersion', 'slugMismatch'];
+const MISSING_HASH_KEYS = [
+  'sourceFileHash',
+  'sourcePath',
+  'translationFileHash',
+  'translationPath',
+];
+const SLUG_MISMATCH_KEYS = ['actual', 'expected', 'fileHash', 'path'];
 
 const toPosix = (value) => value.split(path.sep).join('/');
 
@@ -24,38 +31,148 @@ const getSlugVariant = (fileName) => {
   return null;
 };
 
-const sourceHash = (value) =>
+const contentHash = (value) =>
   `sha256:${createHash('sha256').update(value).digest('hex')}`;
+
+const isPlainObject = (value) =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const hasExactKeys = (value, expectedKeys) =>
+  isPlainObject(value) &&
+  JSON.stringify(Object.keys(value).sort()) === JSON.stringify(expectedKeys);
+
+const isSafeMdxPath = (value) =>
+  typeof value === 'string' &&
+  value.length > 0 &&
+  !path.isAbsolute(value) &&
+  !value.includes('\\') &&
+  !value.split('/').includes('..') &&
+  value.endsWith('.mdx');
+
+const parseLegacyBaseline = (value, errors) => {
+  const missingSourceHash = new Map();
+  const slugMismatch = new Map();
+
+  if (!hasExactKeys(value, BASELINE_KEYS)) {
+    errors.push(
+      `legacy baseline은 ${BASELINE_KEYS.join(', ')} key만 가져야 합니다.`,
+    );
+    return { missingSourceHash, slugMismatch };
+  }
+
+  if (value.schemaVersion !== 1) {
+    errors.push('legacy baseline schemaVersion은 1이어야 합니다.');
+  }
+
+  if (!Array.isArray(value.missingSourceHash)) {
+    errors.push('legacy baseline missingSourceHash는 배열이어야 합니다.');
+  } else {
+    const paths = [];
+
+    value.missingSourceHash.forEach((entry, index) => {
+      const label = `legacy baseline missingSourceHash[${index}]`;
+      if (!hasExactKeys(entry, MISSING_HASH_KEYS)) {
+        errors.push(`${label}의 field가 schema와 다릅니다.`);
+        return;
+      }
+
+      const validPaths =
+        isSafeMdxPath(entry.sourcePath) &&
+        !entry.sourcePath.endsWith('.en.mdx') &&
+        isSafeMdxPath(entry.translationPath) &&
+        entry.translationPath.endsWith('.en.mdx') &&
+        entry.translationPath === entry.sourcePath.replace(/\.mdx$/, '.en.mdx');
+      const validHashes =
+        typeof entry.sourceFileHash === 'string' &&
+        SOURCE_HASH_PATTERN.test(entry.sourceFileHash) &&
+        typeof entry.translationFileHash === 'string' &&
+        SOURCE_HASH_PATTERN.test(entry.translationFileHash);
+
+      if (!validPaths) {
+        errors.push(
+          `${label}의 sourcePath와 translationPath가 유효하지 않습니다.`,
+        );
+        return;
+      }
+
+      if (!validHashes) {
+        errors.push(`${label}의 file hash 형식이 유효하지 않습니다.`);
+        return;
+      }
+
+      if (missingSourceHash.has(entry.translationPath)) {
+        errors.push(`${label}의 translationPath가 중복됩니다.`);
+        return;
+      }
+
+      paths.push(entry.translationPath);
+      missingSourceHash.set(entry.translationPath, entry);
+    });
+
+    if (JSON.stringify(paths) !== JSON.stringify([...paths].sort())) {
+      errors.push(
+        'legacy baseline missingSourceHash는 translationPath순이어야 합니다.',
+      );
+    }
+  }
+
+  if (!Array.isArray(value.slugMismatch)) {
+    errors.push('legacy baseline slugMismatch는 배열이어야 합니다.');
+  } else {
+    const paths = [];
+
+    value.slugMismatch.forEach((entry, index) => {
+      const label = `legacy baseline slugMismatch[${index}]`;
+      if (!hasExactKeys(entry, SLUG_MISMATCH_KEYS)) {
+        errors.push(`${label}의 field가 schema와 다릅니다.`);
+        return;
+      }
+
+      if (!isSafeMdxPath(entry.path)) {
+        errors.push(`${label}의 path가 유효하지 않습니다.`);
+        return;
+      }
+
+      if (
+        typeof entry.fileHash !== 'string' ||
+        !SOURCE_HASH_PATTERN.test(entry.fileHash)
+      ) {
+        errors.push(`${label}의 fileHash 형식이 유효하지 않습니다.`);
+        return;
+      }
+
+      if (
+        typeof entry.expected !== 'string' ||
+        entry.expected.length === 0 ||
+        typeof entry.actual !== 'string' ||
+        entry.actual.length === 0
+      ) {
+        errors.push(`${label}의 expected와 actual이 유효하지 않습니다.`);
+        return;
+      }
+
+      if (slugMismatch.has(entry.path)) {
+        errors.push(`${label}의 path가 중복됩니다.`);
+        return;
+      }
+
+      paths.push(entry.path);
+      slugMismatch.set(entry.path, entry);
+    });
+
+    if (JSON.stringify(paths) !== JSON.stringify([...paths].sort())) {
+      errors.push('legacy baseline slugMismatch는 path순이어야 합니다.');
+    }
+  }
+
+  return { missingSourceHash, slugMismatch };
+};
 
 const stripCodeExamples = (content) =>
   content
     .replace(/```[\s\S]*?```/g, '')
     .replace(/~~~[\s\S]*?~~~/g, '')
     .replace(/`[^`\n]+`/g, '');
-
-const readChangedPaths = (repoRoot) => {
-  const commands = [
-    ['diff', '--name-only', '--diff-filter=ACMRD', '--'],
-    ['diff', '--cached', '--name-only', '--diff-filter=ACMRD', '--'],
-    ['ls-files', '--others', '--exclude-standard'],
-  ];
-  const changed = new Set();
-
-  for (const args of commands) {
-    const output = execFileSync('git', args, {
-      cwd: repoRoot,
-      encoding: 'utf8',
-    });
-
-    output
-      .split('\n')
-      .map((entry) => entry.trim())
-      .filter(Boolean)
-      .forEach((entry) => changed.add(entry));
-  }
-
-  return changed;
-};
 
 const addAbsoluteAssetReferences = (content, references) => {
   for (const match of content.matchAll(
@@ -74,22 +191,40 @@ const addAbsoluteAssetReferences = (content, references) => {
 export function validateContent({
   appRoot,
   repoRoot = path.resolve(appRoot, '../..'),
-  changedPaths,
+  legacyBaseline,
 }) {
   const mdxDir = path.join(appRoot, 'src/mdx');
   const publicDir = path.join(appRoot, 'public');
   const registryPath = path.join(mdxDir, 'component-registry.ts');
-  const changed = changedPaths
-    ? new Set([...changedPaths].map(toPosix))
-    : readChangedPaths(repoRoot);
   const errors = [];
   const warnings = [];
+  let baselineValue = legacyBaseline;
+
+  if (baselineValue === undefined) {
+    const baselinePath = path.join(
+      appRoot,
+      'scripts/content-legacy-baseline.json',
+    );
+
+    try {
+      baselineValue = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
+    } catch (error) {
+      errors.push(
+        `legacy baseline '${toPosix(path.relative(repoRoot, baselinePath))}'을 읽을 수 없습니다: ${error.message}`,
+      );
+      baselineValue = {};
+    }
+  }
+
+  const baseline = parseLegacyBaseline(baselineValue, errors);
   const variants = new Map();
   const records = new Map();
   const usedComponents = new Set();
   const assetReferences = new Set();
   const legacyHashes = [];
   const legacySlugs = [];
+  const observedLegacyHashes = new Set();
+  const observedLegacySlugs = new Set();
   const files = fs
     .readdirSync(mdxDir)
     .filter((fileName) => fileName.endsWith('.mdx'))
@@ -105,7 +240,6 @@ export function validateContent({
     const variant = getSlugVariant(fileName);
     const filePath = path.join(mdxDir, fileName);
     const repoPath = toPosix(path.relative(repoRoot, filePath));
-    const isChanged = changed.has(repoPath);
     const raw = fs.readFileSync(filePath, 'utf8');
     const parsed = matter(raw);
     const prose = stripCodeExamples(parsed.content);
@@ -117,7 +251,6 @@ export function validateContent({
       ...variant,
       fileName,
       repoPath,
-      isChanged,
       raw,
       parsed,
     });
@@ -160,8 +293,21 @@ export function validateContent({
 
     if (parsed.data.slug !== variant.slug) {
       const message = `${repoPath}: slug '${String(parsed.data.slug)}'가 파일명 '${variant.slug}'와 다릅니다.`;
-      if (isChanged) errors.push(message);
-      else legacySlugs.push(message);
+      const entry = baseline.slugMismatch.get(repoPath);
+      observedLegacySlugs.add(repoPath);
+
+      if (
+        entry &&
+        entry.fileHash === contentHash(raw) &&
+        entry.expected === variant.slug &&
+        entry.actual === String(parsed.data.slug)
+      ) {
+        legacySlugs.push(message);
+      } else {
+        errors.push(
+          `${message} 승인된 legacy baseline과 일치하지 않으므로 slug를 바로잡아야 합니다.`,
+        );
+      }
     }
 
     if (parsed.data.thumbnail !== undefined) {
@@ -191,22 +337,24 @@ export function validateContent({
 
     const korean = records.get(entry.ko);
     const english = records.get(entry.en);
-    const expectedHash = sourceHash(korean.raw);
+    const expectedHash = contentHash(korean.raw);
     const actualHash = english.parsed.data.sourceHash;
 
-    if (korean.isChanged && !english.isChanged) {
-      errors.push(
-        `${korean.repoPath}: 원문을 변경하면 ${english.repoPath}도 같은 작업에서 변경해야 합니다.`,
-      );
-    }
-
     if (actualHash === undefined) {
-      if (korean.isChanged || english.isChanged) {
-        errors.push(
-          `${english.repoPath}: 변경된 번역본에는 sourceHash '${expectedHash}'가 필요합니다.`,
-        );
-      } else {
+      const entry = baseline.missingSourceHash.get(english.repoPath);
+      observedLegacyHashes.add(english.repoPath);
+
+      if (
+        entry &&
+        entry.sourcePath === korean.repoPath &&
+        entry.sourceFileHash === contentHash(korean.raw) &&
+        entry.translationFileHash === contentHash(english.raw)
+      ) {
         legacyHashes.push(english.repoPath);
+      } else {
+        errors.push(
+          `${english.repoPath}: sourceHash 누락이 승인된 legacy baseline과 일치하지 않습니다. 번역과 최종 검수를 마친 뒤 sourceHash '${expectedHash}'를 기록해야 합니다.`,
+        );
       }
       continue;
     }
@@ -243,15 +391,31 @@ export function validateContent({
     }
   }
 
+  for (const translationPath of baseline.missingSourceHash.keys()) {
+    if (!observedLegacyHashes.has(translationPath)) {
+      errors.push(
+        `legacy baseline missingSourceHash '${translationPath}'가 현재 violation과 일치하지 않습니다. stale entry를 제거해야 합니다.`,
+      );
+    }
+  }
+
+  for (const repoPath of baseline.slugMismatch.keys()) {
+    if (!observedLegacySlugs.has(repoPath)) {
+      errors.push(
+        `legacy baseline slugMismatch '${repoPath}'가 현재 violation과 일치하지 않습니다. stale entry를 제거해야 합니다.`,
+      );
+    }
+  }
+
   if (legacyHashes.length > 0) {
     warnings.push(
-      `sourceHash가 없는 untouched legacy 영어 번역본 ${legacyHashes.length}개`,
+      `sourceHash가 없는 approved legacy baseline 영어 번역본 ${legacyHashes.length}개`,
     );
   }
 
   if (legacySlugs.length > 0) {
     warnings.push(
-      `파일명과 slug가 다른 untouched legacy MDX ${legacySlugs.length}개: ${legacySlugs.join(' | ')}`,
+      `파일명과 slug가 다른 approved legacy baseline MDX ${legacySlugs.length}개: ${legacySlugs.join(' | ')}`,
     );
   }
 
@@ -261,9 +425,8 @@ export function validateContent({
     summary: {
       posts: variants.size,
       files: records.size,
-      changedMdxFiles: [...records.values()].filter(
-        (record) => record.isChanged,
-      ).length,
+      approvedLegacyMissingSourceHash: legacyHashes.length,
+      approvedLegacySlugMismatch: legacySlugs.length,
       registeredComponents: registeredComponents.size,
     },
   };
@@ -271,8 +434,8 @@ export function validateContent({
 
 const usage = `Usage: node scripts/validate-content.mjs
 
-Validates MDX frontmatter, locale pairs, sourceHash, public assets and runtime components.
-Changed files are detected from Git. The command never modifies content.`;
+Validates the full MDX corpus, legacy baseline, locale pairs, sourceHash, public assets and runtime components.
+The command never modifies content.`;
 
 function run() {
   const { values } = parseArgs({
@@ -294,7 +457,7 @@ function run() {
   const result = validateContent({ appRoot });
 
   process.stdout.write(
-    `Content validation: ${result.summary.posts} posts, ${result.summary.files} files, ${result.summary.changedMdxFiles} changed MDX files\n`,
+    `Content validation: ${result.summary.posts} posts, ${result.summary.files} files, ${result.summary.approvedLegacyMissingSourceHash} approved legacy missing sourceHash, ${result.summary.approvedLegacySlugMismatch} approved legacy slug mismatch\n`,
   );
   result.warnings.forEach((warning) =>
     process.stderr.write(`WARNING ${warning}\n`),

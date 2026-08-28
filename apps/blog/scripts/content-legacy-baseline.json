@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "missingSourceHash": [
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-06-25-learn-react-01-react-.mdx",
+      "sourceFileHash": "sha256:17bea91c67ae6014f39d87f9f6e4ef8e16c8e5a7c88142865b91d7868197e28c",
+      "translationPath": "apps/blog/src/mdx/2025-06-25-learn-react-01-react-.en.mdx",
+      "translationFileHash": "sha256:02bf3b15575b6d331b161caba8f6ce68c61b3a248ac962b8fb8d33493763e0f1"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-06-25-react-react-fiber.mdx",
+      "sourceFileHash": "sha256:6151f3bcbe520ad6e736474fa4e4efcfa9bfbcfdd293206763e22de99985040c",
+      "translationPath": "apps/blog/src/mdx/2025-06-25-react-react-fiber.en.mdx",
+      "translationFileHash": "sha256:318e48b6ba37e257c277622fd2cb649bb3f9cb304ab7089cd77ee4ce86b48a9d"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-06-28-css-sonner-toast-.mdx",
+      "sourceFileHash": "sha256:d87b05f299e8eec615220fd6ff2437f77cc2589467a1ff1f04da76e4c2d0348e",
+      "translationPath": "apps/blog/src/mdx/2025-06-28-css-sonner-toast-.en.mdx",
+      "translationFileHash": "sha256:da1916c9acb28542ea7a2d024e8b36a1dc728287582fbc8489c1c81844f6d06d"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-07-13-learn-react-02-suspense-.mdx",
+      "sourceFileHash": "sha256:34afc7b1002ca8e070dd97036623d3427a9d712fc3a78a5f9f16a1a05c5a0bbd",
+      "translationPath": "apps/blog/src/mdx/2025-07-13-learn-react-02-suspense-.en.mdx",
+      "translationFileHash": "sha256:72f3721a68af88afb0fd2511ed1479491960d78af4018c4862eee50388a97e45"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-07-24-react-query-issue-.mdx",
+      "sourceFileHash": "sha256:67676fc718e9d62c03de4332073851a352e182abe281de32832ccb072231ed90",
+      "translationPath": "apps/blog/src/mdx/2025-07-24-react-query-issue-.en.mdx",
+      "translationFileHash": "sha256:d46afa7ccb7dc51b9372e5d045ffcce238daa491ca712bafd0be3c3cd278aa66"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-08-15-trpc-01-rest-api-api-.mdx",
+      "sourceFileHash": "sha256:640e9643387d48a4a9d59c9ef530b79d2ff9064d25a9771888df342ed3d2908b",
+      "translationPath": "apps/blog/src/mdx/2025-08-15-trpc-01-rest-api-api-.en.mdx",
+      "translationFileHash": "sha256:9ab7758dc5027aa1ffe45c3aff97e4a578ed03e16a0f5d9f95431a7bcf1a4b37"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-08-24-nextjs-cache.mdx",
+      "sourceFileHash": "sha256:718fb8120e8487a5fe8b56fc25df7750592056bd5c396a0946f98517e7e2ea2f",
+      "translationPath": "apps/blog/src/mdx/2025-08-24-nextjs-cache.en.mdx",
+      "translationFileHash": "sha256:aa7aec2d9a48cda7ea4a49936352c4bfccd56a6de97633df1f4c1a6d809a4a9c"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-08-29-react-query-1.mdx",
+      "sourceFileHash": "sha256:3f9511ca7f0f674214f0d8e45d41d19e8a92039c430469bac1945c1ac827dc4c",
+      "translationPath": "apps/blog/src/mdx/2025-08-29-react-query-1.en.mdx",
+      "translationFileHash": "sha256:0ccb83f941626ec33e5a75062f882c4d57fab1d6d78ce68d257af36ab6589f5b"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-09-02-react-query-usequeries-combine-pr-merge.mdx",
+      "sourceFileHash": "sha256:2629a5022884c40f7de9ef4cf9300e2e68ce8e96a713750beb86643883f829d6",
+      "translationPath": "apps/blog/src/mdx/2025-09-02-react-query-usequeries-combine-pr-merge.en.mdx",
+      "translationFileHash": "sha256:85234e9df017f62d6b115a5d730b37e1bc83f868164d824722a0f326ddcf405c"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-09-13-react-router-unstablemiddleware-shouldrevalidate.mdx",
+      "sourceFileHash": "sha256:028901b443c64b711f79a975a99b1cf62febb6ed20d513e1b28c7ea2d00fc90b",
+      "translationPath": "apps/blog/src/mdx/2025-09-13-react-router-unstablemiddleware-shouldrevalidate.en.mdx",
+      "translationFileHash": "sha256:51debcf7305288ea05fcae4d1528f91bd620f58ba9ce22d1a1155441e958bea7"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-10-03-react-usestate.mdx",
+      "sourceFileHash": "sha256:d4836341314c3571c6114b6a371531e0be23df70d69df38fb28cf874ca7ad655",
+      "translationPath": "apps/blog/src/mdx/2025-10-03-react-usestate.en.mdx",
+      "translationFileHash": "sha256:95ca2ffe00212aa98e5265b006ee5b723bec354b11ad1fc83d27478d2a65b884"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-10-11-csr-ssr.mdx",
+      "sourceFileHash": "sha256:0123121f845d065a20465fe9e587bc78bf5a1959489818b941054d9b65d6ef92",
+      "translationPath": "apps/blog/src/mdx/2025-10-11-csr-ssr.en.mdx",
+      "translationFileHash": "sha256:627e2bc7f3b468e50afb1d0cc97bdfa4e8fd8df0ef60ebe08cbe47be182fcb83"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-10-12-csr-prepaint.mdx",
+      "sourceFileHash": "sha256:d55bcd129acf5fdf2174a98fae87c9bf8e219feaec42b1fa0ee3873ea665b6ea",
+      "translationPath": "apps/blog/src/mdx/2025-10-12-csr-prepaint.en.mdx",
+      "translationFileHash": "sha256:7a219109ae6154397614fa6a7989283a8d39c756e17ba293cea0c905a29b2e7a"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-10-12-local-first-usesyncexternalstore-indexeddb-react.mdx",
+      "sourceFileHash": "sha256:e44295b925aabd531216833ffd9ce06aeb5b63ad284abd03b9bc3f2f793ff7b8",
+      "translationPath": "apps/blog/src/mdx/2025-10-12-local-first-usesyncexternalstore-indexeddb-react.en.mdx",
+      "translationFileHash": "sha256:f731204730666906f3e1f6f4420e5a124105a88dbdd32804dc34b5bf950bd332"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot.mdx",
+      "sourceFileHash": "sha256:6f849c0c0cbd1938902e8757df3acd179aaaff2eb53a4989af7445ca7a7e0c8a",
+      "translationPath": "apps/blog/src/mdx/2025-10-27-cheukjeothago-bigyohago-pandanhagi-pilteo-guhyeon-sago-gwajeot.en.mdx",
+      "translationFileHash": "sha256:ab8d700c4cbbb006e2256f693081a8fc7d4f0ac7ed59b52f92225db9ba9a7f8e"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka.mdx",
+      "sourceFileHash": "sha256:b42a7edecee104a6f71a2d15baf9087d6a6fad272c390169d209e1ab3366f8e2",
+      "translationPath": "apps/blog/src/mdx/2025-11-01-rscneun-eotteoundefinedge-seobeokeulraieonteu-beondeuleul-nanulkka.en.mdx",
+      "translationFileHash": "sha256:34ea2b31646847c5cec44ab4db9e754ad4f8d4bf6e0ea6cba3a2c9cf9e9d33df"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-12-01-opeunsoseu-munseo-saiteue-rag-giban-ai-chaetbot-bupigi.mdx",
+      "sourceFileHash": "sha256:e5b8d9b4b9507a8f0590be56c2b504e359a393b1ebe9ac9b7bb517184400ae25",
+      "translationPath": "apps/blog/src/mdx/2025-12-01-opeunsoseu-munseo-saiteue-rag-giban-ai-chaetbot-bupigi.en.mdx",
+      "translationFileHash": "sha256:c1cf05362dbf5156597e49c8984b5a1f23e3bb3d4b648dad5ac664864846ba03"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2025-12-20-beondeulreoui-jonjae-iyu.mdx",
+      "sourceFileHash": "sha256:4625273adfa8deef82f93e8f07396029c29d13d5f61ec79623a14a23e9f57924",
+      "translationPath": "apps/blog/src/mdx/2025-12-20-beondeulreoui-jonjae-iyu.en.mdx",
+      "translationFileHash": "sha256:f057d312461c19893f17b918177c1d04e005cd4290146a90616a3486fa1e55a3"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-01-23-naega-mandeun-ai-tul-seotneuteul-cheukjeothago-gaeseonhaebogi.mdx",
+      "sourceFileHash": "sha256:43617c0e98a6c49fce8ad31e126253f516a4dad9f82536428a8f37dfa56a813d",
+      "translationPath": "apps/blog/src/mdx/2026-01-23-naega-mandeun-ai-tul-seotneuteul-cheukjeothago-gaeseonhaebogi.en.mdx",
+      "translationFileHash": "sha256:17391a911801147bb260ac0c4c9d6e3ee1ba7847eb3b351d1763994637bb3cd0"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-02-01-why-do-people-say-map-set-are-more-efficient-than-array.mdx",
+      "sourceFileHash": "sha256:4f182b701798ea6682fcb0cc9dc1f8bc108296c93db4ecd0dcd95cf69e35e3dc",
+      "translationPath": "apps/blog/src/mdx/2026-02-01-why-do-people-say-map-set-are-more-efficient-than-array.en.mdx",
+      "translationFileHash": "sha256:01124b3466c29443892f9c43082aab729ceb09b500bda35d4519cdd5afad6945"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-02-10-how-can-esm-be-statically-analyzed-despite-being-asynchronous.mdx",
+      "sourceFileHash": "sha256:d3ae1b21a796c30412115499ee3a9e4268718e618d718a284fab068734d46ee0",
+      "translationPath": "apps/blog/src/mdx/2026-02-10-how-can-esm-be-statically-analyzed-despite-being-asynchronous.en.mdx",
+      "translationFileHash": "sha256:c6af4ef2d701102597a9c5516d473ae19d17ee1d86f7502563565985a70d2929"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-02-13-react-subtle-optimizations.mdx",
+      "sourceFileHash": "sha256:eafe73a2f2ee95619074373a318fde129b407a6a2d18a9d3847052e943abd834",
+      "translationPath": "apps/blog/src/mdx/2026-02-13-react-subtle-optimizations.en.mdx",
+      "translationFileHash": "sha256:7bd71949bf10c3fe9000c0182f5cbef03edcd3e811a04678d853cefc64d842ce"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-02-21-why-is-nextjs-source-code-complex.mdx",
+      "sourceFileHash": "sha256:9002d0985ec7c496c6815716a5c8bd4686a71ad64fef89281c11a1ce824d66bb",
+      "translationPath": "apps/blog/src/mdx/2026-02-21-why-is-nextjs-source-code-complex.en.mdx",
+      "translationFileHash": "sha256:a009f9ba55585abbb987f833f73ee60e21ec1d76cf26799e29675be554dbe5e7"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-03-01-why-shouldnt-you-read-useref-during-render.mdx",
+      "sourceFileHash": "sha256:49687f660cdb18de5a7cbf3795af69b6011d3eae36b7f444bb1b868cae1ab1b7",
+      "translationPath": "apps/blog/src/mdx/2026-03-01-why-shouldnt-you-read-useref-during-render.en.mdx",
+      "translationFileHash": "sha256:b752bf77b20e2bd6fb144ae8b1041665c5a984c437ba5c223961d1de06cf6a9e"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-03-27-what-makes-a-test-failure-trustworthy.mdx",
+      "sourceFileHash": "sha256:dfdaced376ac7cb1bd98513325b6c9ae5561cad63905a59ac1b90c108b142394",
+      "translationPath": "apps/blog/src/mdx/2026-03-27-what-makes-a-test-failure-trustworthy.en.mdx",
+      "translationFileHash": "sha256:e1d0abead2a3555036347647034cb32faeb9e5ff449bb2aa40b61ff1c0222396"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-05-26-feature-delivery-before-you-code.mdx",
+      "sourceFileHash": "sha256:04a487b34601dc4e671eb35b998ec07b0dc640f6fb05b613703db7b586057f43",
+      "translationPath": "apps/blog/src/mdx/2026-05-26-feature-delivery-before-you-code.en.mdx",
+      "translationFileHash": "sha256:7f4e69b767e0af91121720f97c57a989ca8bf1f0cc65efa92b0e8109c2090ab7"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-07-09-window-confirm-react-dialog.mdx",
+      "sourceFileHash": "sha256:159829f4814460020c2c2af51d4cc96235ea5a2ec2330a7351ce57411ef8fcf4",
+      "translationPath": "apps/blog/src/mdx/2026-07-09-window-confirm-react-dialog.en.mdx",
+      "translationFileHash": "sha256:5fce0214b6dbb31baa493bba7c1dbff585f16175366c29251aac114391d4912a"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-07-14-upgraded-dompurify-why-fix-happy-dom.mdx",
+      "sourceFileHash": "sha256:5cdcbf8003a393f26af6221886bb6714da2242917b95e15a350a1e0a953507c8",
+      "translationPath": "apps/blog/src/mdx/2026-07-14-upgraded-dompurify-why-fix-happy-dom.en.mdx",
+      "translationFileHash": "sha256:20caba1ae763602e340cbd266eac12049bcb22aa0508ca57a6e8c840f17620aa"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-07-21-react-query-custom-hook-responsibility-boundaries.mdx",
+      "sourceFileHash": "sha256:9ccf4e6c1a0c330f376af97345fdc425fcb524ee04cedbc49d2e1271157d1e39",
+      "translationPath": "apps/blog/src/mdx/2026-07-21-react-query-custom-hook-responsibility-boundaries.en.mdx",
+      "translationFileHash": "sha256:c93b54b5ce54c54afd783d7ad36b757f8be3ef97bd5e0faa4ce6df5d2a4cb6f3"
+    },
+    {
+      "sourcePath": "apps/blog/src/mdx/2026-08-15-does-global-agents-md-eat-project-doc-budget.mdx",
+      "sourceFileHash": "sha256:0a1453a99dde3a2d450624d4053b7267182abde36fc539b733c3a817442416b6",
+      "translationPath": "apps/blog/src/mdx/2026-08-15-does-global-agents-md-eat-project-doc-budget.en.mdx",
+      "translationFileHash": "sha256:b292ee36cececb4843629168468415a032b30d6f5c1c29036bbbc4490b304afa"
+    }
+  ],
+  "slugMismatch": [
+    {
+      "path": "apps/blog/src/mdx/2025-08-29-react-query-1.en.mdx",
+      "fileHash": "sha256:0ccb83f941626ec33e5a75062f882c4d57fab1d6d78ce68d257af36ab6589f5b",
+      "expected": "2025-08-29-react-query-1",
+      "actual": "2025-08-29-2025-08-29-react-query-1"
+    },
+    {
+      "path": "apps/blog/src/mdx/2025-08-29-react-query-1.mdx",
+      "fileHash": "sha256:3f9511ca7f0f674214f0d8e45d41d19e8a92039c430469bac1945c1ac827dc4c",
+      "expected": "2025-08-29-react-query-1",
+      "actual": "2025-08-29-2025-08-29-react-query-1"
+    },
+    {
+      "path": "apps/blog/src/mdx/2025-09-02-react-query-usequeries-combine-pr-merge.en.mdx",
+      "fileHash": "sha256:85234e9df017f62d6b115a5d730b37e1bc83f868164d824722a0f326ddcf405c",
+      "expected": "2025-09-02-react-query-usequeries-combine-pr-merge",
+      "actual": "2025-09-02-2025-09-02-react-query-usequeries-combine-pr-merge"
+    },
+    {
+      "path": "apps/blog/src/mdx/2025-09-02-react-query-usequeries-combine-pr-merge.mdx",
+      "fileHash": "sha256:2629a5022884c40f7de9ef4cf9300e2e68ce8e96a713750beb86643883f829d6",
+      "expected": "2025-09-02-react-query-usequeries-combine-pr-merge",
+      "actual": "2025-09-02-2025-09-02-react-query-usequeries-combine-pr-merge"
+    },
+    {
+      "path": "apps/blog/src/mdx/2025-09-13-react-router-unstablemiddleware-shouldrevalidate.en.mdx",
+      "fileHash": "sha256:51debcf7305288ea05fcae4d1528f91bd620f58ba9ce22d1a1155441e958bea7",
+      "expected": "2025-09-13-react-router-unstablemiddleware-shouldrevalidate",
+      "actual": "2025-09-13-2025-09-13-react-router-unstablemiddleware-shouldrevalidate"
+    },
+    {
+      "path": "apps/blog/src/mdx/2025-09-13-react-router-unstablemiddleware-shouldrevalidate.mdx",
+      "fileHash": "sha256:028901b443c64b711f79a975a99b1cf62febb6ed20d513e1b28c7ea2d00fc90b",
+      "expected": "2025-09-13-react-router-unstablemiddleware-shouldrevalidate",
+      "actual": "2025-09-13-2025-09-13-react-router-unstablemiddleware-shouldrevalidate"
+    }
+  ]
+}

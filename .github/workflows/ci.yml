@@ -7,46 +7,52 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  lint-and-build:
+  verify:
+    name: verify
     runs-on: ubuntu-22.04
+    timeout-minutes: 30
     env:
-      PNPM_VERSION: 11.15.1
       NEXT_TELEMETRY_DISABLED: 1
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
-          fetch-depth: 0
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: pnpm-lock.yaml
 
-      - uses: actions/setup-node@v6
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Verify
+        run: ./scripts/verify.sh --profile integrated --stage final
+
+      - name: Upload Playwright failure artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          node-version-file: ".nvmrc"
-          cache: "pnpm"
-
-      - name: Restore pnpm store
-        uses: actions/cache@v4
-        with:
-          path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-
-      - run: pnpm install --frozen-lockfile
-
-      - name: Lint
-        run: pnpm --filter @joseph0926/blog lint
-
-      - name: Format check
-        run: pnpm --filter @joseph0926/blog format:check
-
-      - name: Type check
-        run: pnpm --filter @joseph0926/blog type-check
-
-      - name: Run tests
-        run: pnpm --filter @joseph0926/blog test:ci --coverage
-
-      - name: Build Next.js
-        run: pnpm build
+          name: playwright-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
