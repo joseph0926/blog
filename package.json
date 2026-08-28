@@ -6,6 +6,7 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "prepare": "husky",
+    "verify": "./scripts/verify.sh",
     "type-check": "turbo type-check",
     "lint:fix": "turbo lint:fix",
     "clean": "turbo clean",

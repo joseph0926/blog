@@ -1,2 +1,1 @@
-pnpm type-check
-pnpm lint-staged
+./scripts/verify.sh --profile integrated --stage quick

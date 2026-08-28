@@ -66,17 +66,19 @@ pnpm dev
 
 ## 명령어
 
-| 명령어                                                        | 설명                                                       |
-| ------------------------------------------------------------- | ---------------------------------------------------------- |
-| `pnpm dev`                                                    | Turborepo 개발 서버 실행                                   |
-| `pnpm build`                                                  | 전체 워크스페이스 빌드                                     |
-| `pnpm type-check`                                             | TypeScript 타입 검사                                       |
-| `pnpm --filter @joseph0926/blog lint`                         | 블로그 ESLint 검사                                         |
-| `pnpm --filter @joseph0926/blog format:check`                 | 블로그 JS/TS 소스 Prettier 검사                            |
-| `pnpm --filter @joseph0926/blog test:ci`                      | Vitest 단위·통합 테스트 실행                               |
-| `pnpm exec playwright test --config=e2e/playwright.config.ts` | Playwright E2E 테스트 실행                                 |
-| `pnpm lint:fix`                                               | 전체 워크스페이스 ESLint 자동 수정                         |
-| `./scripts/verify.sh`                                         | lint 자동 수정 후 format, typecheck, test, build 순차 검증 |
+| 명령어                                                        | 설명                                |
+| ------------------------------------------------------------- | ----------------------------------- |
+| `pnpm dev`                                                    | Turborepo 개발 서버 실행            |
+| `pnpm build`                                                  | 전체 워크스페이스 빌드              |
+| `pnpm type-check`                                             | TypeScript 타입 검사                |
+| `pnpm --filter @joseph0926/blog lint`                         | 블로그 ESLint 검사                  |
+| `pnpm --filter @joseph0926/blog format:check`                 | 블로그 JS/TS 소스 Prettier 검사     |
+| `pnpm --filter @joseph0926/blog test:ci`                      | Vitest 단위·통합 테스트 실행        |
+| `pnpm exec playwright test --config=e2e/playwright.config.ts` | Playwright E2E 테스트 실행          |
+| `pnpm lint:fix`                                               | 전체 워크스페이스 ESLint 자동 수정  |
+| `./scripts/verify.sh --profile content --stage quick`         | MDX와 번역의 빠른 검증              |
+| `./scripts/verify.sh --profile product --stage final`         | 제품 코드, build와 E2E 최종 검증    |
+| `./scripts/verify.sh --profile integrated --stage final`      | 콘텐츠와 제품 경계의 통합 최종 검증 |
 
 ## 글 작성
 

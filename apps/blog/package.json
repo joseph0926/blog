@@ -15,9 +15,11 @@
     "type-check": "tsc --noEmit",
     "test": "vitest --config ./vitest.config.ts",
     "test:ci": "vitest run --config ./vitest.config.ts",
+    "test:content-validator": "node --test scripts/validate-content.node-test.mjs",
     "test:ui": "vitest --ui --config ./vitest.config.ts",
     "test:coverage": "vitest --coverage --config ./vitest.config.ts",
-    "clean": "rimraf .next .turbo node_modules dist"
+    "clean": "rimraf .next .turbo node_modules dist",
+    "validate:content": "node scripts/validate-content.mjs"
   },
   "dependencies": {
     "@codesandbox/sandpack-react": "^2.20.0",

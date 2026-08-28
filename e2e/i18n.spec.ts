@@ -12,28 +12,33 @@ test.describe('다국어 전환', () => {
     page,
   }) => {
     await page.goto('/');
-    const switcher = page
-      .locator('[role="group"]')
-      .filter({ hasText: /English|한국어/ })
-      .first();
+    const switcher = page.getByRole('group', { name: '언어' });
     await switcher.getByRole('button', { name: 'English' }).click();
     await page.waitForURL(/\/en/);
     await expect(page).toHaveURL(/\/en/);
     await expect(
-      page.getByText('I solve product problems with React and TypeScript'),
+      page.getByRole('navigation', { name: 'Main navigation' }),
     ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'English', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('/en/blog에서 한국어로 전환하면 /ko/blog로 이동한다', async ({
+  test('/en/blog에서 한국어로 전환하면 기본 locale 블로그로 이동한다', async ({
     page,
   }) => {
     await page.goto('/en/blog');
-    const switcher = page
-      .locator('[role="group"]')
-      .filter({ hasText: /English|Korean/ })
-      .first();
+    const switcher = page.getByRole('group', { name: 'Language' });
     await switcher.getByRole('button', { name: 'Korean' }).click();
-    await page.waitForURL(/\/ko\/blog|\/blog/);
-    await expect(page.locator('article').first()).toBeVisible();
+    await page.waitForURL(/\/(?:ko\/)?blog(?:\?.*)?$/);
+    await expect(
+      page.getByRole('heading', {
+        name: 'React와 웹 학습 기록',
+        level: 1,
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: '한국어', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'true');
   });
 });

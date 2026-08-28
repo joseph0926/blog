@@ -3,30 +3,34 @@ import { expect, test } from '@playwright/test';
 test.describe('블로그 목록', () => {
   test('블로그 목록 페이지가 렌더링된다', async ({ page }) => {
     await page.goto('/ko/blog');
-    await expect(page.locator('article').first()).toBeVisible();
+    await expect(
+      page.getByRole('heading', {
+        name: 'React와 웹 학습 기록',
+        level: 1,
+      }),
+    ).toBeVisible();
   });
 
-  test('블로그 카드에 제목과 태그가 표시된다', async ({ page }) => {
+  test('블로그 링크에 제목이 표시된다', async ({ page }) => {
     await page.goto('/ko/blog');
-    const firstCard = page.locator('article').first();
-    await expect(firstCard.locator('h3')).toBeVisible();
-    await expect(firstCard.locator('a[href*="/post/"]')).toBeVisible();
+    const firstPostLink = page.locator('a[href*="/post/"]').first();
+    await expect(firstPostLink).toBeVisible();
+    await expect(
+      firstPostLink.getByRole('heading', { level: 3 }),
+    ).toBeVisible();
   });
 
   test('태그 필터를 클릭하면 URL에 category 파라미터가 반영된다', async ({
     page,
   }) => {
     await page.goto('/ko/blog');
-    const filterGroup = page.locator('[role="group"][aria-label]').first();
-    const tagButton = filterGroup
-      .locator('button[aria-pressed="false"]')
-      .first();
-    const tagName = await tagButton.textContent();
+    const tagButton = page.getByRole('button', {
+      name: 'React',
+      exact: true,
+    });
     await tagButton.click();
-    await expect(page).toHaveURL(/category=/);
-    await expect(
-      filterGroup.locator(`button[aria-pressed="true"]:has-text("${tagName}")`),
-    ).toBeVisible();
+    await expect(page).toHaveURL(/[?&]category=react(?:&|$)/);
+    await expect(tagButton).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('검색 필터에 텍스트를 입력하면 URL에 q 파라미터가 반영된다', async ({

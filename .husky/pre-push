@@ -1,1 +1,1 @@
-./scripts/verify.sh
+./scripts/verify.sh --profile integrated --stage final
