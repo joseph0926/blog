@@ -1,0 +1,142 @@
+---
+slug: '2026-08-31-bug-report-reproducible-link'
+title: 'How I turned bug reports into reproducible links'
+description: 'A case study of replacing written account and screen directions with URL state in a QA workflow, including why I ruled out localStorage, how I split responsibilities with TanStack Query, and what I tested.'
+date: '2026-08-31'
+tags: ['frontend', 'url-state']
+thumbnail: '/post/reproducible-link.webp'
+sourceHash: 'sha256:ba1e816d71611691ccfcf1a99b0f3b0f0ce6182d1860123404457d770bc210ce'
+---
+
+# How I turned bug reports into reproducible links
+
+When QA reported a bug in an internal operations tool, I first searched for the affected account. I then followed the written directions to open the right tab and find the feature where the problem occurred. Even with an accurate description, the investigation restarted whenever the sender and recipient were looking at different accounts or tabs.
+
+The obvious response was to write more detailed bug reports. More prose still would not carry the missing state: **which account and which screen are we looking at?** The symptoms needed a written explanation, but nobody needed to copy the screen location by hand.
+
+This post does not use real screen names, URLs, or code because the company and service are anonymous. I have simplified the original problem and state boundaries with fictional names and structures.
+
+## We were looking at different screens for the same bug
+
+The old bug report included the account ID, tab, and feature in prose. There was no link to the state itself. The recipient had to recreate it from the description.
+
+This cost more than a few extra clicks. If QA and the developer opened different locations, they had to stop and compare where each person was before they could inspect the bug. Aligning the screen came before reproducing the problem.
+
+<ReproductionFlowComparison locale="en" />
+
+## A more detailed description did not solve it
+
+A longer description could make one handoff more precise. It also meant QA had to rewrite the account ID and screen path in the same format for every bug. When the screen structure changed, the description format changed with it. The recipient still had to read the prose and replay the route.
+
+I split the handoff into two kinds of information.
+
+- A person explains which action caused which symptom.
+- The browser address carries the account and screen location.
+
+The URL did not replace the symptoms or the full reproduction procedure. It replaced the account and screen directions. That boundary reduced the problem to letting another person open the same location.
+
+## I made the URL own the screen location
+
+I put the account, tab, and nested location in the URL. The example below is fictional rather than the real structure.
+
+```text
+/accounts?accountId=42&tab=activity&panel=details
+```
+
+In this address, `accountId` selects the account while `tab` and `panel` select the location within the screen. Selecting an account from search creates the same URL. Opening a link copied from Slack follows the same entry path.
+
+I did not add a separate share button. QA already exchanged links in Slack. If the browser address itself was copyable, nobody had to learn a new action or maintain a separate share payload.
+
+## Why I did not use localStorage
+
+The alternative I compared was `localStorage`. It can remember the last open tab and restore it when the same person comes back. That fits the job of continuing an individual's previous session.
+
+This problem involved a different person opening a shared link. Because `localStorage` stays inside one browser, it cannot send a specific account and tab to the recipient. Its remembered state can also get mixed up with the current link when someone moves between several accounts.
+
+Both a URL and `localStorage` preserve state, but they preserve it for different audiences.
+
+| Question                                           | URL                    | localStorage                  |
+| -------------------------------------------------- | ---------------------- | ----------------------------- |
+| Reopen in the same browser                         | Yes                    | Yes                           |
+| Send the same location to another person           | Yes                    | No                            |
+| Inspect the location in a new tab or external link | Visible in the address | Needs a separate restore path |
+| Role in this problem                               | Shared screen location | Personal last state           |
+
+I could have chosen `localStorage` if the goal were to restore one person's last state. I chose the URL because another person needed to receive the same location.
+
+## I split the responsibilities between the URL and TanStack Query
+
+I did not put the full account data in the URL. The URL decided where to open, and TanStack Query fetched the server data for that identifier.
+
+<StateOwnershipDiagram locale="en" />
+
+The following code is not a copy of the production code. It is a simplified example of the state boundaries used at the time.
+
+```tsx
+type ReproductionLocation = {
+  accountId: string;
+  tab: 'summary' | 'activity';
+  panel?: 'details';
+};
+
+const reproductionLocation = parseReproductionLocation(searchParams);
+
+const accountQuery = useQuery({
+  queryKey: ['account', reproductionLocation.accountId],
+  queryFn: () => fetchAccount(reproductionLocation.accountId),
+});
+
+return (
+  <AccountScreen
+    account={accountQuery.data}
+    tab={reproductionLocation.tab}
+    panel={reproductionLocation.panel}
+  />
+);
+```
+
+The URL is the source of truth for the screen location. The TanStack Query cache manages the server data for `accountId`. Sharing a link does not copy the data from the time it was created. Opening the link fetches the server state that exists at that moment.
+
+With those responsibilities separated, search, new tabs, and external links can use the same flow. Each entry path does not need its own restore logic.
+
+## Not every state belongs in the URL
+
+A state being shareable does not make it safe for a URL. Browser addresses can remain in history, server logs, screen shares, and chat messages. Authentication data, secrets, and sensitive unfinished input do not belong there.
+
+I narrowed the URL state with three questions.
+
+1. Does another person need to open the same location?
+2. Is it safe for the value to appear in the address?
+3. Is it an identifier or screen location rather than the server data itself?
+
+Only the account identifier and screen location passed all three. Knowing the link did not grant access to the data. Opening it still went through the existing authentication and authorization checks.
+
+This work did not reproduce unfinished form input, scroll position, or a snapshot of the data from the original query. Putting those values into the URL could turn a contract for describing the current location into a store for internal UI details.
+
+## I tested search and deep links through the same path
+
+Once the URL owns the screen location, invalid addresses and different entry paths need to follow the same contract. I locked down these behaviors with automated tests.
+
+| Given                                              | When                                    | Then                                                |
+| -------------------------------------------------- | --------------------------------------- | --------------------------------------------------- |
+| A link with a valid account ID and screen location | The user opens the link directly        | The account, tab, and nested location open          |
+| An account selected from search results            | The app navigates to the account screen | It uses the same URL entry path as a deep link      |
+| An invalid account ID in the URL                   | The account query fails                 | The shared error boundary handles the invalid entry |
+
+The first test checks that shared state is restored. The second checks that search and direct links have not split into separate implementations. The third covers the fact that a user can edit the URL by hand.
+
+Testing only valid links would cover half of the URL contract. Invalid identifiers and missing accounts are external inputs too, so the app needed to handle them safely.
+
+## The link became part of the handoff
+
+After release, QA repeatedly pasted the current screen URL into Slack bug reports. The recipient could open the same account, tab, and nested location. In reports that used the link, they avoided searching for the account again or going back and forth because they had opened different locations.
+
+I did not measure the change in handling time or the number of questions. I also cannot claim that every back-and-forth disappeared. The symptoms and reproduction steps still needed written explanations. What I observed was narrower: the link replaced the work of finding the screen location, and QA reused it in real handoffs.
+
+The feature needed no separate training. It added screen state to a link-sharing habit QA already had, and QA kept using it in that workflow.
+
+## In an operations tool, the route back matters as much as the screen
+
+Before this change, I mostly thought about helping people find things faster within an operations screen. Reducing account searches and organizing tabs still matter, but QA and developers do not look at a state once and move on. They hand it to another person and return to it later.
+
+After moving the account and screen location into the URL, I started looking at two questions together: what does the tool show now, and how does someone return to this exact state? Receiving a Slack link and entering again was part of the product flow too.

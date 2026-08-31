@@ -157,6 +157,17 @@ export const MDX_COMPONENT_LOADERS = {
     const m = await import('@/mdx/components/confirm/confirm-flow-simulator');
     return m.ConfirmFlowSimulator;
   }),
+
+  ReproductionFlowComparison: cached('ReproductionFlowComparison', async () => {
+    const m =
+      await import('@/mdx/components/reproduction/reproduction-flow-comparison');
+    return m.ReproductionFlowComparison;
+  }),
+  StateOwnershipDiagram: cached('StateOwnershipDiagram', async () => {
+    const m =
+      await import('@/mdx/components/reproduction/state-ownership-diagram');
+    return m.StateOwnershipDiagram;
+  }),
 } as const;
 
 type Registered = keyof typeof MDX_COMPONENT_LOADERS;

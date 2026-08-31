@@ -65,4 +65,26 @@ test.describe('블로그 글 상세', () => {
     const jsonLd = page.locator('script[type="application/ld+json"]');
     await expect(jsonLd).toBeAttached();
   });
+
+  test('버그 재현 흐름을 재생하고 처음 상태로 되돌릴 수 있다', async ({
+    page,
+  }) => {
+    await page.goto('/ko/post/2026-08-31-bug-report-reproducible-link');
+
+    const beforeFlow = page.getByTestId('reproduction-flow-before');
+    const visibleSteps = beforeFlow.locator('li[aria-hidden="false"]');
+
+    await expect(beforeFlow).toBeVisible();
+    await expect(visibleSteps).toHaveCount(0);
+
+    await beforeFlow.getByRole('button', { name: '변경 전 흐름 재생' }).click();
+    await expect(visibleSteps).toHaveCount(4, {
+      timeout: 4_000,
+    });
+
+    await beforeFlow
+      .getByRole('button', { name: '변경 전 흐름 처음부터' })
+      .click();
+    await expect(visibleSteps).toHaveCount(0);
+  });
 });
