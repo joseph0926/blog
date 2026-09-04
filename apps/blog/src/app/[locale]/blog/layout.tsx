@@ -15,7 +15,7 @@ export default async function BlogLayout({
   return (
     <>
       <Header />
-      <main>{children}</main>
+      {children}
       <Footer locale={safeLocale} />
     </>
   );

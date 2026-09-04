@@ -1,6 +1,5 @@
 import { Footer } from '@/components/home/footer';
 import { Header } from '@/components/layouts/header';
-import { TopProgress } from '@/components/ui/top-progress';
 import { defaultLocale, isAppLocale } from '@/i18n/routing';
 
 export default async function PostLayout({
@@ -15,8 +14,7 @@ export default async function PostLayout({
 
   return (
     <>
-      <TopProgress />
-      <Header useTitle={false} />
+      <Header />
       {children}
       <Footer locale={safeLocale} />
     </>

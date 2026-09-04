@@ -14,6 +14,7 @@ export const RecentBlogPosts = async ({ locale }: RecentBlogPostsProps) => {
   const ctx = await createTRPCContext({ headers: new Headers() });
 
   let posts: PostResponse[] | null = null;
+  let totalCount = 0;
   let message: string | null = null;
   try {
     const result = await appRouter
@@ -21,6 +22,7 @@ export const RecentBlogPosts = async ({ locale }: RecentBlogPostsProps) => {
       .post.getPosts({ limit: 6, locale });
 
     posts = result.posts;
+    totalCount = result.totalCount;
     message = result.message;
   } catch {
     posts = null;
@@ -28,10 +30,10 @@ export const RecentBlogPosts = async ({ locale }: RecentBlogPostsProps) => {
 
   if (!posts) {
     return (
-      <div className="border-border/70 bg-muted/20 text-muted-foreground rounded-md border px-5 py-10 text-center text-sm">
+      <p className="border-rule text-muted-foreground border-t border-l-2 py-6 pl-4 text-sm">
         {t('loadPostsError')}
         {message ? ` (${message})` : ''}
-      </div>
+      </p>
     );
   }
 
@@ -39,16 +41,21 @@ export const RecentBlogPosts = async ({ locale }: RecentBlogPostsProps) => {
 
   if (recentPosts.length === 0) {
     return (
-      <div className="border-border/70 bg-muted/20 text-muted-foreground rounded-md border px-5 py-10 text-center text-sm">
+      <p className="border-rule text-muted-foreground border-t border-l-2 py-6 pl-4 text-sm">
         {t('emptyRecentPosts')}
-      </div>
+      </p>
     );
   }
 
   return (
-    <div className="border-border/70 border-b">
-      {recentPosts.map((post) => (
-        <HomePostRow key={post.id} post={post} locale={locale} />
+    <div className="border-rule border-b">
+      {recentPosts.map((post, index) => (
+        <HomePostRow
+          key={post.id}
+          post={post}
+          locale={locale}
+          entryNumber={totalCount - index - 1}
+        />
       ))}
     </div>
   );

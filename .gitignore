@@ -56,4 +56,6 @@ artifacts/
 
 docs/uiux-reference-images
 
+.claude
+
 .pnpm-store

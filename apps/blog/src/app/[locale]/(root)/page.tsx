@@ -61,28 +61,36 @@ export default async function HomePage({
   return (
     <>
       <HeroSection locale={safeLocale} />
-      <Container as="div" size="lg" className="space-y-20 py-16 sm:py-20">
-        <section id="latest" className="scroll-mt-24">
-          <div className="mb-7 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-muted-foreground font-mono text-xs font-medium">
-                {t('sectionRecentTitle')}
-              </p>
-              <h2 className="text-foreground mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-                {t('sectionRecentDescription')}
-              </h2>
-            </div>
+      <Container as="div" size="lg" className="space-y-16 py-12 sm:py-16">
+        <section
+          id="latest"
+          className="grid scroll-mt-20 gap-4 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10"
+          aria-labelledby="latest-heading"
+        >
+          <p className="text-muted-foreground text-xs">
+            {t('sectionRecentTitle')}
+          </p>
+          <div>
+            <h2
+              id="latest-heading"
+              className="text-foreground mb-2 text-xl font-semibold tracking-tight"
+            >
+              {t('sectionRecentDescription')}
+            </h2>
+            <Suspense fallback={<RecentBlogPostsLoading />}>
+              <RecentBlogPosts locale={safeLocale} />
+            </Suspense>
           </div>
-          <Suspense fallback={<RecentBlogPostsLoading />}>
-            <RecentBlogPosts locale={safeLocale} />
-          </Suspense>
         </section>
-        <section>
-          <div className="mb-7">
-            <p className="text-muted-foreground font-mono text-xs font-medium">
+        <section aria-labelledby="archive-heading">
+          <div className="grid gap-4 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
+            <p className="text-muted-foreground text-xs">
               {t('sectionArchiveTitle')}
             </p>
-            <h2 className="text-foreground mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h2
+              id="archive-heading"
+              className="text-foreground mb-2 text-xl font-semibold tracking-tight"
+            >
               {t('sectionArchiveDescription')}
             </h2>
           </div>

@@ -24,63 +24,60 @@ export const formatPostDate = (date: Date | string, locale: AppLocale) =>
     locale: locale === 'ko' ? ko : enUS,
   });
 
+export const formatEntryNumber = (entryNumber: number) =>
+  `No. ${String(Math.max(entryNumber, 0)).padStart(3, '0')}`;
+
 export const PostHeader = ({
   post,
   locale,
+  entryNumber,
 }: {
   post: PostMeta;
   locale: AppLocale;
+  entryNumber: number;
 }) => {
   const label = labels[locale];
-  const primaryTag = post.tags[0] ?? 'Essay';
 
   return (
-    <header className="border-border/70 border-b pb-8 lg:pb-10">
-      <div className="flex items-center justify-between">
+    <header className="border-rule border-b pb-8">
+      <div className="mb-8 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3">
         <Link
           href="/blog"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mb-8 inline-flex items-center gap-2 rounded-sm text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-2 rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
         >
           <ArrowLeft className="h-4 w-4" />
           {label.back}
         </Link>
-        <p className="mb-10 inline-flex items-center gap-2 font-mono text-xs font-medium tracking-normal text-[#5e6ad2] uppercase">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#5e6ad2]" />
-          {primaryTag}
+        <p className="text-muted-foreground flex items-baseline gap-3 font-mono text-xs tabular-nums lg:hidden">
+          <span className="text-foreground">
+            {formatEntryNumber(entryNumber)}
+          </span>
+          <time dateTime={new Date(post.date).toISOString()}>
+            {formatPostDate(post.date, locale)}
+          </time>
         </p>
       </div>
-      <h1 className="text-foreground max-w-4xl text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+      <h1 className="text-foreground max-w-[30ch] text-[2rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-4xl lg:text-[2.75rem]">
         {post.title}
       </h1>
       {post.description && (
-        <p className="text-muted-foreground mt-6 max-w-3xl text-lg leading-8 sm:text-xl">
+        <p className="text-muted-foreground mt-5 max-w-[68ch] text-base leading-7 sm:text-lg sm:leading-8">
           {post.description}
         </p>
       )}
-      <div className="text-muted-foreground mt-7 flex flex-wrap items-center gap-x-4 gap-y-2 font-mono text-xs tabular-nums">
-        <time dateTime={new Date(post.date).toISOString()}>
-          {formatPostDate(post.date, locale)}
-        </time>
-        <span aria-hidden="true" className="text-border">
-          /
+      <p className="text-muted-foreground mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <span className="font-mono text-xs tabular-nums">
+          {label.readTime(post.readingTime)}
         </span>
-        <span>{label.readTime(post.readingTime)}</span>
-        {post.tags.length > 0 && (
-          <span className="ml-1 flex flex-wrap items-center gap-2">
-            {post.tags.slice(0, 4).map((tag) => (
-              <span
-                key={tag}
-                className="border-border/70 text-muted-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]"
-              >
-                <span className="h-1 w-1 rounded-full bg-[#5e6ad2]/70" />
-                {tag}
-              </span>
-            ))}
+        {post.tags.slice(0, 4).map((tag) => (
+          <span key={tag} className="flex items-center gap-3">
+            <span aria-hidden="true" className="bg-rule h-3 w-px" />
+            {tag}
           </span>
-        )}
-      </div>
+        ))}
+      </p>
       {post.isFallback && (
-        <p className="border-border/70 bg-muted/30 text-muted-foreground mt-6 max-w-2xl rounded-md border px-4 py-3 text-sm">
+        <p className="border-accent-ink/60 text-muted-foreground mt-6 max-w-[68ch] border-l-2 pl-4 text-sm">
           {label.fallback}
         </p>
       )}

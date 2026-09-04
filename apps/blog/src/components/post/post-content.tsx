@@ -1,6 +1,7 @@
 import { cn } from '@joseph0926/ui/lib/utils';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import type { ComponentPropsWithoutRef } from 'react';
+import rehypeHighlight from 'rehype-highlight';
 import remarkGfm from 'remark-gfm';
 import type { AppLocale } from '@/i18n/routing';
 import { getMdxComponentsForSource } from '@/mdx/component-registry';
@@ -13,6 +14,7 @@ interface PostContentProps {
   slug: string;
   locale: AppLocale;
   source?: string;
+  title?: string;
 }
 
 const labels = {
@@ -36,6 +38,7 @@ export async function PostContent({
   slug,
   locale,
   source: providedSource,
+  title,
 }: PostContentProps) {
   const source = providedSource ?? (await getPostContent(slug, locale)).source;
   const components = await getMdxComponentsForSource(source);
@@ -46,6 +49,10 @@ export async function PostContent({
     source,
     components: {
       a: MdxLink,
+      h1: ({ children, ...props }: ComponentPropsWithoutRef<'h1'>) =>
+        title && getNodeText(children).trim() === title.trim() ? null : (
+          <h1 {...props}>{children}</h1>
+        ),
       h2: ({
         className,
         children,
@@ -55,7 +62,7 @@ export async function PostContent({
         <h2
           id={id ?? createHeadingId(getNodeText(children))}
           className={cn(
-            'border-border/70 scroll-mt-28 border-t pt-10 text-2xl font-semibold tracking-tight',
+            'border-rule scroll-mt-24 border-t pt-8 text-2xl font-semibold tracking-tight',
             className,
           )}
           {...props}
@@ -72,7 +79,7 @@ export async function PostContent({
         <h3
           id={id ?? createHeadingId(getNodeText(children))}
           className={cn(
-            'scroll-mt-28 text-xl font-semibold tracking-tight',
+            'scroll-mt-24 text-xl font-semibold tracking-tight',
             className,
           )}
           {...props}
@@ -81,7 +88,7 @@ export async function PostContent({
         </h3>
       ),
       table: ({ className, ...props }: ComponentPropsWithoutRef<'table'>) => (
-        <div className="border-border/70 my-7 overflow-x-auto border-y">
+        <div className="border-rule my-7 overflow-x-auto border-y">
           <table
             className={cn(
               'my-0 w-max min-w-[720px] table-auto text-sm',
@@ -108,7 +115,7 @@ export async function PostContent({
       }: ComponentPropsWithoutRef<'blockquote'>) => (
         <blockquote
           className={cn(
-            'border-primary/50 bg-muted/30 my-7 border-l-2 px-5 py-3 text-base not-italic',
+            'border-accent-ink/60 text-muted-foreground my-7 border-l-2 pl-5 text-base not-italic',
             className,
           )}
           {...props}
@@ -122,6 +129,7 @@ export async function PostContent({
       blockDangerousJS: true,
       mdxOptions: {
         remarkPlugins: [remarkGfm],
+        rehypePlugins: [rehypeHighlight],
       },
     },
   });

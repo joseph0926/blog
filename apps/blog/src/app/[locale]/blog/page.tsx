@@ -100,25 +100,28 @@ export default async function BlogPage({
     <Container as="section" size="lg" className="relative min-h-[70vh]">
       <Suspense
         fallback={
-          <div className="space-y-8 py-10 sm:py-14">
-            <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(280px,520px)]">
-              <div className="space-y-4">
-                <div className="bg-muted h-12 w-full max-w-xl rounded-md" />
-                <div className="bg-muted h-4 w-full max-w-md rounded-md" />
-              </div>
-              <div className="bg-muted h-12 rounded-md" />
+          <div
+            className="grid gap-8 py-10 sm:py-14 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10"
+            role="status"
+            aria-busy="true"
+          >
+            <div className="space-y-3">
+              <div className="skeleton-shimmer h-3 w-20 rounded-sm" />
+              <div className="skeleton-shimmer h-7 w-12 rounded-sm" />
+              <div className="skeleton-shimmer h-3 w-16 rounded-sm" />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-4">
+              <div className="skeleton-shimmer h-9 w-full max-w-xl rounded-sm" />
+              <div className="skeleton-shimmer h-4 w-full max-w-md rounded-sm" />
+              <div className="skeleton-shimmer mt-8 h-10 w-full rounded-sm" />
               {Array.from({ length: 4 }).map((_, idx) => (
                 <div
                   key={idx}
-                  className="border-border/70 flex items-center gap-3 rounded-lg border px-4 py-3"
+                  className="border-rule grid gap-2 border-t py-4 sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:gap-6"
                 >
-                  <div className="bg-muted h-9 w-9 shrink-0 rounded-md" />
-                  <div className="flex-1 space-y-2">
-                    <div className="bg-muted h-4 w-24 rounded" />
-                    <div className="bg-muted h-3 w-12 rounded" />
-                  </div>
+                  <div className="skeleton-shimmer h-3 w-14 rounded-sm" />
+                  <div className="skeleton-shimmer h-4 max-w-xl rounded-sm" />
+                  <div className="skeleton-shimmer h-3 w-12 rounded-sm" />
                 </div>
               ))}
             </div>

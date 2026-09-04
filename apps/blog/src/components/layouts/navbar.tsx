@@ -9,7 +9,7 @@ import {
 } from '@joseph0926/ui/components/sheet';
 import { cn } from '@joseph0926/ui/lib/utils';
 import { Menu } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Link, usePathname } from '@/i18n/navigation';
@@ -19,8 +19,8 @@ import { LocaleSwitcher } from './locale-switcher';
 export const Navbar = () => {
   const t = useTranslations('nav');
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
-  const brandName = t('brandName');
 
   const navbarItems = [
     { href: '/', label: t('home') },
@@ -35,40 +35,44 @@ export const Navbar = () => {
 
   return (
     <nav
-      className="flex h-16 w-full items-center justify-between"
+      className="flex h-14 w-full items-center justify-between"
       aria-label={t('mainNavigation')}
     >
       <Link
         href="/"
-        className="focus-visible:ring-ring -ml-2 inline-flex items-center rounded-md px-2 py-1.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+        className="focus-visible:ring-ring -ml-2 inline-flex items-baseline gap-2 rounded-sm px-2 py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <span className="text-foreground text-sm font-semibold tracking-tight">
-          {brandName}
+        <span className="text-foreground text-[15px] font-semibold tracking-tight">
+          {t('brandName')}
+        </span>
+        <span className="text-muted-foreground hidden text-xs sm:inline">
+          {t('tagline')}
         </span>
       </Link>
 
-      <ul className="hidden items-center gap-1 text-sm font-medium md:flex">
+      <ul className="hidden items-center gap-1 text-sm md:flex">
         {navbarItems.map((item) => (
           <li key={item.href}>
             <Link
               href={item.href}
               aria-current={isActive(item.href) ? 'page' : undefined}
-              className="group hover:bg-muted/70 relative inline-flex h-9 items-center rounded-md px-3 transition-colors duration-150"
+              className={cn(
+                'focus-visible:ring-ring relative inline-flex h-9 items-center rounded-sm px-3 transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none',
+                isActive(item.href)
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
             >
-              <span
-                className={cn(
-                  isActive(item.href)
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {item.label}
-              </span>
+              {item.label}
               {isActive(item.href) && (
                 <motion.span
                   layoutId="navbar-underline"
-                  className="bg-foreground absolute right-3 bottom-1.5 left-3 h-px"
-                  transition={{ type: 'tween', duration: 0.18 }}
+                  className="bg-accent-ink absolute right-3 bottom-1 left-3 h-0.5"
+                  transition={
+                    reduceMotion
+                      ? { duration: 0 }
+                      : { type: 'tween', duration: 0.18, ease: 'easeOut' }
+                  }
                 />
               )}
             </Link>
@@ -82,39 +86,49 @@ export const Navbar = () => {
         </li>
       </ul>
 
-      <div className="flex items-center gap-2 md:hidden">
+      <div className="flex items-center gap-1 md:hidden">
         <LocaleSwitcher />
         <ThemeToggle />
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger
-            className="hover:bg-muted focus-visible:ring-ring rounded-md p-2 transition-colors duration-100 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            className="press text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm p-2 transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
             aria-label={t('openMenu')}
             aria-expanded={isOpen}
           >
             <Menu className="h-5 w-5" />
           </SheetTrigger>
-          <SheetContent side="right" className="w-72">
+          <SheetContent side="right" className="border-rule w-72">
             <SheetHeader>
-              <SheetTitle>{t('menu')}</SheetTitle>
+              <SheetTitle className="text-sm font-medium">
+                {t('menu')}
+              </SheetTitle>
             </SheetHeader>
-            <nav className="mt-6 flex flex-col gap-1">
+            <ul className="mt-2 flex flex-col">
               {navbarItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  aria-current={isActive(item.href) ? 'page' : undefined}
-                  className={cn(
-                    'rounded-md px-4 py-3 text-base font-medium transition-colors duration-100',
-                    isActive(item.href)
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                  )}
-                >
-                  {item.label}
-                </Link>
+                <li key={item.href} className="border-rule border-t">
+                  <Link
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    aria-current={isActive(item.href) ? 'page' : undefined}
+                    className={cn(
+                      'flex items-center gap-3 px-4 py-3.5 text-base transition-colors duration-150',
+                      isActive(item.href)
+                        ? 'text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'h-0.5 w-3',
+                        isActive(item.href) ? 'bg-accent-ink' : 'bg-rule',
+                      )}
+                    />
+                    {item.label}
+                  </Link>
+                </li>
               ))}
-            </nav>
+            </ul>
           </SheetContent>
         </Sheet>
       </div>

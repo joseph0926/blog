@@ -3,7 +3,7 @@ import { cn } from '@joseph0926/ui/lib/utils';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { IBM_Plex_Mono, IBM_Plex_Sans_KR } from 'next/font/google';
 import { getLocale } from 'next-intl/server';
 import { Toaster } from 'sonner';
 import { commonOpenGraph } from '@/meta/open-graph';
@@ -11,14 +11,18 @@ import { getRobotsByEnvironment } from '@/meta/robots';
 import ReactQueryProvider from '@/providers/react-query-provider';
 import { ThemeProvider } from '@/providers/theme-provider';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const plexSans = IBM_Plex_Sans_KR({
+  variable: '--font-plex-sans',
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
 });
 
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const plexMono = IBM_Plex_Mono({
+  variable: '--font-plex-mono',
   subsets: ['latin'],
+  weight: ['400', '500'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -67,9 +71,7 @@ export default async function RootLayout({
 
   return (
     <html lang={htmlLang} suppressHydrationWarning>
-      <body
-        className={cn(geistSans.variable, geistMono.variable, 'antialiased')}
-      >
+      <body className={cn(plexSans.variable, plexMono.variable, 'antialiased')}>
         {/* Accessibility: Skip to main content link */}
         <a href="#main-content" className="skip-link">
           본문으로 건너뛰기

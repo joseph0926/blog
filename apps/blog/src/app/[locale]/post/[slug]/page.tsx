@@ -3,10 +3,16 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
+import { EntryStamp } from '@/components/post/entry-stamp';
 import { PostContent } from '@/components/post/post-content';
-import { formatPostDate, PostHeader } from '@/components/post/post-header';
+import {
+  formatEntryNumber,
+  formatPostDate,
+  PostHeader,
+} from '@/components/post/post-header';
 import { PostTableOfContents } from '@/components/post/post-table-of-contents';
 import { extractPostToc, type PostTocItem } from '@/components/post/post-toc';
+import { ReadingProgress } from '@/components/post/reading-progress';
 import { Link } from '@/i18n/navigation';
 import { type AppLocale, appLocales, isAppLocale } from '@/i18n/routing';
 import {
@@ -35,12 +41,10 @@ const labels = {
     updated: '수정일',
     readingTime: '읽기 시간',
     language: '언어',
-    sections: '목차',
-    topics: '주제',
     onThisPage: '이 글의 흐름',
-    articleMeta: '글 정보',
     previous: '이전 글',
     next: '다음 글',
+    read: '읽음',
     readTime: (minutes: number) => `${minutes}분`,
     sectionCount: (count: number) => `${count}개`,
     localeName: (locale: AppLocale) => (locale === 'ko' ? '한국어' : 'English'),
@@ -50,12 +54,10 @@ const labels = {
     updated: 'Updated',
     readingTime: 'Reading time',
     language: 'Language',
-    sections: 'Sections',
-    topics: 'Topics',
     onThisPage: 'On this page',
-    articleMeta: 'Article info',
     previous: 'Previous',
     next: 'Next',
+    read: 'Read',
     readTime: (minutes: number) => `${minutes} min`,
     sectionCount: (count: number) => `${count}`,
     localeName: (locale: AppLocale) => (locale === 'ko' ? 'Korean' : 'English'),
@@ -149,28 +151,20 @@ const PostMetaRail = ({
   post,
   toc,
   locale,
+  entryNumber,
 }: {
   post: PostMeta;
   toc: PostTocItem[];
   locale: AppLocale;
+  entryNumber: number;
 }) => {
   const label = labels[locale];
   const metaItems = [
-    {
-      label: label.published,
-      value: formatPostDate(post.date, locale),
-    },
-    {
-      label: label.readingTime,
-      value: label.readTime(post.readingTime),
-    },
+    { label: label.published, value: formatPostDate(post.date, locale) },
+    { label: label.readingTime, value: label.readTime(post.readingTime) },
     {
       label: label.language,
       value: label.localeName(post.resolvedLocale),
-    },
-    {
-      label: label.sections,
-      value: label.sectionCount(toc.length),
     },
   ];
 
@@ -182,86 +176,30 @@ const PostMetaRail = ({
   }
 
   return (
-    <aside className="hidden xl:block">
-      <div className="sticky top-28 space-y-8 text-sm">
-        <section className="border-border/70 border-b pb-7">
-          <p className="text-muted-foreground mb-4 font-mono text-[11px] font-medium tracking-wider uppercase">
-            {label.articleMeta}
-          </p>
-          <dl className="space-y-5">
+    <aside className="hidden lg:block">
+      <div className="sticky top-20 space-y-7 text-sm">
+        <div>
+          <EntryStamp label={label.read}>
+            <p className="text-foreground font-mono text-2xl tabular-nums">
+              {formatEntryNumber(entryNumber)}
+            </p>
+          </EntryStamp>
+          <dl className="mt-8 space-y-3">
             {metaItems.map((item) => (
               <div key={item.label}>
-                <dt className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
-                  {item.label}
-                </dt>
-                <dd className="text-foreground mt-1 font-mono text-xs tabular-nums">
+                <dt className="text-muted-foreground text-xs">{item.label}</dt>
+                <dd className="text-foreground mt-0.5 font-mono text-xs tabular-nums">
                   {item.value}
                 </dd>
               </div>
             ))}
           </dl>
-        </section>
-        {post.tags.length > 0 && (
-          <section className="border-border/70 border-b pb-7">
-            <p className="text-muted-foreground mb-4 font-mono text-[11px] font-medium tracking-wider uppercase">
-              {label.topics}
-            </p>
-            <div className="flex flex-col items-start gap-2.5">
-              {post.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-muted-foreground inline-flex items-center gap-2 font-mono text-xs"
-                >
-                  <span className="h-1 w-1 rounded-full bg-[#5e6ad2]/70" />
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </section>
+        </div>
+        {toc.length > 0 && (
+          <PostTableOfContents items={toc} label={label.onThisPage} />
         )}
       </div>
     </aside>
-  );
-};
-
-const MobilePostMeta = ({
-  post,
-  toc,
-  locale,
-}: {
-  post: PostMeta;
-  toc: PostTocItem[];
-  locale: AppLocale;
-}) => {
-  const label = labels[locale];
-
-  return (
-    <div className="border-border/70 grid gap-4 border-b py-5 text-sm sm:grid-cols-3 xl:hidden">
-      <div>
-        <p className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
-          {label.published}
-        </p>
-        <p className="text-foreground mt-1 font-mono text-xs tabular-nums">
-          {formatPostDate(post.date, locale)}
-        </p>
-      </div>
-      <div>
-        <p className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
-          {label.readingTime}
-        </p>
-        <p className="text-foreground mt-1 font-mono text-xs tabular-nums">
-          {label.readTime(post.readingTime)}
-        </p>
-      </div>
-      <div>
-        <p className="text-muted-foreground font-mono text-[11px] tracking-wider uppercase">
-          {label.sections}
-        </p>
-        <p className="text-foreground mt-1 font-mono text-xs tabular-nums">
-          {label.sectionCount(toc.length)}
-        </p>
-      </div>
-    </div>
   );
 };
 
@@ -278,44 +216,38 @@ const PostAdjacentNavigation = ({
 
   if (!previousPost && !nextPost) return null;
 
+  const items = [
+    previousPost && {
+      key: 'previous',
+      post: previousPost,
+      title: label.previous,
+      icon: ArrowLeft,
+    },
+    nextPost && {
+      key: 'next',
+      post: nextPost,
+      title: label.next,
+      icon: ArrowRight,
+    },
+  ].filter((item): item is NonNullable<typeof item> => Boolean(item));
+
   return (
-    <nav className="border-border/70 mt-14 grid gap-3 border-t pt-8 sm:grid-cols-2">
-      {previousPost && (
+    <nav className="border-rule mt-14 border-b">
+      {items.map((item) => (
         <Link
-          href={`/post/${previousPost.slug}`}
-          className="focus-visible:ring-ring border-border/70 hover:border-primary/30 hover:bg-muted/30 group relative flex flex-col rounded-lg border py-4 pr-4 pl-5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
+          key={item.key}
+          href={`/post/${item.post.slug}`}
+          className="focus-visible:ring-ring border-rule group grid gap-1 border-t py-4 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset sm:grid-cols-[7rem_minmax(0,1fr)] sm:gap-6"
         >
-          <span
-            aria-hidden="true"
-            className="absolute top-4 bottom-4 left-0 w-0.5 rounded-full bg-[#5e6ad2] opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-          />
-          <span className="text-muted-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase">
-            <ArrowLeft className="h-3 w-3" />
-            {label.previous}
+          <span className="text-muted-foreground group-hover:text-accent-ink inline-flex items-center gap-1.5 text-xs transition-colors duration-150">
+            <item.icon className="h-3 w-3" />
+            {item.title}
           </span>
-          <span className="text-foreground mt-2 line-clamp-2 text-sm font-medium transition-colors duration-150 group-hover:text-[#5e6ad2]">
-            {previousPost.title}
+          <span className="text-foreground group-hover:decoration-accent-ink line-clamp-2 text-sm font-medium underline decoration-transparent decoration-1 underline-offset-4 transition-[text-decoration-color] duration-150">
+            {item.post.title}
           </span>
         </Link>
-      )}
-      {nextPost && (
-        <Link
-          href={`/post/${nextPost.slug}`}
-          className="focus-visible:ring-ring border-border/70 hover:border-primary/30 hover:bg-muted/30 group relative flex flex-col rounded-lg border py-4 pr-4 pl-5 transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none sm:col-start-2 sm:items-end sm:pr-5 sm:pl-4 sm:text-right"
-        >
-          <span
-            aria-hidden="true"
-            className="absolute top-4 bottom-4 left-0 w-0.5 rounded-full bg-[#5e6ad2] opacity-0 transition-opacity duration-150 group-hover:opacity-100 sm:right-0 sm:left-auto"
-          />
-          <span className="text-muted-foreground inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wider uppercase">
-            {label.next}
-            <ArrowRight className="h-3 w-3" />
-          </span>
-          <span className="text-foreground mt-2 line-clamp-2 text-sm font-medium transition-colors duration-150 group-hover:text-[#5e6ad2]">
-            {nextPost.title}
-          </span>
-        </Link>
-      )}
+      ))}
     </nav>
   );
 };
@@ -348,6 +280,8 @@ export default async function PostPage({
   const toc = extractPostToc(postSource.source);
   const posts = await getAllPosts(safeLocale);
   const { previousPost, nextPost } = getAdjacentPosts(posts, slug);
+  const postIndex = posts.findIndex((post) => post.slug === slug);
+  const entryNumber = postIndex >= 0 ? posts.length - postIndex : 0;
   const label = labels[safeLocale];
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -378,22 +312,33 @@ export default async function PostPage({
   const jsonLdPayload = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
   return (
-    <div className="relative mx-auto grid w-full max-w-[1480px] grid-cols-1 gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,760px)_220px] lg:gap-10 lg:py-10 xl:grid-cols-[220px_minmax(0,760px)_240px] 2xl:grid-cols-[240px_minmax(0,800px)_260px]">
+    <div className="relative mx-auto grid w-full max-w-[1260px] grid-cols-1 gap-8 px-4 py-8 lg:grid-cols-[11rem_minmax(0,48rem)] lg:gap-10 lg:py-12">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: jsonLdPayload,
         }}
       />
-      <PostMetaRail post={postMeta} toc={toc} locale={safeLocale} />
+      <div className="lg:hidden">
+        <ReadingProgress orientation="horizontal" />
+      </div>
+      <PostMetaRail
+        post={postMeta}
+        toc={toc}
+        locale={safeLocale}
+        entryNumber={entryNumber}
+      />
       <div className="min-w-0">
-        <PostHeader post={postMeta} locale={safeLocale} />
-        <MobilePostMeta post={postMeta} toc={toc} locale={safeLocale} />
+        <PostHeader
+          post={postMeta}
+          locale={safeLocale}
+          entryNumber={entryNumber}
+        />
         {toc.length > 0 && (
-          <details className="border-border/70 group border-b py-5 lg:hidden">
-            <summary className="text-muted-foreground flex cursor-pointer list-none items-center justify-between gap-4 font-mono text-[11px] font-medium tracking-wider uppercase">
+          <details className="border-rule group ledger-details border-b py-4 lg:hidden">
+            <summary className="text-muted-foreground focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between gap-4 rounded-sm text-xs focus-visible:ring-2 focus-visible:outline-none">
               <span>{label.onThisPage}</span>
-              <span className="text-foreground flex items-center gap-2 tabular-nums">
+              <span className="text-foreground flex items-center gap-2 font-mono tabular-nums">
                 <span>{label.sectionCount(toc.length)}</span>
                 <span aria-hidden="true" className="group-open:hidden">
                   +
@@ -412,16 +357,15 @@ export default async function PostPage({
             />
           </details>
         )}
-        <article className="prose prose-neutral dark:prose-invert prose-headings:text-foreground prose-p:text-foreground/90 prose-p:leading-8 prose-a:text-primary prose-a:font-medium prose-a:no-underline hover:prose-a:text-foreground prose-strong:text-foreground prose-ul:my-6 prose-ol:my-6 prose-li:my-2 prose-li:marker:text-muted-foreground prose-hr:border-border prose-th:border-border prose-td:border-border max-w-none py-9 [&_:not(pre)>code]:break-words [&_pre_code]:break-words [&_pre_code]:whitespace-pre-wrap [&_td]:break-words [&_td]:whitespace-normal [&_td_code]:break-all [&_td_code]:whitespace-normal [&_th]:break-words">
+        <article className="prose prose-neutral dark:prose-invert prose-headings:text-foreground prose-p:text-foreground/90 prose-p:leading-8 prose-a:text-accent-ink prose-a:font-medium prose-a:underline prose-a:decoration-accent-ink/40 prose-a:underline-offset-4 hover:prose-a:decoration-accent-ink prose-strong:text-foreground prose-ul:my-6 prose-ol:my-6 prose-li:my-2 prose-li:marker:text-muted-foreground prose-hr:border-rule prose-th:border-rule prose-td:border-rule prose-img:rounded-sm max-w-none py-9 [&_:not(pre)>code]:break-words [&_pre_code]:break-words [&_pre_code]:whitespace-pre-wrap [&_td]:break-words [&_td]:whitespace-normal [&_td_code]:break-all [&_td_code]:whitespace-normal [&_th]:break-words">
           <Suspense
-            fallback={
-              <div className="bg-muted/60 h-[52vh] animate-pulse rounded-md" />
-            }
+            fallback={<div className="skeleton-shimmer h-[52vh] rounded-sm" />}
           >
             <PostContent
               slug={slug}
               locale={safeLocale}
               source={postSource.source}
+              title={postMeta.title}
             />
           </Suspense>
         </article>
@@ -431,13 +375,6 @@ export default async function PostPage({
           locale={safeLocale}
         />
       </div>
-      <aside className="hidden lg:block">
-        <PostTableOfContents
-          items={toc}
-          label={label.onThisPage}
-          className="sticky top-28"
-        />
-      </aside>
     </div>
   );
 }
