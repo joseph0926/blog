@@ -6,14 +6,12 @@ import remarkGfm from 'remark-gfm';
 import type { AppLocale } from '@/i18n/routing';
 import { getMdxComponentsForSource } from '@/mdx/component-registry';
 import { MdxLink } from '@/mdx/components/mdx-link';
-import { getPostContent } from '@/services/post.service';
 import { PostCodeBlock } from './post-code-block';
 import { createHeadingIdFactory, getNodeText } from './post-toc';
 
 interface PostContentProps {
-  slug: string;
   locale: AppLocale;
-  source?: string;
+  source: string;
   title?: string;
 }
 
@@ -34,13 +32,7 @@ const labels = {
   }
 >;
 
-export async function PostContent({
-  slug,
-  locale,
-  source: providedSource,
-  title,
-}: PostContentProps) {
-  const source = providedSource ?? (await getPostContent(slug, locale)).source;
+export async function PostContent({ locale, source, title }: PostContentProps) {
   const components = await getMdxComponentsForSource(source);
   const createHeadingId = createHeadingIdFactory();
   const label = labels[locale];

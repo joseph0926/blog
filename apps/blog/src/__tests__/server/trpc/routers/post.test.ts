@@ -4,19 +4,29 @@ import path from 'node:path';
 import { defaultLocale } from '@/i18n/routing';
 import { postRouter } from '@/server/trpc/routers/post';
 import { createCallerFactory } from '@/server/trpc/trpc';
-import { createPost } from '@/services/post/create-post.service';
 
 const postsPath = path.join(process.cwd(), 'src/mdx');
 const uniqueId = crypto.randomUUID();
 const tagName = `vitest-tag-${uniqueId}`;
 const postPrefix = `vitest-test-mdx-${uniqueId}`;
 
-const createDummyPost = (index: number) =>
-  createPost({
-    title: `${postPrefix}-${index}`,
-    description: `설명 ${index}`,
-    tags: [tagName],
-  });
+const createDummyPost = async (index: number) => {
+  const date = new Date().toISOString().split('T')[0];
+  const slug = `${date}-${postPrefix}-${index}`;
+  const source = [
+    '---',
+    `slug: "${slug}"`,
+    `title: "${postPrefix}-${index}"`,
+    `description: "설명 ${index}"`,
+    `date: "${date}"`,
+    `tags: ["${tagName}"]`,
+    '---',
+    '',
+    '본문',
+    '',
+  ].join('\n');
+  await fs.promises.writeFile(path.join(postsPath, `${slug}.mdx`), source);
+};
 
 describe('trpc/routers/postRouter를 테스트합니다.', () => {
   const createCaller = createCallerFactory(postRouter);

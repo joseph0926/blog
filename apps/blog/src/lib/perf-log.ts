@@ -37,11 +37,6 @@ const writePerfLine = (label: string, data?: PerfLogData) => {
   }
 };
 
-export const perfLog = (label: string, data?: PerfLogData) => {
-  if (!perfDebugEnabled) return;
-  writePerfLine(label, data);
-};
-
 export const perfTimer = (label: string) => {
   if (!perfDebugEnabled) {
     return () => {};

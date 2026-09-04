@@ -80,28 +80,6 @@ export const pageRobots = {
       'max-video-preview': -1,
     },
   } as Metadata['robots'],
-
-  report: {
-    index: false,
-    follow: false,
-    noarchive: true,
-    nocache: true,
-    googleBot: {
-      index: false,
-      follow: false,
-    },
-  } as Metadata['robots'],
-
-  api: {
-    index: true,
-    follow: true,
-    nocache: false,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-snippet': 100,
-    },
-  } as Metadata['robots'],
 } as const;
 
 export function getRobotsByEnvironment(): Metadata['robots'] {

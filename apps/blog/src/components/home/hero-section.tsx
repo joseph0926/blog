@@ -2,10 +2,14 @@ import { ArrowDown, ArrowRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
+import {
+  formatEntryNumber,
+  formatPostDate,
+  formatReadTime,
+} from '@/lib/post-format';
 import { createTRPCContext } from '@/server/trpc/context';
 import { appRouter } from '@/server/trpc/root';
 import type { PostResponse } from '@/types/post.type';
-import { formatEntryNumber, formatPostDate, formatReadTime } from './blog-post';
 
 type HeroSectionProps = {
   locale: AppLocale;

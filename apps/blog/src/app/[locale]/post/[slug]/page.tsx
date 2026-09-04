@@ -5,11 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 import { EntryStamp } from '@/components/post/entry-stamp';
 import { PostContent } from '@/components/post/post-content';
-import {
-  formatEntryNumber,
-  formatPostDate,
-  PostHeader,
-} from '@/components/post/post-header';
+import { PostHeader } from '@/components/post/post-header';
 import { PostTableOfContents } from '@/components/post/post-table-of-contents';
 import { extractPostToc, type PostTocItem } from '@/components/post/post-toc';
 import { ReadingProgress } from '@/components/post/reading-progress';
@@ -21,6 +17,7 @@ import {
   localizedPath,
   toAbsoluteUrl,
 } from '@/i18n/seo';
+import { formatEntryNumber, formatPostDate } from '@/lib/post-format';
 import { commonOpenGraph } from '@/meta/open-graph';
 import { pageRobots } from '@/meta/robots';
 import {
@@ -362,7 +359,6 @@ export default async function PostPage({
             fallback={<div className="skeleton-shimmer h-[52vh] rounded-sm" />}
           >
             <PostContent
-              slug={slug}
               locale={safeLocale}
               source={postSource.source}
               title={postMeta.title}

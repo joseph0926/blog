@@ -18,6 +18,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
+import { formatEntryNumber } from '@/lib/post-format';
 import { getPostsQueryInput } from '@/lib/post-query';
 import { trpc } from '@/lib/trpc';
 import type { PostResponse, TagResponse } from '@/types/post.type';
@@ -64,9 +65,6 @@ const tagLabelMap: Record<string, string> = {
 
 const getTagLabel = (tagName: string) =>
   tagLabelMap[tagName.toLowerCase()] ?? tagName;
-
-const formatEntryNumber = (entryNumber: number) =>
-  `No. ${String(Math.max(entryNumber, 0)).padStart(3, '0')}`;
 
 const inkLink =
   'press text-accent-ink hover:text-accent-ink-hover focus-visible:ring-ring decoration-accent-ink/40 hover:decoration-accent-ink-hover inline-flex items-center gap-2 rounded-sm text-sm font-medium underline decoration-1 underline-offset-[6px] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none';

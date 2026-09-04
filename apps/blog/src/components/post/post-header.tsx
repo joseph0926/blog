@@ -1,8 +1,7 @@
-import { format } from 'date-fns';
-import { enUS, ko } from 'date-fns/locale';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
+import { formatEntryNumber, formatPostDate } from '@/lib/post-format';
 import type { PostMeta } from '@/services/post.service';
 
 const labels = {
@@ -18,14 +17,6 @@ const labels = {
     readTime: (minutes: number) => `${minutes} min read`,
   },
 };
-
-export const formatPostDate = (date: Date | string, locale: AppLocale) =>
-  format(new Date(date), locale === 'ko' ? 'yyyy.MM.dd' : 'MMM dd, yyyy', {
-    locale: locale === 'ko' ? ko : enUS,
-  });
-
-export const formatEntryNumber = (entryNumber: number) =>
-  `No. ${String(Math.max(entryNumber, 0)).padStart(3, '0')}`;
 
 export const PostHeader = ({
   post,

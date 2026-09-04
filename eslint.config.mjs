@@ -21,7 +21,6 @@ const eslintConfig = defineConfig([
       'simple-import-sort': pluginImportSort,
     },
     rules: {
-      'no-unused-vars': 'error',
       'no-console': 'warn',
       'simple-import-sort/imports': [
         'error',

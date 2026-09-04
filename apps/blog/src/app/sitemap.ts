@@ -28,8 +28,6 @@ function calculatePriority(
     blog: 0.9,
     about: 0.8,
     post: 0.7,
-    report: 0.3,
-    admin: 0.1,
   };
 
   let priority = basePriority[pageType] || 0.5;
@@ -58,10 +56,6 @@ function getChangeFrequency(
 ): ChangeFrequency {
   if (pageType === 'home' || pageType === 'blog') {
     return 'daily';
-  }
-
-  if (pageType === 'admin') {
-    return 'monthly';
   }
 
   if (pageType === 'post' && lastModified) {

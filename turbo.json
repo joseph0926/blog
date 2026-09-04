@@ -3,8 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", ".react-router", "build"],
-      "env": ["NEXT_PUBLIC_APP_ENV", "VERCEL_ENV"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": ["VERCEL_ENV"]
     },
     "type-check": {
       "dependsOn": ["^type-check"]
