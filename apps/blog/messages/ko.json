@@ -215,9 +215,12 @@
       }
     },
     "coverHint": "연구 노트의 표지",
-    "prCount": "{count}건",
     "careerLabel": "장",
-    "scrollHint": "작업 기록 보기"
+    "scrollHint": "작업 기록 보기",
+    "index": {
+      "label": "차례",
+      "intro": "소개"
+    }
   },
   "meta": {
     "homeTitle": "김영훈 블로그",

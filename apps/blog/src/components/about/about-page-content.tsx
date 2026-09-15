@@ -4,23 +4,17 @@ import type { AppLocale } from '@/i18n/routing';
 import { AboutCover } from './about-cover';
 import { AboutScrollProvider } from './about-scroll';
 import { AboutStage } from './about-stage';
-import { type Measurement, measureRatio } from './measure';
+import { type CareerEntry, CareerTimeline } from './career-timeline';
+import { type Chapter, ChapterIndex } from './chapter-index';
+import { ConnectSection } from './connect-section';
+import { IntroReveal } from './intro-reveal';
+import type { Measurement } from './measure';
 import { PinnedReel } from './pinned-reel';
-import { type PrEntry, PrTabs } from './pr-tabs';
-import { SectionReveal } from './section-reveal';
+import { type PrEntry, PrReveal } from './pr-reveal';
+import { ScrubSection } from './scrub-section';
+import { VelocityMarquee } from './velocity-marquee';
 
 const careerIds = ['ea', 'nhn', 'pandora'] as const;
-
-type CareerId = (typeof careerIds)[number];
-
-type CareerEntry = {
-  id: CareerId;
-  period: string;
-  company: string;
-  role: string;
-  highlight: string;
-  details: string[];
-};
 
 const measurementIds = ['calls', 'prs', 'booking', 'verification'] as const;
 
@@ -48,11 +42,15 @@ const prSources = [
   },
 ] as const;
 
-const sectionLabel = 'text-muted-foreground text-xs';
-const sectionGrid =
-  'grid gap-4 py-12 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10 lg:py-16';
-const inkLink =
-  'press text-foreground hover:text-accent-ink focus-visible:ring-ring inline-flex items-center gap-2 rounded-sm underline decoration-rule decoration-1 underline-offset-[6px] transition-colors duration-150 hover:decoration-accent-ink focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none';
+const chapterIds = {
+  intro: 'about-intro',
+  measurements: 'measurements',
+  focus: 'about-focus',
+  career: 'about-career',
+  openSource: 'about-open-source',
+  stack: 'about-stack',
+  connect: 'about-connect',
+} as const;
 
 export async function AboutPageContent({ locale }: { locale: AppLocale }) {
   const t = await getTranslations({ locale, namespace: 'about' });
@@ -73,13 +71,6 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
     ...pr,
     title: t(titleKey),
     desc: t(descKey),
-  }));
-
-  const prGroups = [...new Set(prs.map((pr) => pr.project))].map((project) => ({
-    project,
-    countLabel: t('prCount', {
-      count: prs.filter((pr) => pr.project === project).length,
-    }),
   }));
 
   const measurements: Measurement[] = measurementIds.map((id) => ({
@@ -129,13 +120,23 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
     { href: 'mailto:joseph0926.dev@gmail.com', label: t('connect.email') },
   ];
 
-  const ratios = measurements.map((item) => ({
-    id: item.id,
-    ratio: measureRatio(item.from, item.to),
+  const chapters: Chapter[] = [
+    { id: chapterIds.intro, label: t('index.intro') },
+    { id: chapterIds.measurements, label: t('reel.label') },
+    { id: chapterIds.focus, label: t('focus.heading') },
+    { id: chapterIds.career, label: t('experience.title') },
+    { id: chapterIds.openSource, label: t('openSource.heading') },
+    { id: chapterIds.stack, label: t('stack.heading') },
+    { id: chapterIds.connect, label: t('connect.heading') },
+  ].map((chapter, index) => ({
+    ...chapter,
+    number: String(index + 1).padStart(2, '0'),
   }));
+  const numberOf = (id: string) =>
+    chapters.find((chapter) => chapter.id === id)?.number ?? '';
 
   return (
-    <AboutScrollProvider ratios={ratios}>
+    <AboutScrollProvider>
       <div className="relative isolate">
         <AboutStage />
 
@@ -144,128 +145,91 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
           name={t('profile.name')}
           role={t('profile.role')}
           scrollHint={t('scrollHint')}
-          intro={t('intro')}
+          scrollTarget={chapterIds.intro}
         />
 
-        <PinnedReel label={t('reel.label')} items={measurements} />
+        <div className="mx-auto max-w-[1260px] px-4 lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
+          <ChapterIndex
+            label={t('index.label')}
+            name={t('profile.name')}
+            chapters={chapters}
+          />
 
-        <div className="mx-auto max-w-[1260px] px-4">
-          <SectionReveal className={sectionGrid}>
-            <p className={sectionLabel}>{t('focus.heading')}</p>
-            <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_16rem]">
-              <ul className="text-foreground space-y-3 text-base leading-7">
-                {focusItems.map((item) => (
-                  <li key={item} className="border-rule border-l-2 pl-4">
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <dl className="grid content-start gap-4">
-                {profileFacts.map((fact) => (
-                  <div key={fact.label}>
-                    <dt className="text-muted-foreground text-xs">
-                      {fact.label}
-                    </dt>
-                    <dd className="text-foreground mt-0.5 text-sm">
-                      {fact.value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </SectionReveal>
+          <div className="min-w-0">
+            <IntroReveal
+              id={chapterIds.intro}
+              number={numberOf(chapterIds.intro)}
+              title={t('index.intro')}
+              text={t('intro')}
+            />
 
-          <SectionReveal
-            aria-labelledby="about-career"
-            className="py-12 lg:py-16"
-          >
-            <div className="grid gap-4 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
-              <p className={sectionLabel}>{t('experience.eyebrow')}</p>
-              <h2
-                id="about-career"
-                className="text-foreground text-xl font-semibold tracking-tight"
-              >
-                {t('experience.title')}
-              </h2>
-            </div>
-            <ol className="mt-6">
-              {career.map((entry, index) => (
-                <li
-                  key={entry.id}
-                  className="border-rule grid gap-4 border-t py-8 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10"
-                >
-                  <div className="lg:sticky lg:top-20 lg:self-start">
-                    <p className="text-muted-foreground font-mono text-xs tabular-nums">
-                      {t('careerLabel')} {career.length - index}
-                    </p>
-                    <p className="text-foreground mt-1 font-mono text-sm tabular-nums">
-                      {entry.period}
-                    </p>
-                  </div>
-                  <div className="max-w-[68ch]">
-                    <h3 className="text-foreground text-lg font-semibold tracking-tight">
-                      {entry.company}
-                      <span className="text-muted-foreground ml-3 text-base font-normal">
-                        {entry.role}
-                      </span>
-                    </h3>
-                    <p className="text-foreground mt-4 text-base leading-7 break-keep">
-                      {entry.highlight}
-                    </p>
-                    <ul className="text-muted-foreground mt-4 space-y-2 text-sm leading-6">
-                      {entry.details.map((detail) => (
-                        <li
-                          key={detail}
-                          className="border-rule border-l-2 pl-4"
-                        >
-                          {detail}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </SectionReveal>
+            <PinnedReel
+              id={chapterIds.measurements}
+              number={numberOf(chapterIds.measurements)}
+              label={t('reel.label')}
+              items={measurements}
+            />
 
-          <SectionReveal
-            aria-labelledby="about-open-source"
-            className="py-12 lg:py-16"
-          >
-            <div className="grid gap-4 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
-              <p className={sectionLabel}>{t('openSource.eyebrow')}</p>
-              <div>
-                <h2
-                  id="about-open-source"
-                  className="text-foreground text-xl font-semibold tracking-tight"
-                >
-                  {t('openSource.heading')}
-                </h2>
-                <p className="text-muted-foreground mt-3 max-w-[62ch] text-sm leading-6">
-                  {t('openSource.lead')}
-                </p>
-                <div className="mt-8">
-                  <PrTabs prs={prs} groups={prGroups} />
-                </div>
-                <h3 className="text-muted-foreground mt-10 text-xs">
-                  {t('openSource.projectsHeading')}
-                </h3>
-                <ul className="text-foreground mt-3 max-w-[68ch] space-y-3 text-sm leading-6 break-keep">
-                  <li className="border-rule border-l-2 pl-4">
-                    {t('openSource.firsttx')}
-                  </li>
-                  <li className="border-rule border-l-2 pl-4">
-                    {t('openSource.mentoring')}
-                  </li>
+            <ScrubSection
+              id={chapterIds.focus}
+              number={numberOf(chapterIds.focus)}
+              title={t('focus.heading')}
+            >
+              <div className="mt-8 grid gap-8 md:grid-cols-[minmax(0,1fr)_16rem]">
+                <ul className="text-foreground space-y-3 text-base leading-7">
+                  {focusItems.map((item) => (
+                    <li key={item} className="border-rule border-l-2 pl-4">
+                      {item}
+                    </li>
+                  ))}
                 </ul>
+                <dl className="grid content-start gap-4">
+                  {profileFacts.map((fact) => (
+                    <div key={fact.label}>
+                      <dt className="text-muted-foreground text-xs">
+                        {fact.label}
+                      </dt>
+                      <dd className="text-foreground mt-0.5 text-sm">
+                        {fact.value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
-            </div>
-          </SectionReveal>
+            </ScrubSection>
 
-          <SectionReveal className={sectionGrid}>
-            <p className={sectionLabel}>{t('stack.heading')}</p>
-            <div>
-              <p className="text-foreground max-w-[68ch] text-base leading-7">
+            <ScrubSection
+              id={chapterIds.career}
+              number={numberOf(chapterIds.career)}
+              title={t('experience.title')}
+            >
+              <CareerTimeline
+                entries={career}
+                chapterLabel={t('careerLabel')}
+              />
+            </ScrubSection>
+
+            <PrReveal
+              id={chapterIds.openSource}
+              number={numberOf(chapterIds.openSource)}
+              title={t('openSource.heading')}
+              lead={t('openSource.lead')}
+              prs={prs}
+              projectsHeading={t('openSource.projectsHeading')}
+              projects={[t('openSource.firsttx'), t('openSource.mentoring')]}
+            />
+
+            <ScrubSection
+              id={chapterIds.stack}
+              number={numberOf(chapterIds.stack)}
+              title={t('stack.heading')}
+            >
+              <div className="mt-8">
+                <VelocityMarquee
+                  items={stackGroups.flatMap((group) => group.items)}
+                />
+              </div>
+              <p className="text-foreground mt-8 max-w-[68ch] text-base leading-7 break-keep">
                 {t('stack.line')}
               </p>
               <dl className="mt-6 grid gap-x-8 gap-y-3 sm:grid-cols-2">
@@ -283,37 +247,18 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
                   </div>
                 ))}
               </dl>
-            </div>
-          </SectionReveal>
+            </ScrubSection>
 
-          <SectionReveal className={`${sectionGrid} border-rule border-b`}>
-            <p className={sectionLabel}>{t('connect.heading')}</p>
-            <div>
-              <p className="text-foreground max-w-[62ch] text-base leading-7">
-                {t('connect.description')}
-              </p>
-              <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                {connectLinks.map((link) => (
-                  <li key={link.href}>
-                    <a
-                      href={link.href}
-                      target={
-                        link.href.startsWith('mailto') ? undefined : '_blank'
-                      }
-                      rel={
-                        link.href.startsWith('mailto')
-                          ? undefined
-                          : 'noopener noreferrer'
-                      }
-                      className={inkLink}
-                    >
-                      {link.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </SectionReveal>
+            <ConnectSection
+              id={chapterIds.connect}
+              number={numberOf(chapterIds.connect)}
+              title={t('connect.heading')}
+              name={t('profile.name')}
+              role={t('profile.role')}
+              description={t('connect.description')}
+              links={connectLinks}
+            />
+          </div>
         </div>
       </div>
     </AboutScrollProvider>

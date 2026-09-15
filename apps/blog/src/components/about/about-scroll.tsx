@@ -1,5 +1,7 @@
 'use client';
 
+import 'lenis/dist/lenis.css';
+import { ReactLenis } from 'lenis/react';
 import {
   type MotionValue,
   useMotionValue,
@@ -14,19 +16,15 @@ import {
   useSyncExternalStore,
 } from 'react';
 
-export type MeasurementRatio = {
-  id: string;
-  ratio: number;
-};
-
 type AboutScrollValue = {
   coverRef: RefObject<HTMLElement | null>;
-  reelRef: RefObject<HTMLDivElement | null>;
+  connectRef: RefObject<HTMLElement | null>;
   coverProgress: MotionValue<number>;
-  reelProgress: MotionValue<number>;
-  ratios: MeasurementRatio[];
+  connectProgress: MotionValue<number>;
   reduceMotion: boolean;
   mounted: boolean;
+  /** 마운트됐고 저감 모드가 아닐 때만 스크롤 스크럽을 적용한다. */
+  scrub: boolean;
 };
 
 const AboutScrollContext = createContext<AboutScrollValue | null>(null);
@@ -42,44 +40,53 @@ export const useAboutScroll = () => {
 };
 
 export const AboutScrollProvider = ({
-  ratios,
   children,
 }: {
-  ratios: MeasurementRatio[];
   children: React.ReactNode;
 }) => {
   const coverRef = useRef<HTMLElement | null>(null);
-  const reelRef = useRef<HTMLDivElement | null>(null);
-  const reduceMotion = useReducedMotion() ?? false;
+  const connectRef = useRef<HTMLElement | null>(null);
+  const prefersReducedMotion = useReducedMotion() ?? false;
   const mounted = useSyncExternalStore(
     subscribeNoop,
     () => true,
     () => false,
   );
+  /** SSR과 첫 클라이언트 렌더를 같게 유지하려고 마운트 뒤에만 저감 설정을 반영한다. */
+  const reduceMotion = mounted && prefersReducedMotion;
   const fallback = useMotionValue(0);
 
   const { scrollYProgress: coverProgress } = useScroll({
     target: coverRef,
     offset: ['start start', 'end start'],
   });
-  const { scrollYProgress: reelProgress } = useScroll({
-    target: reelRef,
-    offset: ['start start', 'end end'],
+  const { scrollYProgress: connectProgress } = useScroll({
+    target: connectRef,
+    offset: ['start end', 'end end'],
   });
 
   return (
     <AboutScrollContext.Provider
       value={{
         coverRef,
-        reelRef,
+        connectRef,
         coverProgress: mounted ? coverProgress : fallback,
-        reelProgress: mounted ? reelProgress : fallback,
-        ratios,
+        connectProgress: mounted ? connectProgress : fallback,
         reduceMotion,
         mounted,
+        scrub: mounted && !reduceMotion,
       }}
     >
-      {children}
+      <ReactLenis
+        root
+        options={{
+          lerp: 0.09,
+          anchors: true,
+          respectReducedMotion: true,
+        }}
+      >
+        {children}
+      </ReactLenis>
     </AboutScrollContext.Provider>
   );
 };

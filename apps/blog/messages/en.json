@@ -215,9 +215,12 @@
       }
     },
     "coverHint": "Cover of the research notes",
-    "prCount": "{count}",
     "careerLabel": "Ch.",
-    "scrollHint": "See the work notes"
+    "scrollHint": "See the work notes",
+    "index": {
+      "label": "Contents",
+      "intro": "Introduction"
+    }
   },
   "meta": {
     "homeTitle": "Younghoon Kim Blog",

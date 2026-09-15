@@ -9,7 +9,7 @@ type AboutCoverProps = {
   name: string;
   role: string;
   scrollHint: string;
-  intro: string;
+  scrollTarget: string;
 };
 
 export const AboutCover = ({
@@ -17,7 +17,7 @@ export const AboutCover = ({
   name,
   role,
   scrollHint,
-  intro,
+  scrollTarget,
 }: AboutCoverProps) => {
   const { coverRef, coverProgress, reduceMotion } = useAboutScroll();
   const nameX = useTransform(
@@ -27,6 +27,14 @@ export const AboutCover = ({
   const roleX = useTransform(
     coverProgress,
     transform([0, 1], [0, reduceMotion ? 0 : 48]),
+  );
+  const nameScale = useTransform(
+    coverProgress,
+    transform([0.15, 0.8], [1, reduceMotion ? 1 : 0.6]),
+  );
+  const nameOpacity = useTransform(
+    coverProgress,
+    transform([0.55, 0.85], [1, 0]),
   );
   const lineScale = useTransform(coverProgress, transform([0, 1], [1, 1.12]));
   const fade = useTransform(
@@ -45,8 +53,8 @@ export const AboutCover = ({
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
         <motion.h1
           id="about-cover-title"
-          style={{ x: nameX }}
-          className="text-foreground text-[clamp(3rem,10vw,7.5rem)] leading-[0.95] font-semibold tracking-[-0.03em]"
+          style={{ x: nameX, scale: nameScale, opacity: nameOpacity }}
+          className="text-foreground origin-bottom-left text-[clamp(3rem,10vw,7.5rem)] leading-[0.95] font-semibold tracking-[-0.03em]"
         >
           {name}
         </motion.h1>
@@ -62,18 +70,13 @@ export const AboutCover = ({
           {role}
         </motion.p>
       </div>
-      <div className="grid gap-8 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
-        <a
-          href="#measurements"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-2 self-start rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
-        >
-          {scrollHint}
-          <ArrowDown className="h-4 w-4" />
-        </a>
-        <p className="text-foreground max-w-[62ch] text-base leading-7 break-keep sm:text-lg sm:leading-8">
-          {intro}
-        </p>
-      </div>
+      <a
+        href={`#${scrollTarget}`}
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-2 self-start rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
+      >
+        {scrollHint}
+        <ArrowDown className="h-4 w-4" />
+      </a>
     </motion.section>
   );
 };
