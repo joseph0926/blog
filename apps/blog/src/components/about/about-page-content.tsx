@@ -22,7 +22,7 @@ type CareerEntry = {
   details: string[];
 };
 
-const measurementIds = ['calls', 'prs', 'locales', 'publish'] as const;
+const measurementIds = ['calls', 'prs', 'booking', 'verification'] as const;
 
 const prSources = [
   {
@@ -33,34 +33,6 @@ const prSources = [
     descKey: 'openSource.groups.query.pr1Desc',
   },
   {
-    key: 'query-2',
-    project: 'TanStack Query',
-    id: '#9592',
-    titleKey: 'openSource.groups.query.pr2Title',
-    descKey: 'openSource.groups.query.pr2Desc',
-  },
-  {
-    key: 'query-3',
-    project: 'TanStack Query',
-    id: '#9623',
-    titleKey: 'openSource.groups.query.pr3Title',
-    descKey: 'openSource.groups.query.pr3Desc',
-  },
-  {
-    key: 'router-1',
-    project: 'React Router',
-    id: '#14286',
-    titleKey: 'openSource.groups.router.pr1Title',
-    descKey: 'openSource.groups.router.pr1Desc',
-  },
-  {
-    key: 'router-2',
-    project: 'React Router',
-    id: '#14335',
-    titleKey: 'openSource.groups.router.pr2Title',
-    descKey: 'openSource.groups.router.pr2Desc',
-  },
-  {
     key: 'router-3',
     project: 'React Router',
     id: '#14534',
@@ -68,32 +40,11 @@ const prSources = [
     descKey: 'openSource.groups.router.pr3Desc',
   },
   {
-    key: 'router-4',
-    project: 'React Router',
-    id: '#14336',
-    titleKey: 'openSource.groups.router.pr4Title',
-    descKey: 'openSource.groups.router.pr4Desc',
-  },
-  {
     key: 'router-5',
     project: 'React Router',
     id: '#14687',
     titleKey: 'openSource.groups.router.pr5Title',
     descKey: 'openSource.groups.router.pr5Desc',
-  },
-  {
-    key: 'rhf-1',
-    project: 'React Hook Form',
-    id: '#12865',
-    titleKey: 'openSource.groups.rhf.pr1Title',
-    descKey: 'openSource.groups.rhf.pr1Desc',
-  },
-  {
-    key: 'tsr-1',
-    project: 'TanStack Router',
-    id: '#3611',
-    titleKey: 'openSource.groups.tsr.pr1Title',
-    descKey: 'openSource.groups.tsr.pr1Desc',
   },
 ] as const;
 

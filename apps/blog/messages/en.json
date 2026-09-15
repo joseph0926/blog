@@ -93,8 +93,8 @@
   },
   "about": {
     "metaTitle": "About",
-    "metaDescription": "Younghoon Kim, a frontend developer with three years across EA, NHN, and Pandora TV on game operations, ticketing, and community products, with 12 fixes merged into React Router, TanStack Query, and other open-source projects.",
-    "intro": "I spent three years building frontends at EA, NHN, and Pandora TV for game operations, concert ticketing, and a community service. At EA and Pandora TV I was the only frontend engineer. I found and fixed problems in React Router, TanStack Query, and other open-source projects, and 12 of those fixes were merged after review by outside maintainers.",
+    "metaDescription": "Younghoon Kim, a frontend engineer who built an AI-assisted verification tool at EA and improved booking recovery and list performance at TicketLink, with 12 PRs merged into React Router, TanStack Query, and other open-source projects.",
+    "intro": "I've worked as a frontend engineer at EA, NHN, and Pandora TV since July 2023. At EA, I built a tool that drafts verification checks with AI and lets operators review the evidence and make the final decisions. At TicketLink, I helped users check booking results after an interrupted session and improved list performance on older iPhones. I've contributed 12 merged PRs to React Router, TanStack Query, and other open-source projects.",
     "profile": {
       "name": "Younghoon Kim",
       "role": "Frontend Engineer"
@@ -109,10 +109,10 @@
     "focus": {
       "heading": "What I care about",
       "items": {
-        "developerExperience": "Reproduction links that drop QA and developers into the same account, tab, and position",
-        "reliableInterfaces": "A publishing screen that makes version diff and DB generation checks a required step",
-        "runtimeBehavior": "Problems that only show up on old devices and inside WebViews",
-        "openSource": "Open-source fixes shipped with a reproduction and a test"
+        "developerExperience": "Screens where operators review AI-generated verification checks alongside supporting evidence",
+        "reliableInterfaces": "Recovering the result of an interrupted booking request and resuming failed work",
+        "runtimeBehavior": "List performance on older iPhones and syncing server state when users return to a WebView",
+        "openSource": "Open-source contributions that start with a reproduced bug and a test"
       }
     },
     "experience": {
@@ -123,69 +123,51 @@
           "company": "EA Korea",
           "role": "FC Online operations tool, contract",
           "period": "2025.03 - Present",
-          "highlight1": "Sole frontend engineer on the 20-person FC Online SE team, turning account, item, and content requests from QA and server developers into screens and verification flows",
-          "highlight2": "Turned the account and screen position where a bug appeared into a reproduction link. The URL owns the account, tab, and detail position and TanStack Query fetches the data, so QA lands on the same screen from one Slack link",
-          "highlight3": "Put version diff and per-file DB generation checks on one screen before publishing, and blocked publishing until every required generation succeeded. The same kind of bad publish has not recurred since. Rechecked accessibility on 10 routes including login with axe-core and Playwright"
+          "highlight1": "Built operations tools on the FC Online SE team to help operators and QA prepare for verification. I agreed on processing rules with server developers and implemented the React screens and Node.js APIs.",
+          "highlight2": "Built an API that sends related documents, existing tests, and before-and-after values to an LLM to draft verification checks. Operators review the supporting passages, then accept, edit, or exclude suggestions and make the final decisions. Suggestions with insufficient evidence are flagged for review, and earlier edits are preserved after regeneration. After rollout, I used review records to address omissions and unnecessary suggestions.",
+          "highlight3": "Let QA choose an environment and target account state to run account creation, state setup, and final checks. The Node.js server records each step, while the React screen shows progress and failures. Before resuming failed work, the tool checks what the server has applied so it can continue from the required step without repeating completed work."
         },
         "nhn": {
           "company": "NHN Injeinc",
-          "role": "Assigned to NHN Link TicketLink",
+          "role": "TicketLink, full-time",
           "period": "2024.05 - 2025.03",
-          "highlight1": "One of three developers from a seven-person FE team assigned to TicketLink, owning the React 18 and TypeScript migration of the show list and detail pages plus the international user screens",
-          "highlight2": "Reproduced Safari crashing on old iPhones during long list scrolls on a test device, then added TanStack Virtual so only the visible range stays in the DOM. The crash did not recur under the same procedure",
-          "highlight3": "Kept filters and scroll position when returning from detail or booking to the list, and merged the international site into the Korean React codebase so Korean, English, Japanese, and Chinese screens ship from one codebase"
+          "highlight1": "Worked on the NHN Injeinc frontend team, improving how TicketLink users check booking results and how its lists perform.",
+          "highlight2": "Temporarily saved the booking request ID and minimal recovery data in localStorage. When users returned in the same browser with a saved ID, the screen fetched that request’s status from the server and showed the result and next action. QA and I tested returns after payment authentication, browser restarts, and failed status requests before rollout.",
+          "highlight3": "Reproduced a browser crash during long list scrolls on an older test iPhone. I introduced TanStack Virtual to keep only visible products and a small surrounding range in the DOM. The crash no longer reproduced on the same device with the same procedure, and an operator passed along confirmation from the original reporter."
         },
         "pandora": {
           "company": "Pandora TV",
-          "role": "Cobak, crypto community",
+          "role": "Cobak, full-time",
           "period": "2023.07 - 2024.05",
-          "highlight1": "Sole frontend engineer for Cobak web and WebView screens: post writing and editing, membership, and public pages",
-          "highlight2": "After an in-app payment, the returning WebView invalidates the related queries, reloads payment and membership state from the server, and cancels overlapping earlier requests. Pending, failed, and complete screens are covered by component tests",
-          "highlight3": "Built manual save, a draft list, restore, and delete so long posts survive app exits, and split the publish and draft entry points so neither depends on client state ordering"
+          "highlight1": "Sole frontend engineer for Cobak’s web and WebView screens, including post writing and editing, membership, and public pages.",
+          "highlight2": "The app handled payment processing and completion notifications. On return, the WebView cancelled earlier requests with AbortController, invalidated related queries, and fetched payment and membership state from the server. It showed a pending screen during processing and fetched again on the app’s completion notification. I checked the pending, failed, and complete screens with component tests.",
+          "highlight3": "Built manual save, a draft list, restore, and delete in the shared editor. I separated publishing from draft saving so users could reload posts saved on the server and continue writing. I manually checked first saves, updates, publishing restored drafts, new posts, and edits to existing posts, followed by operator QA."
         }
       }
     },
     "openSource": {
       "eyebrow": "Evidence",
       "heading": "Merged open-source work",
-      "lead": "Fixes in React Router, TanStack Query, and other React ecosystem projects for performance bottlenecks, runtime regressions, browser compatibility, and type problems, each reproduced first and shipped with a test. These are 10 representative PRs out of 12 merged.",
+      "lead": "I reproduced and fixed performance bottlenecks, runtime regressions, browser compatibility issues, and type problems in React Router, TanStack Query, and other React ecosystem projects. These are three examples from 12 merged PRs.",
       "groups": {
         "query": {
-          "pr1Title": "Optimized useQueries from O(N²) to O(N)",
-          "pr1Desc": "Reduced function calls in the 500-query benchmark from 4,500 to 2,000 (about -55%).",
-          "pr2Title": "Fixed persist + memoized combine bug",
-          "pr2Desc": "Resolved stale UI after page refresh.",
-          "pr3Title": "Fixed CI timeout",
-          "pr3Desc": "Stabilized a mismatch in the Nx Cloud distributed execution config."
+          "pr1Title": "Reduced duplicate observer matching in useQueries",
+          "pr1Desc": "In a separate measurement with 500 queries, findMatchingObservers calls fell from about 4,500 to about 2,000."
         },
         "router": {
-          "pr1Title": "Fixed missing middleware skipRevalidation handling",
-          "pr1Desc": "Prevented unnecessary parent loader re-executions.",
-          "pr2Title": "Handled restricted browser storage environments",
-          "pr2Desc": "Added safe handling for session save failures in private mode.",
           "pr3Title": "Fixed fetcher.submit treating plain objects as HTML elements",
-          "pr3Desc": "Plain objects with a tagName were handled as form elements. Fixed and added a regression test.",
-          "pr4Title": "Fixed generatePath suffix parameter handling",
-          "pr4Desc": "Resolved failures generating :id.json paths.",
+          "pr3Desc": "Fixed plain objects with a tagName being mistaken for HTML elements and added a regression test.",
           "pr5Title": "Added crossOrigin attribute to <Links />",
-          "pr5Desc": "Fixed CSS preload failing behind a CDN with CORS."
-        },
-        "rhf": {
-          "pr1Title": "Fixed useController type regression",
-          "pr1Desc": "Resolved the never-lock issue and added type tests."
-        },
-        "tsr": {
-          "pr1Title": "Fixed params.parse notFound() handling",
-          "pr1Desc": "Changed 500 to 404 behavior and added tests."
+          "pr5Desc": "Made <Links /> pass crossOrigin through to fix CSS preload failures in CDN environments with CORS."
         }
       },
       "projectsHeading": "Public projects and activities",
-      "firsttx": "FirstTx: five npm packages that save CSR screen state, restore it on revisit, and roll back on failure, with docs, a Playground, DevTools, and releases that I maintain. On top of it I built Bug Dreamer, a checker that generates boundary-state tests and reports only failures it can reproduce in isolation, validated against 20 pre-registered defects with 7 published reproduction reports.",
+      "firsttx": "FirstTx is a set of five npm packages for restoring screen state when users return to a CSR app and retrying individual steps. It also runs app-registered compensation functions for successful steps in reverse order. I maintain the docs, Playground, DevTools, and releases.",
       "mentoring": "Code review mentoring: four sessions in late 2025 for about 50 students across Programmers K-Digital Training cohorts."
     },
     "stack": {
       "heading": "Tools I use now",
-      "line": "React, TypeScript, and Next.js as a base. TanStack Query, React Router, and Zustand for state and routing. Vite, Vitest, Playwright, and ESLint for build and tests. Node, Fastify, Prisma, and tRPC when I need a backend.",
+      "line": "I use React, TypeScript, and Next.js, with TanStack Query, React Router, and Zustand for state and routing. My build and test tools are Vite, Vitest, Playwright, and ESLint. For backend work, I use Node, Fastify, Prisma, and tRPC.",
       "groups": {
         "core": "Core",
         "state": "State/routing",
@@ -195,7 +177,7 @@
     },
     "connect": {
       "heading": "Contact",
-      "description": "Happy to talk in detail about operations tooling, React and TypeScript, and open-source PRs.",
+      "description": "Get in touch to discuss operations tools, React and TypeScript, or open-source PRs.",
       "email": "email"
     },
     "meta": {
@@ -204,30 +186,30 @@
       "openSourceTotal": "12 open-source PRs merged"
     },
     "reel": {
-      "label": "Measurement",
+      "label": "Work notes",
       "items": {
         "calls": {
-          "from": "4,500",
-          "to": "2,000",
-          "caption": "Function calls in the 500-query useQueries benchmark for TanStack Query, down 55%.",
+          "from": "About 4,500",
+          "to": "About 2,000",
+          "caption": "I reduced duplicate observer matching in TanStack Query’s useQueries. These are findMatchingObservers call counts from a separate measurement with 500 queries.",
           "source": "TanStack Query #8641"
         },
         "prs": {
           "from": "0",
           "to": "12",
-          "caption": "Fixes reproduced and tested in React Router, TanStack Query, and others, merged after review by outside maintainers.",
+          "caption": "I reproduced and fixed performance bottlenecks, runtime regressions, browser compatibility issues, and type problems in React Router, TanStack Query, and other projects.",
           "source": "Merged open-source PRs"
         },
-        "locales": {
-          "from": "1",
-          "to": "4",
-          "caption": "The international site merged into the Korean React codebase, so Korean, English, Japanese, and Chinese screens ship from one codebase.",
-          "source": "NHN Link TicketLink"
+        "booking": {
+          "from": "Interrupted",
+          "to": "Check result",
+          "caption": "Used the booking request ID saved in the same browser to fetch server state again and show the result and next action.",
+          "source": "NHN Injeinc, TicketLink"
         },
-        "publish": {
-          "from": "Many tools",
-          "to": "One screen",
-          "caption": "Upload, per-file DB generation, version diff, and publish confirmation on one screen, with publishing blocked until every required generation succeeds.",
+        "verification": {
+          "from": "Compare docs",
+          "to": "Review drafts",
+          "caption": "Deployed a tool that drafts verification checks from related documents and existing tests, with operators reviewing the evidence and making the final decisions.",
           "source": "EA Korea, FC Online operations tool"
         }
       }
@@ -235,7 +217,7 @@
     "coverHint": "Cover of the research notes",
     "prCount": "{count}",
     "careerLabel": "Ch.",
-    "scrollHint": "See the measurements"
+    "scrollHint": "See the work notes"
   },
   "meta": {
     "homeTitle": "Younghoon Kim Blog",
