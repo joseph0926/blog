@@ -1,0 +1,277 @@
+---
+slug: '2026-09-16-what-can-i-add-to-ai'
+title: 'If AI Can Do It All, What Can I Add?'
+description: 'If AI can write and review code, what can I add? A conversation with AI led me to think about 100% today and 150% beyond it.'
+date: '2026-09-16'
+sourceHash: 'sha256:3dcd875ef78d369d4b5f9ba0869e84101241155f312438dd5c9678a4e26d6b25'
+tags: ['ai', 'developer', 'reflection']
+---
+
+For a while, I couldn't bring myself to read the code Astra had written.
+
+Here is an excerpt of the code Astra wrote at the time.
+
+{/* prettier-ignore */}
+```tsx
+function Content({ content, evidence }: { content: TestContent; evidence?: (id: string) => void }) {
+  return <div className="test-content"><h4>사전 조건</h4><ul>{content.preconditions.map((p,i) => <li key={i}>{p}</li>)}</ul><h4>실행 절차</h4><ol>{content.steps.map((s,i) => <li key={i}>{s}</li>)}</ol><h4>기대 결과</h4><p className="expected">{content.expected}</p><h4>근거 구절</h4><div className="evidence-links">{content.evidenceIds.length ? content.evidenceIds.map(id => <button type="button" className="evidence" key={id} onClick={() => evidence?.(id)}>{id}</button>) : <span className="muted">근거 없음, 확인 필요</span>}</div></div>
+}
+```
+
+There was so much of it, and I didn't know where to start.
+
+My first thought was, “Can I understand something like this?” That soon led to, “Do I have to understand it?” If I didn't need to, what should a person do? If I did, how much did I need to know?
+
+My first question to AI was about good code. I asked whether the standards for good code stay the same when AI writes it. I also asked whether the ability to write good code myself still matters. But when I thought about why I'd asked, there was a more personal concern behind it.
+
+> If I neither write the code nor understand the code that's been written, what am I here for? What is my role?
+
+I discussed this with AI. The exchanges below are shortened and edited versions of the actual conversation. Between them, I've added why I asked the next question and what I understood.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+If I can read the code, I feel like I can ask, “Why was this written this way?” or say, “I think another approach might work better here.” But if even reading it is too difficult, those thoughts don't occur to me.
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+So the difficulty isn't just understanding the code. It's also being able to participate by questioning the result or suggesting alternatives.
+
+</ChatMessage>
+
+</Conversation>
+
+Looking back, I think I also felt frustrated. When I understand the code, I can see where I might judge or check it. But when I can't read it at all, I don't know where or how to offer an opinion.
+
+During the discussion, though, we found a flaw in Astra's code. Two thoughts came to me at once.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Even a frontier model at this level writes code with flaws. Doesn't that mean there's still somewhere I can step in?
+
+</ChatMessage>
+
+<ChatMessage from="user" name="Me">
+
+But couldn't another Astra review the code and fix this too?
+
+</ChatMessage>
+
+</Conversation>
+
+Finding a problem didn't immediately tell me what my role was. Whenever I found something I could do, “Couldn't AI do that too?” followed. Thinking about reviewing code instead of writing it didn't change that. Neither did thinking about giving instructions or verifying results.
+
+So I asked more directly.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Even if AI can do something, where do I have to step in, or where could my involvement make the result better? Honestly, I haven't found an answer yet. I wonder whether I'm missing it, and what other people think.
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+I'll look at other developers' writing and research. But we need to distinguish evidence that experts use AI well from evidence that people working with AI do better than AI working alone.
+
+</ChatMessage>
+
+</Conversation>
+
+We searched my personal wiki and the web. [Simon Willison had written about similar feelings](https://simonwillison.net/2026/Sep/11/feeling-sad-about-ai/). There were [proposals for people to set the conditions work must meet and decide whether to accept the results](https://addyosmani.com/blog/own-the-outer-loop/). There was also [a team describing a development process where people neither write nor review code](https://factory.strongdm.ai/).
+
+As I read, I started asking, “What is being compared with what?” Suppose an experienced developer and a beginner both use AI. If the experienced developer gets a better result, that experience may have helped.
+
+But I wanted a slightly different comparison. I wanted to compare a person working with AI against delegating that person's work to AI too. The difference between the two developers' results couldn't easily answer that.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+So this research hasn't resolved our concern yet. Could we approach it from another direction?
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+How about starting with a specific recent moment when working with AI was frustrating? We could look for a contribution in the time or process it takes to get a result, as well as in the result itself.
+
+</ChatMessage>
+
+</Conversation>
+
+UI and animation came to mind. UI means the screens people see and interact with. In the conversation below, a reference is an example showing the kind of screen or movement I want to create.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+It already implements things very well when I provide a reference. But that condition is still there: “when I provide a reference.” If I just ask for a landing page with beautiful scroll animations, it feels like the result falls back toward the average.
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+Do you already have a specific look in mind before you search for references? Or do you discover the direction you want by looking at examples?
+
+</ChatMessage>
+
+<ChatMessage from="user" name="Me">
+
+Usually the latter. Sometimes I see one example and start implementing it. Other times I look at several and draw on the feel of them.
+
+</ChatMessage>
+
+</Conversation>
+
+I didn't always know exactly what I wanted from the start. Sometimes I only thought, “I'd like to go in this direction,” after seeing other screens. Choosing references could itself be how I discovered what I wanted.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="assistant" name="AI">
+
+Then we could also ask AI to find references, compare them, and choose a direction. If we compare an AI given only a short request with one given references selected by a person, even the amount of information explored is different.
+
+</ChatMessage>
+
+</Conversation>
+
+I paused there. Looking back over the whole conversation, I noticed something we'd left out.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Wait. Isn't a person making the decision to have AI review another AI's code, or telling AI to find references before implementing something?
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+Yes. If a person chooses the next step and delegates its execution to AI, we can't describe the whole process as having no human involvement. My earlier explanation didn't fully count that choice.
+
+</ChatMessage>
+
+</Conversation>
+
+AI may have reviewed the code. AI may also have found example screens and implemented the design. But before that, someone looked at the result and decided, “This isn't enough; let's try a different approach.” That choice was part of making the result too.
+
+I think I'd been looking for my role only in moments when I changed the code myself. In our conversation, we kept leaving out the choice that came before the work because AI could execute it. If changing the way we worked improved the result, I had contributed something even though AI carried it out.
+
+We hadn't separately tested the effect of a review or a reference search in this conversation. We'd found somewhere to check whether my involvement could help.
+
+That raised the next question. What happens if AI takes over the choices people make today?
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Isn't making all those decisions too what AI companies want to achieve with AGI or ASI? And aren't we still short of that?
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+The ability to decide the next action in one task isn't enough on its own to distinguish AGI or ASI. Current AI can already plan and evaluate within a defined scope. But the possibility of further automation doesn't erase the contribution of a choice a person makes today.
+
+</ChatMessage>
+
+</Conversation>
+
+AI described [a development setup where different AI agents handle planning, implementation, and evaluation](https://www.anthropic.com/engineering/harness-design-long-running-apps). Here, an agent means an AI that takes on and carries out work.
+
+Examples like this suggest that AI could also take over the decision to search for references. I couldn't assume people would keep doing it. But the possibility of automating it later doesn't erase what a person contributes now.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+I'm not saying we should ignore future possibilities. I mean we should give more weight to the present and the near future.
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+Then let's consider both the interventions that can help now and the possibility that those interventions will be automated in the near future.
+
+</ChatMessage>
+
+</Conversation>
+
+To decide what to learn and how to work, I needed to consider both today and the near future. If something helps now, I have a reason to explore it. I don't have to first prove that it will remain exclusively human forever. But I also need to consider whether it might soon become a standard AI feature.
+
+With those two time frames in mind, we returned to UI.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="assistant" name="AI">
+
+When you say the result feels average, what specifically disappoints you?
+
+</ChatMessage>
+
+<ChatMessage from="user" name="Me">
+
+The things people usually call AI slop. If everyone uses AI to make “beautiful UI,” the results could all start looking alike. Even if it was the best UI up to now, wouldn't everyone having it send us back to exploring what “best” means?
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+We should distinguish results looking alike from usability getting worse. Familiar patterns can be easier to use. But when similar results become common, they can lose their distinctiveness, giving people a reason to seek other forms of expression or experiences.
+
+</ChatMessage>
+
+</Conversation>
+
+Whether the features worked properly wasn't my only concern. I was also disappointed by how the screens kept looking like something I'd seen before. I thought that even after working screens became easy to build, I might still come to want more from them.
+
+That led to the question, “How much do we need to build before it's finished?”
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Let's say a person steps in and takes AI's result from 70% to 90%. In the near future, AI might handle that intervention too and reach 100%. But would people say, “We're done”? Isn't it more likely they'd realize, “101% and 102% are possible too. 100% wasn't the end”?
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+Meeting all the requirements we've set today can coexist with new goals emerging afterward. Even after reaching 100%, we can explore what else we want to make. Though the existence of new goals doesn't by itself mean that people will always be better at exploring them.
+
+</ChatMessage>
+
+</Conversation>
+
+The percentages here aren't measured scores. I'm calling the level I want today 100%.
+
+If reaching that level becomes easy, I might want to try things I hadn't dared to attempt before. I might seek a different experience because so many screens look alike. Even after I've built everything I want now, I might come to want something new later.
+
+I'm not suggesting that every project should be revised endlessly. I'm thinking that after finishing one thing, I might find something new I want to make. That question hadn't occurred to me when I was only thinking about finding and filling gaps in AI's ability.
+
+By the end of the conversation, I'd arrived at two questions.
+
+> **Now: What can a person do to bring AI to 100%?**
+>
+> **In the future: What can a person do to bring AI to 150%?**
+
+<Conversation label="Conversation">
+
+<ChatMessage from="assistant" name="AI">
+
+I read the first as asking what you can contribute toward the result you want today. The second asks how you can help discover new goals and value once that level becomes standard. Both activities can happen now too.
+
+</ChatMessage>
+
+</Conversation>
+
+I still haven't found which tasks I must take on. How much code I need to read, and what I need to try myself, remain open questions.
+
+But the questions I want to pursue are a little clearer now. What can I add when working with AI to get the result I want today? What else will I want to try when that result becomes easy to achieve? With those two questions in mind, I want to keep exploring what I need to understand and learn.

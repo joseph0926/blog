@@ -72,7 +72,7 @@ export const ConnectSection = ({
           );
         })}
       </ul>
-      <div className="mt-16 flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-8 lg:mt-24">
+      <div className="mt-16 flex flex-col gap-4 overflow-x-clip sm:flex-row sm:items-end sm:gap-8 lg:mt-24">
         <motion.p
           style={{ x: nameX }}
           className="text-foreground text-[clamp(2.25rem,6vw,4.5rem)] leading-[0.95] font-semibold tracking-[-0.03em]"

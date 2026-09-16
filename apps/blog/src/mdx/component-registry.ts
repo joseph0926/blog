@@ -18,6 +18,14 @@ function cached(name: string, loader: Loader): Loader {
 }
 
 export const MDX_COMPONENT_LOADERS = {
+  Conversation: cached('Conversation', async () => {
+    const m = await import('@/mdx/components/conversation');
+    return m.Conversation;
+  }),
+  ChatMessage: cached('ChatMessage', async () => {
+    const m = await import('@/mdx/components/conversation');
+    return m.ChatMessage;
+  }),
   StackReconciler: cached('StackReconciler', async () => {
     const m = await import('@/mdx/components/stack-reconciler');
     return m.StackReconciler;

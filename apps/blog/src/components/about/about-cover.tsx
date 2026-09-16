@@ -47,7 +47,7 @@ export const AboutCover = ({
       ref={coverRef}
       aria-labelledby="about-cover-title"
       style={{ opacity: fade }}
-      className="mx-auto flex min-h-[calc(100svh-3.5rem)] max-w-[1260px] flex-col justify-between px-4 pt-10 pb-8 sm:pt-14"
+      className="mx-auto flex min-h-[calc(100svh-3.5rem)] max-w-[1260px] flex-col justify-between overflow-x-clip px-4 pt-10 pb-8 sm:pt-14"
     >
       <p className="text-muted-foreground font-mono text-xs">{hint}</p>
       <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">

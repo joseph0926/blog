@@ -40,4 +40,46 @@ test.describe('소개 페이지', () => {
       page.getByRole('navigation', { name: 'Contents' }),
     ).toBeVisible();
   });
+
+  for (const locale of ['ko', 'en']) {
+    test(`${locale} 모바일 소개 페이지를 스크롤해도 가로 여백이 생기지 않는다`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      await page.goto(`/${locale}/about`);
+      await expect(page.locator('#about-cover-title')).toBeVisible();
+
+      const coverEnd = await page
+        .locator('section[aria-labelledby="about-cover-title"]')
+        .evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          return window.scrollY + bounds.bottom;
+        });
+      const bottom = await page.evaluate(
+        () => document.documentElement.scrollHeight - window.innerHeight,
+      );
+
+      for (const top of [0, coverEnd / 2, coverEnd + 100, bottom]) {
+        await page.evaluate(async (top) => {
+          window.scrollTo({ left: 0, top, behavior: 'instant' });
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          });
+        }, top);
+        await expect
+          .poll(() =>
+            page.evaluate(
+              () =>
+                document.documentElement.scrollWidth -
+                document.documentElement.clientWidth,
+            ),
+          )
+          .toBeLessThanOrEqual(1);
+      }
+      await expect
+        .poll(() => page.evaluate(() => window.scrollY))
+        .toBeGreaterThan(0);
+    });
+  }
 });
