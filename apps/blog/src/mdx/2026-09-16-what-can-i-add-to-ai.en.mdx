@@ -1,9 +1,9 @@
 ---
 slug: '2026-09-16-what-can-i-add-to-ai'
 title: 'If AI Can Do It All, What Can I Add?'
-description: 'If AI can write and review code, what can I add? A conversation with AI led me to think about 100% today and 150% beyond it.'
+description: 'If AI writes the code, what is my role? Looking back at development work and a one-off demo helped me explore what I need to understand and what I can contribute.'
 date: '2026-09-16'
-sourceHash: 'sha256:3dcd875ef78d369d4b5f9ba0869e84101241155f312438dd5c9678a4e26d6b25'
+sourceHash: 'sha256:98782e95c5e70e83c71d447d812990439793cdcf93a393bbc050b0212e8cdbe5'
 tags: ['ai', 'developer', 'reflection']
 ---
 
@@ -164,7 +164,7 @@ AI may have reviewed the code. AI may also have found example screens and implem
 
 I think I'd been looking for my role only in moments when I changed the code myself. In our conversation, we kept leaving out the choice that came before the work because AI could execute it. If changing the way we worked improved the result, I had contributed something even though AI carried it out.
 
-We hadn't separately tested the effect of a review or a reference search in this conversation. We'd found somewhere to check whether my involvement could help.
+We hadn't separately tested the effect of a review or a reference search in this conversation. We'd identified changes to try in the way we worked. We still needed to check whether they would help.
 
 That raised the next question. What happens if AI takes over the choices people make today?
 
@@ -256,7 +256,7 @@ If reaching that level becomes easy, I might want to try things I hadn't dared t
 
 I'm not suggesting that every project should be revised endlessly. I'm thinking that after finishing one thing, I might find something new I want to make. That question hadn't occurred to me when I was only thinking about finding and filling gaps in AI's ability.
 
-By the end of the conversation, I'd arrived at two questions.
+At this point in the conversation, I'd arrived at two questions.
 
 > **Now: What can a person do to bring AI to 100%?**
 >
@@ -272,6 +272,158 @@ I read the first as asking what you can contribute toward the result you want to
 
 </Conversation>
 
-I still haven't found which tasks I must take on. How much code I need to read, and what I need to try myself, remain open questions.
+I had two questions, but what I was contributing to my own work still felt vague. We continued by looking at recent experiences one at a time.
 
-But the questions I want to pursue are a little clearer now. What can I add when working with AI to get the result I want today? What else will I want to try when that result becomes easy to achieve? With those two questions in mind, I want to keep exploring what I need to understand and learn.
+First, we returned to a horizontal scrolling problem on this blog's mobile layout. I'd found it while viewing the deployed site on my phone.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="assistant" name="AI">
+
+How did you discover that removing the cover section stopped the horizontal scrolling?
+
+</ChatMessage>
+
+<ChatMessage from="user" name="Me">
+
+I removed HTML elements one by one in Chrome DevTools. I'd run into something similar before, so I knew an element I couldn't see might be causing it.
+
+</ChatMessage>
+
+</Conversation>
+
+I hadn't read all the code to find the cause. Noticing the problem on the screen reminded me of an earlier experience. I removed elements one by one to narrow down where it was happening. I passed what I'd found to AI so we could work on the fix.
+
+I looked back at when I'd gained that experience. From 2023 through early 2025, I learned a lot by writing code, logging values to the console, and using browser developer tools. After that, I started asking AI first more often.
+
+AI asked if I'd learned anything since then that I'd used to solve another problem. As I thought about it, I realized that the way I approached problems had changed.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+I used to think, “If this happens again, I'll know which code to look at.” Now, when AI makes a mistake or takes the work in a direction I didn't intend, I start thinking, “Does it need context it doesn't have? Should I build a wiki? Should I define more rules for how it works?”
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+I'd limited my question about learning to knowledge of code. It sounds like you're also gaining experience in figuring out what information and checks AI needs. Can you think of a change to your process that felt helpful?
+
+</ChatMessage>
+
+<ChatMessage from="user" name="Me">
+
+Instead of just asking it to build a feature, I'd say, “Document A describes our current architecture, and document B describes the architecture we're aiming for. Read them before building this.” The results felt more consistent and seemed to have fewer bugs. I didn't measure it.
+
+</ChatMessage>
+
+</Conversation>
+
+By architecture, I mean how code is divided into responsibilities and how those parts connect. I gave AI both the current structure and the one I wanted to move toward. I asked AI to refer to both documents when building the feature. I hadn't measured the effect, but I could describe how I'd changed the way we worked.
+
+AI then asked how I'd chosen the target structure.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+I pass on what I've learned and experienced. For example, I might say, “I think we should narrow the points where we connect to the server, so when the server changes, we only need to change that part.” AI then analyzes the code, researches the topic, and suggests approaches such as using a mapper or defining boundaries with domains, models, and services.
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+You first set the goal of reducing how much code needs to change when the server changes. AI proposed a structure to achieve it. What did you check before accepting that proposal?
+
+</ChatMessage>
+
+</Conversation>
+
+The direction I supplied was, “I want to avoid changing UI code in lots of places every time the server changes.” I worked out the specific design with AI. A mapper, for example, is code that converts data from the server into the form the UI uses. Putting the conversion code in one place let us discuss where to make edits when the server changed.
+
+But when I looked back at why I'd accepted the proposal, there were parts I couldn't explain with much confidence.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+I think that part was a bit weak. Part of my reasoning was, “A model this good has done this much research and had several subagents review it, so it must be right.”
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+Could you connect the design explanation to the actual code? I'm asking whether you could follow the parts that connect to the server and how other files use them.
+
+</ChatMessage>
+
+<ChatMessage from="user" name="Me">
+
+Yes. I understood which file would change when the server changed and which direction the imports went. It wasn't a large project, and it was well organized, so I could see the structure at a glance.
+
+</ChatMessage>
+
+</Conversation>
+
+As we talked, I looked back at what I'd understood and what I'd accepted on trust. I could follow the design explanation through the actual code. Whether there would be fewer places to edit when the server actually changed was a separate question. I hadn't provided an example in our discussion where I'd checked that benefit.
+
+AI suggested choosing one server change I was concerned about and checking which files would need to be modified. The idea was to see whether it reduced how much code needed editing, as I'd wanted, in addition to hearing that the design had been reviewed extensively. I could delegate that check to AI too. I could choose a change that mattered to our project and assess whether the result matched the original requirement.
+
+That's something to try in future work. I haven't run a separate experiment for this post.
+
+We then returned to the demo at the start of this post. If I could understand a well-organized project, why had Astra's code felt so daunting?
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Looking back, maybe it was because I'd just asked for a demo without setting a clear direction. I hadn't specified the details, and my completion criteria were loose. The code was all in App.tsx too.
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+That doesn't mean you needed to specify every detail yourself. Was the demo meant to let you see something working once, or was it a starting point you planned to keep changing and developing?
+
+</ChatMessage>
+
+<ChatMessage from="user" name="Me">
+
+The former. Now that I think about it, this wasn't code I planned to keep using. It was a project for checking a result once, and it served that purpose.
+
+</ChatMessage>
+
+</Conversation>
+
+That let me reconsider the difficulty I'd felt at the start. I'd seen code that was hard to read and immediately started worrying about my role. I hadn't planned to keep reading and maintaining the demo's code. The demo had shown me the result I wanted to see.
+
+A project I planned to keep developing would be different. In the architecture work we'd discussed, I needed to understand the impact of changes. With this demo, I'd achieved the goal without understanding all the code. There was no reason to require the same level of understanding for both tasks.
+
+I realized that searching for something a person could contribute might lead us to add work to a task that was already finished. If we'd reached today's 100%, we could stop there. The question of 150% didn't have to become a demand to keep revising every project forever.
+
+Finally, I asked AI to answer based on everything we'd discussed.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+If AI writes the code, what is my role?
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+Based on the experiences you've described, I'd say you're a developer who sets the criteria for the result you want and works with AI to achieve it. You set the direction of limiting the impact of server changes, connected the design to the actual code, and provided the documents needed for the next task. You don't have to intervene further in every task. A demo that has served its purpose can be finished.
+
+</ChatMessage>
+
+</Conversation>
+
+This conversation didn't prove which tasks people must keep doing forever. Nor did I measure the effect of my contributions. But I could describe the judgments I was making more clearly than I could at the start.
+
+I drew on my experience to identify what I wanted to change. I gave AI the reasons and context. Sometimes I understood the structure it proposed. Sometimes I found problems by using the result myself. The experience I'd gained from writing code also helped me do these things.
+
+I want to decide how closely to read the code based on what I'm building and the decisions I need to make. For a project I'll keep changing, I need to know which code to edit to make the changes I want. For an important design, I want to apply a change I'm concerned about and check whether the edits stay within the scope I expected. For a demo meant to show a result once, I may be able to check whether it shows what I wanted to see and stop.
+
+For today's 100%, I want to look closely at the result I want and what's still missing. Once I'm satisfied with that level, I want to explore what would be worth making next. That's what I mean by 150%. And I want to do that without judging my role solely by how much code I write myself.
