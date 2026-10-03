@@ -1,0 +1,51 @@
+<svg width="960" height="270" viewBox="0 45 960 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">The loop of asking for ideas</title>
+  <desc id="desc">Asking for creative ideas returns results that are either not useful or creative only in trivial ways. Narrowing the topic and asking again returns plausible ideas, but more than 90 percent of them already exist. Wondering whether the ideas lack creativity leads back to the first request. Dozens of ideas, none of which became anything.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a8882"/>
+    </marker>
+    <marker id="arrow-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4521f"/>
+    </marker>
+  </defs>
+  <rect width="960" height="340" fill="#ffffff"/>
+
+  <g font-family="-apple-system, 'Segoe UI', Arial, sans-serif">
+    <g font-size="15" fill="#1f1f1d" text-anchor="middle">
+      <rect x="20" y="70" width="160" height="104" rx="12" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+      <text x="100" y="114" font-weight="700">Please brainstorm</text>
+      <text x="100" y="138" font-weight="700">creative ideas</text>
+
+      <rect x="210" y="70" width="160" height="104" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="290" y="114">Not useful, or</text>
+      <text x="290" y="138">creative in small ways</text>
+
+      <rect x="400" y="70" width="160" height="104" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="480" y="106">Pick a bigger topic</text>
+      <text x="480" y="130">and ask again</text>
+      <text x="480" y="154" font-size="13" fill="#7d7b75">AI, real estate, stocks</text>
+
+      <rect x="590" y="70" width="160" height="104" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="670" y="106">Plausible, but</text>
+      <text x="670" y="130">90%+ of them</text>
+      <text x="670" y="154">already exist</text>
+
+      <rect x="780" y="70" width="160" height="104" rx="12" fill="#fdf1eb" stroke="#c4521f" stroke-width="1.5"/>
+      <text x="860" y="114" font-weight="700">Not creative</text>
+      <text x="860" y="138" font-weight="700">enough?</text>
+    </g>
+
+    <g stroke="#8a8882" stroke-width="1.5" marker-end="url(#arrow)">
+      <line x1="182" y1="122" x2="206" y2="122"/>
+      <line x1="372" y1="122" x2="396" y2="122"/>
+      <line x1="562" y1="122" x2="586" y2="122"/>
+      <line x1="752" y1="122" x2="776" y2="122"/>
+    </g>
+
+    <path d="M860,176 V236 H100 V180" fill="none" stroke="#c4521f" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#arrow-loop)"/>
+    <text x="480" y="226" font-size="14" fill="#a8441a" text-anchor="middle" font-weight="600">Back to the start</text>
+
+    <text x="480" y="290" font-size="15" fill="#1f1f1d" text-anchor="middle" font-weight="700">Dozens of ideas, none of which became anything</text>
+  </g>
+</svg>

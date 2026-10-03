@@ -1,0 +1,69 @@
+<svg width="960" height="400" viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">거울과 할 일 루프의 흐름</title>
+  <desc id="desc">3개월 대화 기록을 근거로 거울이 신호를 찾고, 신호는 요청문이 붙은 할 일이 된다. 사람은 메뉴 막대나 에이전트에서 할 일을 처리하고, 다음 분석에서 같은 신호가 사라졌으면 해소 확인, 남았으면 확인 필요로 표시한다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a8882"/>
+    </marker>
+  </defs>
+  <rect width="960" height="400" fill="#ffffff"/>
+
+  <g font-family="'Apple SD Gothic Neo', Pretendard, 'Noto Sans KR', sans-serif">
+    <!-- 근거와 판단의 자리 -->
+    <text x="108" y="56" font-size="15" font-weight="700" fill="#2a78d6" text-anchor="middle">근거는 먼저</text>
+    <line x1="40" y1="70" x2="176" y2="70" stroke="#2a78d6" stroke-width="2"/>
+    <text x="852" y="56" font-size="15" font-weight="700" fill="#c4521f" text-anchor="middle">판단은 결과물을 보고</text>
+    <line x1="784" y1="70" x2="920" y2="70" stroke="#c4521f" stroke-width="2"/>
+
+    <!-- 다섯 단계 -->
+    <g font-size="15" fill="#1f1f1d" text-anchor="middle">
+      <rect x="40" y="90" width="136" height="96" rx="12" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+      <text x="108" y="128" font-weight="700">대화 기록</text>
+      <text x="108" y="152" font-size="13" fill="#52514e">Claude Code, Codex</text>
+      <text x="108" y="170" font-size="13" fill="#52514e">최근 3개월</text>
+
+      <rect x="226" y="90" width="136" height="96" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="294" y="128" font-weight="700">거울</text>
+      <text x="294" y="152" font-size="13" fill="#52514e">주간 분석</text>
+      <text x="294" y="170" font-size="13" fill="#52514e">5초, 읽기만</text>
+
+      <rect x="412" y="90" width="136" height="96" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="480" y="128" font-weight="700">신호</text>
+      <text x="480" y="152" font-size="13" fill="#52514e">학습 공백, 배포 차이</text>
+      <text x="480" y="170" font-size="13" fill="#52514e">반복 요청 등</text>
+
+      <rect x="598" y="90" width="136" height="96" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="666" y="128" font-weight="700">할 일</text>
+      <text x="666" y="152" font-size="13" fill="#52514e">요청문과</text>
+      <text x="666" y="170" font-size="13" fill="#52514e">작업 폴더</text>
+
+      <rect x="784" y="90" width="136" height="96" rx="12" fill="#fdf1eb" stroke="#c4521f" stroke-width="1.5"/>
+      <text x="852" y="128" font-weight="700">처리</text>
+      <text x="852" y="152" font-size="13" fill="#52514e">메뉴 막대나</text>
+      <text x="852" y="170" font-size="13" fill="#52514e">에이전트에서</text>
+    </g>
+
+    <!-- 단계 사이 화살표 -->
+    <g stroke="#8a8882" stroke-width="1.5" marker-end="url(#arrow)">
+      <line x1="178" y1="138" x2="222" y2="138"/>
+      <line x1="364" y1="138" x2="408" y2="138"/>
+      <line x1="550" y1="138" x2="594" y2="138"/>
+      <line x1="736" y1="138" x2="780" y2="138"/>
+    </g>
+
+    <!-- 다음 분석으로 돌아가는 고리 -->
+    <path d="M852,188 V262 H294 V192" fill="none" stroke="#8a8882" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+    <text x="573" y="252" font-size="14" fill="#1f1f1d" text-anchor="middle" font-weight="600">다음 분석: 같은 신호가 남았나?</text>
+
+    <!-- 판정 -->
+    <g font-size="14" text-anchor="middle">
+      <rect x="330" y="300" width="200" height="40" rx="20" fill="#e8f6e8" stroke="#0ca30c" stroke-width="1.5"/>
+      <text x="430" y="325" fill="#0a6e0a" font-weight="700">사라짐: 해소 확인</text>
+      <rect x="616" y="300" width="200" height="40" rx="20" fill="#fbeaea" stroke="#d03b3b" stroke-width="1.5"/>
+      <text x="716" y="325" fill="#a82d2d" font-weight="700">남음: 확인 필요</text>
+    </g>
+    <line x1="573" y1="264" x2="430" y2="298" stroke="#8a8882" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <line x1="573" y1="264" x2="716" y2="298" stroke="#8a8882" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <text x="480" y="376" font-size="12.5" fill="#7d7b75" text-anchor="middle">완료로 표시하는 것은 사람이지만, 해소는 다음 분석이 판정한다</text>
+  </g>
+</svg>

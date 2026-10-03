@@ -1,0 +1,219 @@
+---
+slug: '2026-10-03-ai-build-it-instead-of-ideas'
+title: 'I Told AI "Just Build It" Instead of "Give Me Ideas"'
+description: 'Asking AI for creative ideas kept falling short across models. When I gave it three months of my logs and asked it to build something on its own, I got a tool I use every day. The difference was giving it evidence first and judging the result.'
+date: '2026-10-03'
+sourceHash: 'sha256:513dbe292e69cfea0c527f3011102d1299e11ff75357b9bad2506b9476387ece'
+tags: ['ai', 'developer', 'reflection']
+---
+
+Whenever Claude Code or Codex ships a new model, I send it the same request: “Please brainstorm creative ideas.”
+
+There are two reasons: one is “wanting to build something open source, or something other people would find worth using,” and the other is “something useful for me to use.”
+
+But every time, the results went in a loop.
+
+<img
+  src="/content/ideation-loop.en.svg"
+  alt="The loop of asking for ideas. Asking for creative ideas returns results that are either not useful or creative only in small ways. Picking a bigger topic and asking again returns plausible ideas, but more than 90 percent of them already exist. Wondering whether the ideas lack creativity leads back to the start"
+  width="960"
+  height="270"
+/>
+
+So I kept getting dozens of ideas from these sessions, and none of them ever turned into something I built.
+
+This time I asked differently. Instead of asking for ideas, I asked it to look at my logs (the last three months of Claude Code and Codex history) and build something on its own. The result was satisfying. The tool it built now sits in my menu bar, and I use it.
+
+What surprised me was that the model this time was Opus 5.5, one of the models I'd been asking for ideas all along. I didn't organize context to feed it myself or put special care into the prompt, yet it gave me a satisfying result right away.
+
+Below, I'll walk through how it went, step by step.
+
+## When I asked for ideas
+
+At first I thought the problem was how I was asking. So in early September I ran experiments, changing the instructions each time. I had the model generate ideas on the same topics several times and compared whether the results improved depending on the instructions.
+
+| Experiment            | What I compared                                                      | Result                                           |
+| --------------------- | -------------------------------------------------------------------- | ------------------------------------------------ |
+| Ideation techniques   | Plain instruction vs. six ideation techniques, 108 ideas             | 3/54 to 7/54 passed the bar, within chance       |
+| Divergence skill      | Plain request vs. adding a skill with a divergence procedure         | Plain request won 5 of 6 comparisons             |
+| Divergence methods    | Fictional backgrounds, asking for non-obvious answers, borrowing distant concepts | No method clearly beat the plain request |
+| Generation procedures | Independent repeats, splitting directions, adding unexplored directions | None of the three passed the promotion criteria |
+
+Counting the experiments not in the table, I ran seven, and none of the modified instructions consistently beat the plain request.
+
+Of course, the judging was also done by models from the same family, and the number of runs was small, so this doesn't prove that instructions are useless.
+
+Still, what I learned was at least this much: refining my instructions wasn't producing any clear improvement.
+
+## “Just build it”
+
+Then I made this request.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Look through the last three months of logs under ~/.claude and ~/.codex, analyze my activity, and build me “something I'd probably need, and that I'd keep using regularly if you built it for me.” Don't limit the type or scope. Just focus on the goal.
+No need to explain what you're going to build. Build it all, then tell me what it is.
+
+</ChatMessage>
+
+</Conversation>
+
+`~/.claude` and `~/.codex` hold every conversation I've had with Claude Code and Codex.
+
+> Over three months, that came to 528 sessions and about 3,800 requests I'd typed.
+
+From these logs, the AI found things I had said again and again.
+
+- “I don't read the extra text anyway”
+- A sync request I retyped in almost the same words over four days
+- Worrying about my study habit of “doing A, then B, then C”
+
+Then it built a tool to fix these annoyances in one go. I didn't decide what to build. The logs did.
+
+## Mirror
+
+What the AI built was a weekly dashboard called “Mirror.” With one script command or one skill call, it reads my conversation logs and repositories and shows the past week on a single page. It shows when I studied in each study area, where my time went, and which requests I kept retyping over several days.
+
+<img
+  src="/content/mirror-study-rhythm.png"
+  alt="The study rhythm view in the Mirror dashboard, with Korean labels. For the algorithm, English, and development study areas, it shows the days I studied over the last 12 weeks as calendar cells"
+  width="1640"
+  height="544"
+/>
+
+Since there's no status document to update by hand, nothing goes stale. It recalculates everything from the logs that are already being written. (I've hidden a few items I'd rather not make public.)
+
+My first thought when I saw it was, “Why didn't I build this sooner?”
+
+## “Let me act on it, too”
+
+Once I had Mirror, one thing still bothered me. A dashboard that only shows you things tends to end once you've looked at it. You learn what the problems are, but handling them is still on you. So the next day I asked this.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+This time, build something that lets me act on what Mirror finds. Everything else stays the same as before.
+Also, it seemed like you were reluctant to add packages last time, so to be clear: any extra packages are allowed.
+
+</ChatMessage>
+
+</Conversation>
+
+Again, I didn't specify a format. What came back was a macOS menu bar app.
+
+<img
+  src="/content/mirror-menubar-actions.png"
+  alt="The Mirror app in the macOS menu bar, with Korean labels. The menu bar shows Mirror 1. At the top of the open menu are the last study date for each study area and the actions. Hovering over an action opens a submenu with copy prompt, mark as done, snooze for a week, and skip. Some items are blurred"
+  width="1354"
+  height="510"
+/>
+
+The menu bar at the top of the screen always shows how many actions are left, like `거울 1` (Mirror 1). Clicking it shows the last study date for each study area at the top, with this week's actions below. Each action comes with things you can do in a single click.
+
+- Copy prompt puts the request for handling that action on the clipboard and switches its status to in progress. All I have to do is paste it into Claude Code or Codex in the folder shown.
+- Mark as done, snooze for a week, and skip change the status right away.
+
+The app reanalyzes the logs every three hours and sends a notification when a new study gap or deployment drift shows up. It's registered to start at login, and since it's always running, I measured its resource use too. Idle, it used 36 MB of memory and almost no CPU.
+
+This is what surprised me most. All I said was “something that lets me act on it.” A menu bar app never crossed my mind. The trip to open the dashboard is gone, and every step of handling an action is now a single click. If I'd seen “menu bar app” as one line in a list of ideas, I probably would have skipped right past it. Only after actually using it did I realize it was the right call.
+
+<img
+  src="/content/mirror-loop-flow.en.svg"
+  alt="How Mirror and the action loop work. Using conversation logs as evidence, Mirror finds signals, and each signal becomes an action with a request attached. After the action is handled, the next analysis marks it resolved if the signal is gone, or needs review if it remains"
+  width="960"
+  height="400"
+/>
+
+The action loop runs behind the menu bar. Each signal Mirror finds becomes an action with a ready-to-paste request and a working folder. Instead of using the menu bar, I can tell an agent “do number 3,” and it handles the action in that conversation and marks it done.
+
+Another part I liked is that marking something done and confirming it resolved are separate. Marking an action done doesn't close it. Only when the same signal is gone in the next analysis does it become “resolved.” If the signal is still there, it comes back as “needs review.”
+
+<img
+  src="/content/mirror-weekly-actions.png"
+  alt="This week's actions in Korean. The repeated-request action was marked done but came back as needs review because its signal remains, and the failure-log promotion action was confirmed resolved in the next analysis"
+  width="2096"
+  height="546"
+/>
+
+In practice, the action asking me to decide whether to promote four failure-log entries into rules was confirmed resolved in the analysis the day after I handled it. The action to cut down a repeated request, on the other hand, is marked done but still shows needs review. Its signal only goes away after the same request stops appearing for four weeks. Doing the work and making the problem go away are different things, and the tool keeps track of that difference for me.
+
+## Half right at first
+
+The first version wasn't good right away. The AI ran what it built against my real logs, found the places where the results looked wrong, and fixed them itself.
+
+- **Study time came out far too low.** At first, any gap of more than 10 minutes between messages counted as me stepping away. But in study sessions, it often took me more than 10 minutes to reply because I was solving a problem. One session with 276 events was counted as 108 minutes. So it raised the threshold to 30 minutes, for the study repository only.
+- **A skill installed the day before showed up as unused.** The feature lists skills not used in four weeks as candidates for cleanup, but a skill that was just installed simply hadn't had a chance to be used yet. It now leaves out skills installed less than four weeks ago.
+- **Odd sentences showed up in the repeated-request list.** The header a tool adds automatically when you attach a file, and progress cues like “let's move on to the next concept,” were being counted as “requests repeated across several days.” These aren't things to automate, so it now filters them out.
+
+If I'd received the first design as it was, I'd probably have been half disappointed. I think a good part of why I ended up satisfied came from these fixes. And fixes like these can't come out of the idea stage. They're problems you only see after running it on real data.
+
+## Interviewing the AI
+
+After I had everything, I got curious. It was the same model, so why was I satisfied this time? So I asked the AI directly. The conversation below is shortened and edited from the actual exchange to make it easier to read.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Honestly, I didn't expect much when I made the request to you.
+That's because my earlier requests to “please brainstorm creative ideas” never got satisfying answers from fable5.1, opus5.5, gpt-6.1-sol, or gpt-6-astra.
+But this time, “just build it” turned out satisfying.
+Where do you think that difference comes from?
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+I think the difference came not from the model but from what the request made it use as its standard. With “creative ideas,” the standard lives in the imagination. With “look at my logs and build what I need,” the standard lives in the data.
+
+1. Brainstorming without material produces the average of plausible ideas. This time, your own words were the material. Mirror isn't a new idea. It was satisfying not because it was new but because it fit.
+2. Your earlier requests were for things to show other people, so the judge was a stranger you didn't know. This time you were the judge, and the evidence was your own logs, so the result could be checked against them.
+3. With a list of ideas, you have to imagine the implementation to judge it, and most ideas look trivial at that stage. Something that runs proves itself with your own data.
+4. I could fix things after seeing them run. The first design alone would have been half disappointing.
+
+That said, I haven't seen the results other models produced, so this is a hypothesis.
+
+</ChatMessage>
+
+</Conversation>
+
+After reading the answer, I noticed one more thing. When I asked for ideas and when I asked it to just build something, the point at which I made judgments was different.
+
+<Conversation label="Conversation">
+
+<ChatMessage from="user" name="Me">
+
+Comparing asking for ideas with asking it to build the result on its own, could it be related to the point where a person steps in moving back, from judging ideas to using and judging results?
+
+</ChatMessage>
+
+<ChatMessage from="assistant" name="AI">
+
+I think so. When you get a list of ideas, you have to picture the implementation in your head to judge it. When imagination is all you have to judge with, judging is hard. This time, the judgment was pushed back until after the result existed, and you judged it with your own data on the screen.
+
+But that alone doesn't explain it. The front seat that the person vacated, the “deciding what to build” seat, has to be filled by something. This time, three months of logs filled it. If you had just said “build something on your own” without the logs, you would most likely have gotten a plausible generic tool.
+
+</ChatMessage>
+
+</Conversation>
+
+## Judgment moves back, evidence fills the front
+
+When I asked for ideas, I was judging at the very front. I took the list, imagined how each one would turn out, and picked one myself. With only imagination to judge with, the outcomes were always vague.
+
+When I asked it to just build something, my judgment moved to the very end. I judged by actually using what was built. Judging with my own data on the screen is far easier and more certain.
+
+But if you only push judgment back, the front seat goes empty. That's the seat for deciding “what to build.” Hand that seat to AI with nothing in it, and you'll get the same average answer you get when you ask for ideas. This time, my logs filled it. What I kept repeating, what bothered me, and what I wanted were already in them.
+
+So the conclusion isn't “just tell it to build something.” Give it evidence first, then judge the result. Both had to be there.
+
+Until now, my mindset was “people should evaluate AI's ideas and plans.” This experience makes me wonder, though it may be a hasty conclusion, whether the place for evaluation has moved to “people should use and review what AI builds.”
+
+## Back to the last post's question
+
+In my last post, [If AI Can Do It All, What Can I Add?](/post/2026-09-16-what-can-i-add-to-ai), I wrote that I wanted to be a developer who sets the bar for the result I want and builds toward it together with AI. At the time, it was still closer to a resolution.
+
+This time I got a glimpse of what that actually looks like. I didn't come up with ideas, and I didn't write a single line of code. Instead, I pointed to where the evidence was, and I judged by using what was built. And I asked a question that pushed the AI's answer one step further. The thought that judgment had moved back was one I raised first.

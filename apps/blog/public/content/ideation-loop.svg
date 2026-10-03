@@ -1,0 +1,51 @@
+<svg width="960" height="270" viewBox="0 45 960 270" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">아이디어 발산 요청의 도돌이표</title>
+  <desc id="desc">창의적인 아이디어를 발산해 달라고 요청하면 유용하지 않거나 사소한 데서만 창의적인 결과가 나온다. 큰 주제를 정해 다시 요청하면 그럴듯하지만 물어보면 90% 이상은 이미 있는 아이디어다. 창의성이 부족한가 고민하다 다시 처음 요청으로 돌아간다. 수십 개를 받았지만 결과물로 이어진 것은 없었다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a8882"/>
+    </marker>
+    <marker id="arrow-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c4521f"/>
+    </marker>
+  </defs>
+  <rect width="960" height="340" fill="#ffffff"/>
+
+  <g font-family="'Apple SD Gothic Neo', Pretendard, 'Noto Sans KR', sans-serif">
+    <g font-size="15" fill="#1f1f1d" text-anchor="middle">
+      <rect x="20" y="70" width="160" height="104" rx="12" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+      <text x="100" y="114" font-weight="700">창의적인 아이디어를</text>
+      <text x="100" y="138" font-weight="700">발산해 주세요</text>
+
+      <rect x="210" y="70" width="160" height="104" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="290" y="114">유용하지 않거나</text>
+      <text x="290" y="138">사소한 데서만 창의적</text>
+
+      <rect x="400" y="70" width="160" height="104" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="480" y="106">큰 주제를 정해</text>
+      <text x="480" y="130">다시 요청</text>
+      <text x="480" y="154" font-size="13" fill="#7d7b75">AI, 부동산, 주식 등</text>
+
+      <rect x="590" y="70" width="160" height="104" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="670" y="106">그럴듯하지만</text>
+      <text x="670" y="130">90% 이상은</text>
+      <text x="670" y="154">이미 있는 아이디어</text>
+
+      <rect x="780" y="70" width="160" height="104" rx="12" fill="#fdf1eb" stroke="#c4521f" stroke-width="1.5"/>
+      <text x="860" y="114" font-weight="700">창의성이</text>
+      <text x="860" y="138" font-weight="700">부족한가?</text>
+    </g>
+
+    <g stroke="#8a8882" stroke-width="1.5" marker-end="url(#arrow)">
+      <line x1="182" y1="122" x2="206" y2="122"/>
+      <line x1="372" y1="122" x2="396" y2="122"/>
+      <line x1="562" y1="122" x2="586" y2="122"/>
+      <line x1="752" y1="122" x2="776" y2="122"/>
+    </g>
+
+    <path d="M860,176 V236 H100 V180" fill="none" stroke="#c4521f" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#arrow-loop)"/>
+    <text x="480" y="226" font-size="14" fill="#a8441a" text-anchor="middle" font-weight="600">다시 처음부터</text>
+
+    <text x="480" y="290" font-size="15" fill="#1f1f1d" text-anchor="middle" font-weight="700">수십 개를 받았지만 결과물로 이어진 것은 없었다</text>
+  </g>
+</svg>

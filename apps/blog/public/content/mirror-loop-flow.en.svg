@@ -1,0 +1,69 @@
+<svg width="960" height="400" viewBox="0 0 960 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">How Mirror and the action loop work</title>
+  <desc id="desc">Mirror uses three months of conversation logs as evidence to find signals, and each signal becomes an action with a ready-to-paste request. A person handles the action from the menu bar or an agent. On the next analysis, the action is marked resolved if the signal is gone, or needs review if it remains.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a8882"/>
+    </marker>
+  </defs>
+  <rect width="960" height="400" fill="#ffffff"/>
+
+  <g font-family="-apple-system, 'Segoe UI', Arial, sans-serif">
+    <!-- 근거와 판단의 자리 -->
+    <text x="108" y="56" font-size="15" font-weight="700" fill="#2a78d6" text-anchor="middle">Evidence first</text>
+    <line x1="40" y1="70" x2="176" y2="70" stroke="#2a78d6" stroke-width="2"/>
+    <text x="852" y="56" font-size="15" font-weight="700" fill="#c4521f" text-anchor="middle">Judge the result</text>
+    <line x1="784" y1="70" x2="920" y2="70" stroke="#c4521f" stroke-width="2"/>
+
+    <!-- 다섯 단계 -->
+    <g font-size="15" fill="#1f1f1d" text-anchor="middle">
+      <rect x="40" y="90" width="136" height="96" rx="12" fill="#eef4fc" stroke="#2a78d6" stroke-width="1.5"/>
+      <text x="108" y="128" font-weight="700">Session logs</text>
+      <text x="108" y="152" font-size="13" fill="#52514e">Claude Code, Codex</text>
+      <text x="108" y="170" font-size="13" fill="#52514e">last 3 months</text>
+
+      <rect x="226" y="90" width="136" height="96" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="294" y="128" font-weight="700">Mirror</text>
+      <text x="294" y="152" font-size="13" fill="#52514e">weekly analysis</text>
+      <text x="294" y="170" font-size="13" fill="#52514e">5 s, read-only</text>
+
+      <rect x="412" y="90" width="136" height="96" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="480" y="128" font-weight="700">Signals</text>
+      <text x="480" y="152" font-size="13" fill="#52514e">study gaps, drift</text>
+      <text x="480" y="170" font-size="13" fill="#52514e">repeated requests</text>
+
+      <rect x="598" y="90" width="136" height="96" rx="12" fill="#fafaf8" stroke="#d4d2cc" stroke-width="1.5"/>
+      <text x="666" y="128" font-weight="700">Actions</text>
+      <text x="666" y="152" font-size="13" fill="#52514e">request text</text>
+      <text x="666" y="170" font-size="13" fill="#52514e">and folder</text>
+
+      <rect x="784" y="90" width="136" height="96" rx="12" fill="#fdf1eb" stroke="#c4521f" stroke-width="1.5"/>
+      <text x="852" y="128" font-weight="700">Handle</text>
+      <text x="852" y="152" font-size="13" fill="#52514e">from the menu bar</text>
+      <text x="852" y="170" font-size="13" fill="#52514e">or an agent</text>
+    </g>
+
+    <!-- 단계 사이 화살표 -->
+    <g stroke="#8a8882" stroke-width="1.5" marker-end="url(#arrow)">
+      <line x1="178" y1="138" x2="222" y2="138"/>
+      <line x1="364" y1="138" x2="408" y2="138"/>
+      <line x1="550" y1="138" x2="594" y2="138"/>
+      <line x1="736" y1="138" x2="780" y2="138"/>
+    </g>
+
+    <!-- 다음 분석으로 돌아가는 고리 -->
+    <path d="M852,188 V262 H294 V192" fill="none" stroke="#8a8882" stroke-width="1.5" stroke-dasharray="6 5" marker-end="url(#arrow)"/>
+    <text x="573" y="252" font-size="14" fill="#1f1f1d" text-anchor="middle" font-weight="600">Next analysis: is the signal still there?</text>
+
+    <!-- 판정 -->
+    <g font-size="14" text-anchor="middle">
+      <rect x="330" y="300" width="200" height="40" rx="20" fill="#e8f6e8" stroke="#0ca30c" stroke-width="1.5"/>
+      <text x="430" y="325" fill="#0a6e0a" font-weight="700">Gone: resolved</text>
+      <rect x="616" y="300" width="200" height="40" rx="20" fill="#fbeaea" stroke="#d03b3b" stroke-width="1.5"/>
+      <text x="716" y="325" fill="#a82d2d" font-weight="700">Still there: needs review</text>
+    </g>
+    <line x1="573" y1="264" x2="430" y2="298" stroke="#8a8882" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <line x1="573" y1="264" x2="716" y2="298" stroke="#8a8882" stroke-width="1.2" marker-end="url(#arrow)"/>
+    <text x="480" y="376" font-size="12.5" fill="#7d7b75" text-anchor="middle">A person marks it done, but the next analysis decides whether it is resolved</text>
+  </g>
+</svg>
