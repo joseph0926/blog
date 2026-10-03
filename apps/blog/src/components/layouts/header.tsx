@@ -7,7 +7,7 @@ type HeaderProps = {
 
 export const Header = ({ size = 'lg' }: HeaderProps) => {
   return (
-    <header className="border-rule bg-background sticky top-0 z-50 border-b">
+    <header className="bg-background sticky top-0 z-50">
       <Container as="div" size={size}>
         <Navbar />
       </Container>

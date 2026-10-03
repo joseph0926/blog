@@ -1,18 +1,9 @@
 import { getTranslations } from 'next-intl/server';
+import type { ReactNode } from 'react';
+import { SectionDial } from '@/components/dial/section-dial';
 import { INFO } from '@/constants/info';
 import type { AppLocale } from '@/i18n/routing';
-import { AboutCover } from './about-cover';
-import { AboutScrollProvider } from './about-scroll';
-import { AboutStage } from './about-stage';
-import { type CareerEntry, CareerTimeline } from './career-timeline';
-import { type Chapter, ChapterIndex } from './chapter-index';
-import { ConnectSection } from './connect-section';
-import { IntroReveal } from './intro-reveal';
-import type { Measurement } from './measure';
-import { PinnedReel } from './pinned-reel';
-import { type PrEntry, PrReveal } from './pr-reveal';
-import { ScrubSection } from './scrub-section';
-import { VelocityMarquee } from './velocity-marquee';
+import { type Measurement, MeasureReel } from './measure-reel';
 
 const careerIds = ['ea', 'nhn', 'pandora'] as const;
 
@@ -52,26 +43,34 @@ const chapterIds = {
   connect: 'about-connect',
 } as const;
 
+function Chapter({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} aria-labelledby={`${id}-heading`} className="pt-28">
+      <h2
+        id={`${id}-heading`}
+        className="text-foreground font-serif text-[2rem] leading-[1.25] font-semibold tracking-[-0.025em]"
+      >
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+/**
+ * about은 노트의 표지다 (ADR 0006). 왼쪽 여백의 장 다이얼이 글 상세와 같은 규칙으로 돌고,
+ * 작업 기록은 홈 질문 다이얼과 같은 릴로 한 건씩 가운데에 온다. 나머지 장은 움직이지 않는다.
+ */
 export async function AboutPageContent({ locale }: { locale: AppLocale }) {
   const t = await getTranslations({ locale, namespace: 'about' });
-
-  const career: CareerEntry[] = careerIds.map((id) => ({
-    id,
-    period: t(`experience.items.${id}.period`),
-    company: t(`experience.items.${id}.company`),
-    role: t(`experience.items.${id}.role`),
-    highlight: t(`experience.items.${id}.highlight1`),
-    details: [
-      t(`experience.items.${id}.highlight2`),
-      t(`experience.items.${id}.highlight3`),
-    ],
-  }));
-
-  const prs: PrEntry[] = prSources.map(({ titleKey, descKey, ...pr }) => ({
-    ...pr,
-    title: t(titleKey),
-    desc: t(descKey),
-  }));
 
   const measurements: Measurement[] = measurementIds.map((id) => ({
     id,
@@ -94,6 +93,24 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
     t('focus.items.runtimeBehavior'),
     t('focus.items.openSource'),
   ];
+
+  const career = careerIds.map((id) => ({
+    id,
+    period: t(`experience.items.${id}.period`),
+    company: t(`experience.items.${id}.company`),
+    role: t(`experience.items.${id}.role`),
+    paragraphs: [
+      t(`experience.items.${id}.highlight1`),
+      t(`experience.items.${id}.highlight2`),
+      t(`experience.items.${id}.highlight3`),
+    ],
+  }));
+
+  const prs = prSources.map(({ titleKey, descKey, ...pr }) => ({
+    ...pr,
+    title: t(titleKey),
+    desc: t(descKey),
+  }));
 
   const stackGroups = [
     {
@@ -120,7 +137,7 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
     { href: 'mailto:joseph0926.dev@gmail.com', label: t('connect.email') },
   ];
 
-  const chapters: Chapter[] = [
+  const chapters = [
     { id: chapterIds.intro, label: t('index.intro') },
     { id: chapterIds.measurements, label: t('reel.label') },
     { id: chapterIds.focus, label: t('focus.heading') },
@@ -128,139 +145,173 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
     { id: chapterIds.openSource, label: t('openSource.heading') },
     { id: chapterIds.stack, label: t('stack.heading') },
     { id: chapterIds.connect, label: t('connect.heading') },
-  ].map((chapter, index) => ({
-    ...chapter,
-    number: String(index + 1).padStart(2, '0'),
-  }));
-  const numberOf = (id: string) =>
-    chapters.find((chapter) => chapter.id === id)?.number ?? '';
+  ];
 
   return (
-    <AboutScrollProvider>
-      <div className="relative isolate">
-        <AboutStage />
+    <div className="mx-auto max-w-[1260px] px-4 pb-32">
+      <section
+        aria-labelledby="about-cover-title"
+        className="flex min-h-[calc(100svh-3.5rem)] flex-col justify-center py-16"
+      >
+        <h1
+          id="about-cover-title"
+          className="text-foreground font-serif text-[clamp(3.5rem,11vw,9rem)] leading-none font-[640] tracking-[-0.04em]"
+        >
+          {t('profile.name')}
+        </h1>
+        <p className="text-muted-foreground mt-6 font-serif text-[clamp(1.5rem,3vw,2.5rem)] leading-[1.2] font-[250] tracking-[-0.02em]">
+          {t('profile.role')}
+        </p>
+      </section>
 
-        <AboutCover
-          hint={t('coverHint')}
-          name={t('profile.name')}
-          role={t('profile.role')}
-          scrollHint={t('scrollHint')}
-          scrollTarget={chapterIds.intro}
-        />
+      <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-16">
+        <SectionDial items={chapters} label={t('index.label')} />
 
-        <div className="mx-auto max-w-[1260px] px-4 lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
-          <ChapterIndex
-            label={t('index.label')}
-            name={t('profile.name')}
-            chapters={chapters}
+        <div className="min-w-0">
+          <Chapter id={chapterIds.intro} title={t('index.intro')}>
+            <p className="text-foreground mt-8 max-w-[34em] text-xl leading-[1.7] break-keep">
+              {t('intro')}
+            </p>
+          </Chapter>
+
+          <MeasureReel
+            id={chapterIds.measurements}
+            title={t('reel.label')}
+            items={measurements}
           />
 
-          <div className="min-w-0">
-            <IntroReveal
-              id={chapterIds.intro}
-              number={numberOf(chapterIds.intro)}
-              title={t('index.intro')}
-              text={t('intro')}
-            />
-
-            <PinnedReel
-              id={chapterIds.measurements}
-              number={numberOf(chapterIds.measurements)}
-              label={t('reel.label')}
-              items={measurements}
-            />
-
-            <ScrubSection
-              id={chapterIds.focus}
-              number={numberOf(chapterIds.focus)}
-              title={t('focus.heading')}
-            >
-              <div className="mt-8 grid gap-8 md:grid-cols-[minmax(0,1fr)_16rem]">
-                <ul className="text-foreground space-y-3 text-base leading-7">
-                  {focusItems.map((item) => (
-                    <li key={item} className="border-rule border-l-2 pl-4">
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <dl className="grid content-start gap-4">
-                  {profileFacts.map((fact) => (
-                    <div key={fact.label}>
-                      <dt className="text-muted-foreground text-xs">
-                        {fact.label}
-                      </dt>
-                      <dd className="text-foreground mt-0.5 text-sm">
-                        {fact.value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            </ScrubSection>
-
-            <ScrubSection
-              id={chapterIds.career}
-              number={numberOf(chapterIds.career)}
-              title={t('experience.title')}
-            >
-              <CareerTimeline
-                entries={career}
-                chapterLabel={t('careerLabel')}
-              />
-            </ScrubSection>
-
-            <PrReveal
-              id={chapterIds.openSource}
-              number={numberOf(chapterIds.openSource)}
-              title={t('openSource.heading')}
-              lead={t('openSource.lead')}
-              prs={prs}
-              projectsHeading={t('openSource.projectsHeading')}
-              projects={[t('openSource.firsttx'), t('openSource.mentoring')]}
-            />
-
-            <ScrubSection
-              id={chapterIds.stack}
-              number={numberOf(chapterIds.stack)}
-              title={t('stack.heading')}
-            >
-              <div className="mt-8">
-                <VelocityMarquee
-                  items={stackGroups.flatMap((group) => group.items)}
-                />
-              </div>
-              <p className="text-foreground mt-8 max-w-[68ch] text-base leading-7 break-keep">
-                {t('stack.line')}
-              </p>
-              <dl className="mt-6 grid gap-x-8 gap-y-3 sm:grid-cols-2">
-                {stackGroups.map((group) => (
-                  <div
-                    key={group.label}
-                    className="grid gap-1 sm:grid-cols-[7rem_minmax(0,1fr)]"
-                  >
-                    <dt className="text-muted-foreground text-xs">
-                      {group.label}
+          <Chapter id={chapterIds.focus} title={t('focus.heading')}>
+            <div className="mt-8 grid gap-10 md:grid-cols-[minmax(0,1fr)_15rem]">
+              <ul className="text-foreground space-y-4 text-[17px] leading-[1.7]">
+                {focusItems.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+              <dl className="grid content-start gap-4">
+                {profileFacts.map((fact) => (
+                  <div key={fact.label}>
+                    <dt className="text-muted-foreground text-sm">
+                      {fact.label}
                     </dt>
-                    <dd className="text-foreground text-sm">
-                      {group.items.join(', ')}
+                    <dd className="text-foreground mt-0.5 text-[15px]">
+                      {fact.value}
                     </dd>
                   </div>
                 ))}
               </dl>
-            </ScrubSection>
+            </div>
+          </Chapter>
 
-            <ConnectSection
-              id={chapterIds.connect}
-              number={numberOf(chapterIds.connect)}
-              title={t('connect.heading')}
-              name={t('profile.name')}
-              role={t('profile.role')}
-              description={t('connect.description')}
-              links={connectLinks}
-            />
-          </div>
+          <Chapter id={chapterIds.career} title={t('experience.title')}>
+            <ol className="mt-10 space-y-16">
+              {career.map((entry) => (
+                <li key={entry.id}>
+                  <p className="text-muted-foreground text-sm tabular-nums">
+                    {entry.period}
+                  </p>
+                  <h3 className="text-foreground mt-2 font-serif text-[1.625rem] leading-[1.3] font-semibold tracking-[-0.02em]">
+                    {entry.company}
+                    <span className="text-muted-foreground ml-3 font-sans text-base font-normal tracking-normal">
+                      {entry.role}
+                    </span>
+                  </h3>
+                  <div className="mt-4 max-w-[38em] space-y-3">
+                    {entry.paragraphs.map((paragraph, index) => (
+                      <p
+                        key={paragraph}
+                        className={
+                          index === 0
+                            ? 'text-foreground text-[17px] leading-[1.75]'
+                            : 'text-foreground/80 text-[15.5px] leading-[1.75]'
+                        }
+                      >
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </Chapter>
+
+          <Chapter id={chapterIds.openSource} title={t('openSource.heading')}>
+            <p className="text-foreground/85 mt-6 max-w-[38em] text-[17px] leading-[1.75]">
+              {t('openSource.lead')}
+            </p>
+            <ol className="mt-10 space-y-8">
+              {prs.map((pr) => (
+                <li key={pr.key} className="max-w-[38em]">
+                  <p className="text-muted-foreground text-sm">
+                    {pr.project} {pr.id}
+                  </p>
+                  <h3 className="text-foreground mt-1 font-serif text-xl leading-[1.4] font-semibold tracking-[-0.015em]">
+                    {pr.title}
+                  </h3>
+                  <p className="text-foreground/80 mt-2 text-[15.5px] leading-[1.75]">
+                    {pr.desc}
+                  </p>
+                </li>
+              ))}
+            </ol>
+            <h3 className="text-foreground mt-14 font-serif text-xl font-semibold tracking-[-0.015em]">
+              {t('openSource.projectsHeading')}
+            </h3>
+            <div className="mt-3 max-w-[38em] space-y-3">
+              {[t('openSource.firsttx'), t('openSource.mentoring')].map(
+                (project) => (
+                  <p
+                    key={project}
+                    className="text-foreground/80 text-[15.5px] leading-[1.75]"
+                  >
+                    {project}
+                  </p>
+                ),
+              )}
+            </div>
+          </Chapter>
+
+          <Chapter id={chapterIds.stack} title={t('stack.heading')}>
+            <p className="text-foreground/85 mt-6 max-w-[38em] text-[17px] leading-[1.75] break-keep">
+              {t('stack.line')}
+            </p>
+            <dl className="mt-8 grid gap-x-10 gap-y-4 sm:grid-cols-2">
+              {stackGroups.map((group) => (
+                <div key={group.label}>
+                  <dt className="text-muted-foreground text-sm">
+                    {group.label}
+                  </dt>
+                  <dd className="text-foreground mt-0.5 text-[15px]">
+                    {group.items.join(', ')}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Chapter>
+
+          <Chapter id={chapterIds.connect} title={t('connect.heading')}>
+            <p className="text-foreground/85 mt-6 max-w-[34em] text-[17px] leading-[1.75]">
+              {t('connect.description')}
+            </p>
+            <ul className="mt-8 flex flex-wrap gap-x-10 gap-y-3">
+              {connectLinks.map((link) => {
+                const external = !link.href.startsWith('mailto');
+                return (
+                  <li key={link.href}>
+                    <a
+                      href={link.href}
+                      target={external ? '_blank' : undefined}
+                      rel={external ? 'noopener noreferrer' : undefined}
+                      className="text-foreground hover:text-accent-ink focus-visible:ring-ring rounded-sm font-serif text-[1.75rem] font-semibold tracking-[-0.02em] transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </Chapter>
         </div>
       </div>
-    </AboutScrollProvider>
+    </div>
   );
 }

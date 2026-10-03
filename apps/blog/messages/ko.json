@@ -19,20 +19,13 @@
     "en": "English"
   },
   "home": {
-    "latestEssay": "최근 글",
     "headlineTop": "React와 TypeScript를 깊게 다루는 프론트엔드 노트",
-    "description": "React와 TypeScript로 문제를 해결하며 배운 점을 기록합니다.",
     "readEssay": "글 읽기",
-    "latestPosts": "최신 글",
-    "sectionRecentTitle": "최근 글",
-    "sectionRecentDescription": "최근에 정리한 생각들",
-    "sectionArchiveTitle": "아카이브",
-    "sectionArchiveDescription": "연도별 아카이브",
-    "archiveIndex": "연도",
-    "viewAllPosts": "모든 글 보기",
     "loadPostsError": "글을 불러오지 못했습니다.",
     "emptyRecentPosts": "아직 등록된 글이 없습니다.",
-    "emptyArchivePosts": "더 불러올 글이 없습니다."
+    "dialHeading": "최근 질문",
+    "recentCount": "최근 {count}편",
+    "findAll": "전체 {count}편을 주제와 연도로 찾기"
   },
   "blog": {
     "eyebrow": "프론트엔드 엔지니어링 노트",
@@ -116,7 +109,6 @@
       }
     },
     "experience": {
-      "eyebrow": "경력 타임라인",
       "title": "경력",
       "items": {
         "ea": {
@@ -146,7 +138,6 @@
       }
     },
     "openSource": {
-      "eyebrow": "증거",
       "heading": "오픈소스 PR",
       "lead": "React Router와 TanStack Query 등 React 생태계에서 성능 병목, 런타임 회귀, 브라우저 호환성과 타입 문제를 재현하고 수정했습니다. 병합된 PR 12건 중 대표 3건입니다.",
       "groups": {
@@ -214,9 +205,6 @@
         }
       }
     },
-    "coverHint": "연구 노트의 표지",
-    "careerLabel": "장",
-    "scrollHint": "작업 기록 보기",
     "index": {
       "label": "차례",
       "intro": "소개"

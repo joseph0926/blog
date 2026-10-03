@@ -19,20 +19,13 @@
     "en": "English"
   },
   "home": {
-    "latestEssay": "LATEST ESSAY",
     "headlineTop": "Frontend notes on React, TypeScript, and the web",
-    "description": "I solve product problems with React and TypeScript, then document what I learned.",
     "readEssay": "Read essay",
-    "latestPosts": "Latest posts",
-    "sectionRecentTitle": "RECENT ESSAYS",
-    "sectionRecentDescription": "Recently published notes",
-    "sectionArchiveTitle": "Archive",
-    "sectionArchiveDescription": "Browse by year",
-    "archiveIndex": "YEARS",
-    "viewAllPosts": "View all posts",
     "loadPostsError": "An error occurred while loading posts.",
     "emptyRecentPosts": "There are no published posts yet.",
-    "emptyArchivePosts": "No more posts to display."
+    "dialHeading": "Recent questions",
+    "recentCount": "{count} recent posts",
+    "findAll": "Browse all {count} posts by topic and year"
   },
   "blog": {
     "eyebrow": "FRONTEND ENGINEERING NOTES",
@@ -116,7 +109,6 @@
       }
     },
     "experience": {
-      "eyebrow": "Experience timeline",
       "title": "Career",
       "items": {
         "ea": {
@@ -146,7 +138,6 @@
       }
     },
     "openSource": {
-      "eyebrow": "Evidence",
       "heading": "Merged open-source work",
       "lead": "I reproduced and fixed performance bottlenecks, runtime regressions, browser compatibility issues, and type problems in React Router, TanStack Query, and other React ecosystem projects. These are three examples from 12 merged PRs.",
       "groups": {
@@ -214,9 +205,6 @@
         }
       }
     },
-    "coverHint": "Cover of the research notes",
-    "careerLabel": "Ch.",
-    "scrollHint": "See the work notes",
     "index": {
       "label": "Contents",
       "intro": "Introduction"

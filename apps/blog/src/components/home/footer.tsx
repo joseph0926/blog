@@ -32,13 +32,13 @@ export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
   ];
 
   return (
-    <footer className="border-rule mt-auto border-t">
+    <footer className="bg-muted mt-auto">
       <Container size={size} className="py-12 sm:py-14">
         <div className="grid gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div className="max-w-sm space-y-3">
-            <p className="text-foreground text-sm font-semibold">
+            <p className="text-foreground font-serif text-[17px] font-semibold">
               {brandName}
-              <span className="text-muted-foreground ml-2 font-normal">
+              <span className="text-muted-foreground ml-2 font-sans text-sm font-normal">
                 {tNav('tagline')}
               </span>
             </p>
@@ -87,9 +87,9 @@ export const Footer = async ({ size = 'lg', locale }: FooterProps) => {
           </div>
         </div>
 
-        <div className="border-rule text-muted-foreground mt-12 flex flex-col gap-2 border-t pt-5 text-xs sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-muted-foreground mt-12 flex flex-col gap-2 text-xs sm:flex-row sm:items-center sm:justify-between">
           <p>
-            <span className="font-mono tabular-nums">&copy; {currentYear}</span>{' '}
+            <span className="tabular-nums">&copy; {currentYear}</span>{' '}
             {brandName}. {tFooter('rights')}
           </p>
           <p>{tFooter('builtWith')}</p>

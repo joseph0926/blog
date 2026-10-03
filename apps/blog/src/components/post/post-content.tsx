@@ -54,7 +54,7 @@ export async function PostContent({ locale, source, title }: PostContentProps) {
         <h2
           id={id ?? createHeadingId(getNodeText(children))}
           className={cn(
-            'border-rule scroll-mt-24 border-t pt-8 text-2xl font-semibold tracking-tight',
+            'scroll-mt-[38svh] font-serif text-[1.75rem] leading-[1.32] font-semibold tracking-[-0.025em] break-keep',
             className,
           )}
           {...props}
@@ -71,7 +71,7 @@ export async function PostContent({ locale, source, title }: PostContentProps) {
         <h3
           id={id ?? createHeadingId(getNodeText(children))}
           className={cn(
-            'scroll-mt-24 text-xl font-semibold tracking-tight',
+            'scroll-mt-[38svh] font-serif text-[1.3rem] leading-[1.4] font-semibold tracking-[-0.015em] break-keep',
             className,
           )}
           {...props}
@@ -107,7 +107,7 @@ export async function PostContent({ locale, source, title }: PostContentProps) {
       }: ComponentPropsWithoutRef<'blockquote'>) => (
         <blockquote
           className={cn(
-            'border-accent-ink/60 text-muted-foreground my-7 border-l-2 pl-5 text-base not-italic',
+            'border-foreground text-foreground my-7 border-l-2 pl-5 text-[17px] font-normal not-italic',
             className,
           )}
           {...props}

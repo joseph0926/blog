@@ -3,7 +3,7 @@ import { cn } from '@joseph0926/ui/lib/utils';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
-import { IBM_Plex_Mono, IBM_Plex_Sans_KR } from 'next/font/google';
+import { Hahmlet, IBM_Plex_Mono, IBM_Plex_Sans_KR } from 'next/font/google';
 import { getLocale } from 'next-intl/server';
 import { Toaster } from 'sonner';
 import { commonOpenGraph } from '@/meta/open-graph';
@@ -15,6 +15,13 @@ const plexSans = IBM_Plex_Sans_KR({
   variable: '--font-plex-sans',
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
+  display: 'swap',
+});
+
+// 제목과 다이얼 서체. 다이얼이 가변 wght 축으로 굵기를 스크럽하므로 weight를 고정하지 않는다.
+const hahmlet = Hahmlet({
+  variable: '--font-hahmlet',
+  subsets: ['latin'],
   display: 'swap',
 });
 
@@ -71,7 +78,14 @@ export default async function RootLayout({
 
   return (
     <html lang={htmlLang} suppressHydrationWarning>
-      <body className={cn(plexSans.variable, plexMono.variable, 'antialiased')}>
+      <body
+        className={cn(
+          plexSans.variable,
+          plexMono.variable,
+          hahmlet.variable,
+          'antialiased',
+        )}
+      >
         {/* Accessibility: Skip to main content link */}
         <a href="#main-content" className="skip-link">
           본문으로 건너뛰기

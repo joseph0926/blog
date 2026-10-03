@@ -45,8 +45,8 @@ export function PostCodeBlock({
   };
 
   return (
-    <div className="border-rule bg-card my-7 overflow-hidden rounded-sm border">
-      <div className="border-rule flex h-9 items-center justify-between border-b pr-1.5 pl-4">
+    <div className="bg-muted my-7 overflow-hidden rounded-[4px]">
+      <div className="flex h-9 items-center justify-between pr-1.5 pl-5">
         <span className="text-muted-foreground font-mono text-[11px]">
           {language ?? 'code'}
         </span>
@@ -73,7 +73,7 @@ export function PostCodeBlock({
       <pre
         ref={preRef}
         className={cn(
-          'text-foreground m-0 max-h-[640px] overflow-x-auto bg-transparent p-5 font-mono text-[13px] leading-6 shadow-none [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit',
+          'text-foreground m-0 max-h-[640px] overflow-x-auto bg-transparent px-5 pt-1 pb-5 font-mono text-[13px] leading-6 shadow-none [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit',
           className,
         )}
         {...props}

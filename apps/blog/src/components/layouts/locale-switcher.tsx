@@ -20,7 +20,7 @@ export function LocaleSwitcher() {
 
   return (
     <div
-      className="border-rule inline-flex items-center gap-0.5 rounded-sm border p-0.5"
+      className="inline-flex items-center gap-0.5"
       role="group"
       aria-label={t('label')}
     >
@@ -32,9 +32,9 @@ export function LocaleSwitcher() {
           variant="ghost"
           onClick={() => handleLocaleChange(item)}
           className={cn(
-            'press h-6 rounded-[2px] px-2 font-mono text-[11px] font-medium',
+            'press h-8 rounded-[4px] px-2 text-[13px] font-medium',
             locale === item
-              ? 'bg-foreground text-background hover:bg-foreground hover:text-background'
+              ? 'text-foreground bg-muted hover:bg-muted'
               : 'text-muted-foreground hover:text-foreground',
           )}
           aria-pressed={locale === item}

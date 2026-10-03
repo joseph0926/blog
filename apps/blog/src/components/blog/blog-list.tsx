@@ -308,9 +308,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
 
       <aside className="lg:sticky lg:top-20 lg:self-start">
         <p className={noteLabel}>{t('eyebrow')}</p>
-        <p className="text-foreground font-mono text-2xl tabular-nums">
-          {totalCount}
-        </p>
+        <p className="text-foreground text-2xl tabular-nums">{totalCount}</p>
         <ul className="border-rule mt-6 flex flex-wrap gap-x-4 gap-y-1 border-t pt-4 lg:flex-col lg:gap-0 lg:border-t-0 lg:border-l lg:pt-0">
           {curatedPaths.map((path) => {
             const isActive =
@@ -329,7 +327,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
                   )}
                 >
                   <span>{path.title}</span>
-                  <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+                  <span className="text-muted-foreground text-[11px] tabular-nums">
                     {path.count}
                   </span>
                 </button>
@@ -340,7 +338,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
       </aside>
 
       <div className="min-w-0">
-        <h1 className="text-foreground max-w-[68ch] text-[2rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-4xl">
+        <h1 className="text-foreground max-w-[68ch] font-serif text-[2.25rem] leading-[1.18] font-[640] tracking-[-0.03em] text-balance break-keep sm:text-5xl">
           {t('headline')}
         </h1>
         <p className="text-muted-foreground mt-4 max-w-[68ch] text-base leading-7">
@@ -425,7 +423,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
               <SelectTrigger
                 id="blog-year"
                 size="sm"
-                className="border-rule min-w-[88px] rounded-sm font-mono tabular-nums shadow-none"
+                className="border-rule min-w-[88px] rounded-sm tabular-nums shadow-none"
               >
                 <SelectValue placeholder={t('all')} />
               </SelectTrigger>
@@ -435,7 +433,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
                   <SelectItem
                     key={yearOption}
                     value={yearOption}
-                    className="font-mono tabular-nums"
+                    className="tabular-nums"
                   >
                     {yearOption}
                   </SelectItem>
@@ -444,7 +442,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
             </Select>
             {hasActiveFilters && (
               <span className="border-rule inline-flex items-center gap-2 border-l pl-3">
-                <span className="text-muted-foreground font-mono text-xs tabular-nums">
+                <span className="text-muted-foreground text-xs tabular-nums">
                   {t('activeCount', { count: activeFilterCount })}
                 </span>
                 <Button
@@ -513,7 +511,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
                     dateLocale={dateLocale}
                   />
                   <div className="min-w-0">
-                    <h3 className="text-foreground group-hover:decoration-accent-ink max-w-[68ch] text-xl font-semibold tracking-tight underline decoration-transparent decoration-1 underline-offset-[6px] transition-[text-decoration-color] duration-150 sm:text-2xl">
+                    <h3 className="text-foreground group-hover:text-accent-ink max-w-[68ch] font-serif text-[1.375rem] leading-[1.35] font-semibold tracking-[-0.02em] break-keep transition-colors duration-150 sm:text-[1.75rem]">
                       {latestPost.title}
                     </h3>
                     <p className="text-muted-foreground mt-3 max-w-[68ch] text-sm leading-6">
@@ -528,7 +526,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
             <section>
               <h2 className={noteLabel}>{t('browseEssays')}</h2>
               {archiveGroups.length === 0 ? (
-                <p className="border-rule text-muted-foreground border-t border-l-2 py-6 pl-4 text-sm">
+                <p className="bg-muted text-muted-foreground rounded-[4px] px-4 py-5 text-sm">
                   {t('emptyArchivePosts')}
                 </p>
               ) : (
@@ -540,10 +538,10 @@ export const BlogList = ({ tags }: BlogListProps) => {
                       className="group border-rule ledger-details border-b"
                     >
                       <summary className="hover:text-foreground focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between gap-4 py-3 transition-colors duration-150 marker:hidden focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset">
-                        <span className="font-mono text-sm tabular-nums">
+                        <span className="text-sm tabular-nums">
                           {group.label}
                         </span>
-                        <span className="text-muted-foreground flex items-center gap-3 font-mono text-xs tabular-nums">
+                        <span className="text-muted-foreground flex items-center gap-3 text-xs tabular-nums">
                           {t('pathCount', { count: group.posts.length })}
                           <ChevronDown className="h-3.5 w-3.5 transition-transform duration-150 group-open:rotate-180" />
                         </span>
@@ -597,7 +595,7 @@ const EntryMargin = ({
   entryNumber?: number;
   dateLocale: Locale;
 }) => (
-  <div className="text-muted-foreground flex items-baseline gap-3 font-mono text-xs tabular-nums sm:flex-col sm:gap-1">
+  <div className="text-muted-foreground flex items-baseline gap-3 text-xs tabular-nums sm:flex-col sm:gap-1">
     {entryNumber !== undefined && (
       <span className="text-foreground">{formatEntryNumber(entryNumber)}</span>
     )}
@@ -616,7 +614,7 @@ const PostMeta = ({ post }: { post: PostResponse }) => {
 
   return (
     <p className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-      <span className="font-mono text-xs tabular-nums">
+      <span className="text-xs tabular-nums">
         {t('readTime', { minutes: post.readingTime })}
       </span>
       {post.tags.slice(0, 3).map((tag) => (
@@ -647,7 +645,7 @@ const ArchivePostRow = ({
       href={`/post/${post.slug}`}
       className="border-rule focus-visible:ring-ring group active:bg-muted/40 grid gap-1 border-t py-3 text-sm focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:gap-6"
     >
-      <span className="text-muted-foreground flex items-baseline gap-3 font-mono text-xs tabular-nums">
+      <span className="text-muted-foreground flex items-baseline gap-3 text-xs tabular-nums">
         {entryNumber !== undefined ? (
           <span className="text-foreground">
             {formatEntryNumber(entryNumber)}
@@ -670,7 +668,7 @@ const ArchivePostRow = ({
           {post.tags[0] ? getTagLabel(post.tags[0].name) : getPostYear(post)}
         </span>
       </span>
-      <span className="text-muted-foreground font-mono text-xs tabular-nums">
+      <span className="text-muted-foreground text-xs tabular-nums">
         {t('readTime', { minutes: post.readingTime })}
       </span>
     </Link>

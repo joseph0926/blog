@@ -9,6 +9,11 @@ export const formatPostDate = (date: Date | string, locale: AppLocale) =>
     locale: getDateLocale(locale),
   });
 
+export const formatPostLongDate = (date: Date | string, locale: AppLocale) =>
+  format(new Date(date), locale === 'ko' ? 'yyyy년 M월 d일' : 'MMMM d, yyyy', {
+    locale: getDateLocale(locale),
+  });
+
 export const formatPostMonthDay = (date: Date | string, locale: AppLocale) =>
   format(new Date(date), locale === 'ko' ? 'MM.dd' : 'MMM dd', {
     locale: getDateLocale(locale),

@@ -42,11 +42,8 @@ export const Navbar = () => {
         href="/"
         className="focus-visible:ring-ring -ml-2 inline-flex items-baseline gap-2 rounded-sm px-2 py-1 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
       >
-        <span className="text-foreground text-[15px] font-semibold tracking-tight">
+        <span className="text-foreground font-serif text-[17px] font-semibold tracking-[-0.01em]">
           {t('brandName')}
-        </span>
-        <span className="text-muted-foreground hidden text-xs sm:inline">
-          {t('tagline')}
         </span>
       </Link>
 
@@ -97,7 +94,7 @@ export const Navbar = () => {
           >
             <Menu className="h-5 w-5" />
           </SheetTrigger>
-          <SheetContent side="right" className="border-rule w-72">
+          <SheetContent side="right" className="w-72 border-0">
             <SheetHeader>
               <SheetTitle className="text-sm font-medium">
                 {t('menu')}
@@ -105,7 +102,7 @@ export const Navbar = () => {
             </SheetHeader>
             <ul className="mt-2 flex flex-col">
               {navbarItems.map((item) => (
-                <li key={item.href} className="border-rule border-t">
+                <li key={item.href}>
                   <Link
                     href={item.href}
                     onClick={() => setIsOpen(false)}
@@ -121,7 +118,9 @@ export const Navbar = () => {
                       aria-hidden="true"
                       className={cn(
                         'h-0.5 w-3',
-                        isActive(item.href) ? 'bg-accent-ink' : 'bg-rule',
+                        isActive(item.href)
+                          ? 'bg-accent-ink'
+                          : 'bg-transparent',
                       )}
                     />
                     {item.label}
