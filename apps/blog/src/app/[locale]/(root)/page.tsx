@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { type DialPost, QuestionDial } from '@/components/home/question-dial';
-import { Link } from '@/i18n/navigation';
 import { isAppLocale } from '@/i18n/routing';
 import {
   getAlternates,
@@ -48,7 +47,7 @@ export async function generateMetadata({
   };
 }
 
-const DIAL_SIZE = 12;
+const DIAL_SIZE = 6;
 
 export default async function HomePage({
   params,
@@ -77,42 +76,28 @@ export default async function HomePage({
     title: post.title,
     description: post.description,
     year: new Date(post.createdAt).getFullYear().toString(),
-    meta: [
-      formatPostLongDate(post.createdAt, safeLocale),
-      formatReadTime(post.readingTime, safeLocale),
-      ...post.tags.slice(0, 2).map((tag) => tag.name),
-    ].join(', '),
+    date: formatPostLongDate(post.createdAt, safeLocale),
+    readingTime: formatReadTime(post.readingTime, safeLocale),
+    topics: post.tags
+      .slice(0, 2)
+      .map((tag) => tag.name)
+      .join(', '),
   }));
 
   return (
     <>
       <h1 className="sr-only">{t('headlineTop')}</h1>
-      {posts === null && (
-        <p className="text-muted-foreground mx-auto max-w-[1260px] px-4 py-24 text-sm">
-          {t('loadPostsError')}
-        </p>
-      )}
-      {posts !== null && dialPosts.length === 0 && (
-        <p className="text-muted-foreground mx-auto max-w-[1260px] px-4 py-24 text-sm">
-          {t('emptyRecentPosts')}
-        </p>
-      )}
       <QuestionDial
         posts={dialPosts}
-        heading={t('dialHeading')}
-        readLabel={t('readEssay')}
+        totalCount={posts === null ? null : totalCount}
+        notice={
+          posts === null
+            ? { kind: 'error', message: t('loadPostsError') }
+            : dialPosts.length === 0
+              ? { kind: 'empty', message: t('emptyRecentPosts') }
+              : null
+        }
       />
-      {dialPosts.length > 0 && (
-        <div className="text-muted-foreground mx-auto flex max-w-[1260px] flex-col gap-3 px-4 pt-24 pb-32 text-[15px] sm:flex-row sm:justify-between">
-          <p>{t('recentCount', { count: dialPosts.length })}</p>
-          <Link
-            href="/blog"
-            className="text-foreground hover:text-accent-ink focus-visible:ring-ring rounded-sm font-semibold transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
-          >
-            {t('findAll', { count: totalCount })}
-          </Link>
-        </div>
-      )}
     </>
   );
 }

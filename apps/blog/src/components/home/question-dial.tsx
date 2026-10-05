@@ -1,27 +1,48 @@
 'use client';
 
 import { cn } from '@joseph0926/ui/lib/utils';
+import { ArrowDown, ArrowUp, ArrowUpRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import type { MouseEvent } from 'react';
+import { useTranslations } from 'next-intl';
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { startTitleMorph } from '@/components/dial/title-morph';
 import { usePinnedReel } from '@/components/dial/use-dial';
 import { Link, useRouter } from '@/i18n/navigation';
+import { HomeSearch } from './home-search';
+import styles from './question-dial.module.css';
 
 export type DialPost = {
   slug: string;
   title: string;
   description: string;
   year: string;
-  meta: string;
+  date: string;
+  readingTime: string;
+  topics: string;
 };
 
 type QuestionDialProps = {
   posts: DialPost[];
-  heading: string;
-  readLabel: string;
+  totalCount: number | null;
+  notice: { kind: 'error' | 'empty'; message: string } | null;
 };
 
-const REEL = { space: 30, weight: { center: 640, edge: 240 } };
+const REEL = { space: 32, weight: { center: 640, edge: 300 } };
+// 낮은 화면은 제목, 설명과 조작부를 한 화면에 담기 어려워 정적 목록으로 제공한다.
+const ROOM_FOR_REEL = '(min-height: 640px)';
+const subscribeViewport = (onChange: () => void) => {
+  const query = window.matchMedia(ROOM_FOR_REEL);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
+const hasRoomForReel = () => window.matchMedia(ROOM_FOR_REEL).matches;
+const serverViewport = () => false;
 
 const isPlainClick = (event: MouseEvent) =>
   event.button === 0 &&
@@ -30,12 +51,15 @@ const isPlainClick = (event: MouseEvent) =>
   !event.shiftKey &&
   !event.altKey;
 
-/**
- * 홈의 질문 다이얼 (ADR 0006). 스크롤이 질문 릴 전체를 한 덩어리로 돌리고,
- * 가운데 질문을 열면 그 제목이 글 제목으로 이어진다.
- */
-export function QuestionDial({ posts, heading, readLabel }: QuestionDialProps) {
+/** 질문 회전과 글 제목 morph의 비율은 ADR 0006을 따른다. */
+export function QuestionDial({ posts, totalCount, notice }: QuestionDialProps) {
+  const t = useTranslations('home');
   const router = useRouter();
+  const hasRoom = useSyncExternalStore(
+    subscribeViewport,
+    hasRoomForReel,
+    serverViewport,
+  );
   const {
     mode,
     trackRef,
@@ -44,28 +68,42 @@ export function QuestionDial({ posts, heading, readLabel }: QuestionDialProps) {
     getItem,
     centerIndex,
     scrollToIndex,
-  } = usePinnedReel<HTMLAnchorElement>(posts.length, REEL);
+  } = usePinnedReel<HTMLAnchorElement>(
+    posts.length,
+    REEL,
+    hasRoom && posts.length > 0,
+  );
   const isReel = mode === 'reel';
   const current = posts[centerIndex] ?? posts[0];
+  const [announcedIndex, setAnnouncedIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isReel) return;
+    let timer: number | undefined;
+    const announceAfterScroll = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setAnnouncedIndex(centerIndex), 200);
+    };
+    announceAfterScroll();
+    window.addEventListener('scroll', announceAfterScroll, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('scroll', announceAfterScroll);
+    };
+  }, [centerIndex, isReel]);
 
   const openPost = (index: number) => {
     const source = getItem(index);
     const href = `/post/${posts[index].slug}`;
-    if (!source) {
-      router.push(href);
-      return;
-    }
-    startTitleMorph(source, () => router.push(href));
+    if (source) startTitleMorph(source, () => router.push(href));
+    else router.push(href);
   };
 
   const handleItemClick = (event: MouseEvent, index: number) => {
     if (!isReel || !isPlainClick(event)) return;
     event.preventDefault();
-    if (index === centerIndex) {
-      openPost(index);
-    } else {
-      scrollToIndex(index);
-    }
+    if (index === centerIndex) openPost(index);
+    else scrollToIndex(index);
   };
 
   const handleReadClick = (event: MouseEvent) => {
@@ -74,13 +112,37 @@ export function QuestionDial({ posts, heading, readLabel }: QuestionDialProps) {
     openPost(centerIndex);
   };
 
-  if (posts.length === 0) return null;
+  const handleControlsKey = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+      return;
+    let index: number;
+    switch (event.key) {
+      case 'ArrowUp':
+      case 'ArrowLeft':
+        index = Math.max(centerIndex - 1, 0);
+        break;
+      case 'ArrowDown':
+      case 'ArrowRight':
+        index = Math.min(centerIndex + 1, posts.length - 1);
+        break;
+      case 'Home':
+        index = 0;
+        break;
+      case 'End':
+        index = posts.length - 1;
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+    scrollToIndex(index);
+  };
 
   return (
-    <section aria-labelledby="question-dial-heading">
-      <h2 id="question-dial-heading" className="sr-only">
-        {heading}
-      </h2>
+    <section
+      aria-labelledby="question-dial-heading"
+      className={cn(styles.home, isReel && styles.reel)}
+    >
       <div
         ref={trackRef}
         className="relative"
@@ -101,83 +163,168 @@ export function QuestionDial({ posts, heading, readLabel }: QuestionDialProps) {
           ))}
         <div
           ref={stageRef}
-          className={cn(
-            'mx-auto max-w-[1260px] px-4',
-            isReel &&
-              'sticky top-0 grid h-svh grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden pt-14 pb-7 lg:grid-cols-[11rem_minmax(0,1fr)_18rem] lg:grid-rows-1 lg:gap-12 lg:pb-0',
-          )}
+          className={cn(styles.stage, isReel && styles.reelStage)}
         >
-          {isReel && (
+          <div className={styles.toolbar}>
+            <div className={styles.heading}>
+              <h2 id="question-dial-heading">{t('dialHeading')}</h2>
+              <Link href="/blog" className={styles.archiveLink}>
+                {totalCount === null
+                  ? t('browseArchive')
+                  : t('browseAll', { count: totalCount })}
+                <ArrowUpRight aria-hidden="true" size={16} />
+              </Link>
+            </div>
+            <HomeSearch />
+          </div>
+
+          {notice && (
             <p
-              aria-hidden="true"
-              className="text-muted-foreground pt-4 font-serif text-[1.75rem] font-[250] tracking-[-0.03em] tabular-nums lg:self-center lg:pt-0 lg:text-[2.75rem]"
+              role={notice.kind === 'error' ? 'alert' : undefined}
+              className={styles.notice}
             >
-              {current.year}
+              {notice.message}
             </p>
           )}
-          <ol className={cn(isReel ? 'relative' : 'space-y-10 py-16 sm:py-24')}>
-            {posts.map((post, index) => (
-              <li key={post.slug}>
-                <Link
-                  ref={itemRef(index)}
-                  href={`/post/${post.slug}`}
-                  onClick={(event) => handleItemClick(event, index)}
-                  onFocus={() => {
-                    if (isReel && index !== centerIndex) scrollToIndex(index);
-                  }}
-                  aria-current={
-                    isReel && index === centerIndex ? 'true' : undefined
-                  }
+
+          {current && (
+            <div
+              className={cn(styles.workspace, isReel && styles.reelWorkspace)}
+            >
+              {isReel && (
+                <div aria-hidden="true" className={styles.year}>
+                  <span>{current.year}</span>
+                  <span className={styles.yearLine} />
+                </div>
+              )}
+              <div className={cn(isReel && styles.reelWindow)}>
+                <ol
                   className={cn(
-                    'text-foreground focus-visible:ring-ring block max-w-[11.5em] rounded-sm font-serif tracking-[-0.03em] break-keep focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none',
-                    isReel
-                      ? 'absolute top-1/2 left-0 origin-top-left text-[clamp(2.125rem,4.4vw,3.5rem)]/[1.18] will-change-transform'
-                      : 'text-[1.75rem]/[1.25] font-medium sm:text-4xl/[1.2]',
-                    isReel &&
-                      index !== centerIndex &&
-                      'hover:text-accent-ink transition-colors duration-150',
+                    isReel ? styles.questions : styles.staticQuestions,
                   )}
                 >
-                  {post.title}
-                </Link>
-                {!isReel && (
-                  <div className="mt-3 max-w-[40em]">
-                    <p className="text-muted-foreground text-sm">{post.meta}</p>
-                    <p className="text-muted-foreground mt-2 text-[15px] leading-[1.7]">
-                      {post.description}
-                    </p>
+                  {posts.map((post, index) => (
+                    <li key={post.slug}>
+                      <Link
+                        ref={itemRef(index)}
+                        href={`/post/${post.slug}`}
+                        onClick={(event) => handleItemClick(event, index)}
+                        tabIndex={
+                          isReel && index !== centerIndex ? -1 : undefined
+                        }
+                        aria-current={
+                          isReel && index === centerIndex ? 'true' : undefined
+                        }
+                        className={cn(
+                          styles.question,
+                          isReel && styles.reelQuestion,
+                        )}
+                      >
+                        {post.title}
+                      </Link>
+                      {!isReel && (
+                        <div className={styles.staticSummary}>
+                          <p className={styles.meta}>
+                            {post.date}
+                            <span>{post.readingTime}</span>
+                          </p>
+                          <p>{post.description}</p>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              {isReel && (
+                <aside className={styles.detail}>
+                  <div className={styles.detailContent}>
+                    <AnimatePresence initial={false}>
+                      <motion.div
+                        key={current.slug}
+                        className={styles.summary}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{
+                          opacity: 0,
+                          y: -5,
+                          transition: { duration: 0.08 },
+                        }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                      >
+                        <p className={styles.meta}>
+                          {current.date}
+                          <span>{current.readingTime}</span>
+                        </p>
+                        <p className={styles.description}>
+                          {current.description}
+                        </p>
+                        <p className={styles.topics}>{current.topics}</p>
+                      </motion.div>
+                    </AnimatePresence>
                   </div>
-                )}
-              </li>
-            ))}
-          </ol>
-          {isReel && (
-            <aside aria-live="polite" className="lg:self-center">
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={current.slug}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 4, transition: { duration: 0.08 } }}
-                  transition={{ duration: 0.14, ease: 'easeOut' }}
-                >
-                  <p className="text-muted-foreground text-sm tabular-nums">
-                    {current.meta}
-                  </p>
-                  <p className="text-foreground/80 mt-3.5 hidden text-[15px] leading-[1.7] lg:block">
-                    {current.description}
-                  </p>
                   <Link
                     href={`/post/${current.slug}`}
                     onClick={handleReadClick}
-                    tabIndex={-1}
-                    className="bg-foreground text-background hover:bg-accent-ink mt-4 inline-flex rounded-[5px] px-4 py-2 text-sm font-semibold transition-colors duration-150 lg:mt-6"
+                    className={styles.readLink}
                   >
-                    {readLabel}
+                    {t('readEssay')}
+                    <ArrowUpRight aria-hidden="true" size={17} />
                   </Link>
-                </motion.div>
-              </AnimatePresence>
-            </aside>
+                </aside>
+              )}
+            </div>
+          )}
+
+          {isReel && (
+            <nav
+              aria-label={t('dialNavigation')}
+              className={styles.controls}
+              onKeyDown={handleControlsKey}
+            >
+              <p className={styles.scrollHint}>
+                <ArrowDown aria-hidden="true" size={14} />
+                {t('scrollHint')}
+              </p>
+              <div className={styles.position}>
+                <p role="status" aria-live="polite" aria-atomic="true">
+                  <span className="sr-only">
+                    {t('position', {
+                      current: announcedIndex + 1,
+                      count: posts.length,
+                    })}
+                  </span>
+                  <span aria-hidden="true">
+                    <strong>{String(centerIndex + 1).padStart(2, '0')}</strong>{' '}
+                    / {String(posts.length).padStart(2, '0')}
+                  </span>
+                </p>
+                <div className={styles.progress} aria-hidden="true">
+                  <span
+                    style={{
+                      width: `${((centerIndex + 1) / posts.length) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className={styles.stepButtons}>
+                <button
+                  aria-label={t('previousQuestion')}
+                  aria-disabled={centerIndex === 0}
+                  onClick={() => scrollToIndex(Math.max(centerIndex - 1, 0))}
+                >
+                  <ArrowUp aria-hidden="true" size={18} />
+                </button>
+                <button
+                  aria-label={t('nextQuestion')}
+                  aria-disabled={centerIndex === posts.length - 1}
+                  onClick={() =>
+                    scrollToIndex(Math.min(centerIndex + 1, posts.length - 1))
+                  }
+                >
+                  <ArrowDown aria-hidden="true" size={18} />
+                </button>
+              </div>
+            </nav>
           )}
         </div>
       </div>

@@ -25,7 +25,17 @@
     "emptyRecentPosts": "아직 등록된 글이 없습니다.",
     "dialHeading": "최근 질문",
     "recentCount": "최근 {count}편",
-    "findAll": "전체 {count}편을 주제와 연도로 찾기"
+    "findAll": "전체 {count}편을 주제와 연도로 찾기",
+    "browseAll": "전체 {count}편",
+    "browseArchive": "전체 글",
+    "searchLabel": "전체 글 검색",
+    "searchPlaceholder": "어떤 글을 찾으세요?",
+    "searchSubmit": "검색하기",
+    "dialNavigation": "최근 질문 탐색",
+    "scrollHint": "스크롤로 둘러보기",
+    "position": "{count}편 중 {current}번째 질문",
+    "previousQuestion": "이전 질문",
+    "nextQuestion": "다음 질문"
   },
   "blog": {
     "eyebrow": "프론트엔드 엔지니어링 노트",

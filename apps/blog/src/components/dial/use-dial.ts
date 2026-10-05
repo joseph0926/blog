@@ -67,8 +67,10 @@ function subscribeLayout(render: () => void, remeasure: () => void) {
 export function usePinnedReel<T extends HTMLElement>(
   count: number,
   options: ReelOptions,
+  enabled = true,
 ) {
-  const mode = useDialMode();
+  const preferredMode = useDialMode();
+  const mode = enabled ? preferredMode : 'static';
   const trackRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(T | null)[]>([]);

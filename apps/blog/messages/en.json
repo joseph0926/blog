@@ -25,7 +25,17 @@
     "emptyRecentPosts": "There are no published posts yet.",
     "dialHeading": "Recent questions",
     "recentCount": "{count} recent posts",
-    "findAll": "Browse all {count} posts by topic and year"
+    "findAll": "Browse all {count} posts by topic and year",
+    "browseAll": "All {count} posts",
+    "browseArchive": "All posts",
+    "searchLabel": "Search all posts",
+    "searchPlaceholder": "Find a post...",
+    "searchSubmit": "Search",
+    "dialNavigation": "Browse recent questions",
+    "scrollHint": "Scroll to explore",
+    "position": "Question {current} of {count}",
+    "previousQuestion": "Previous question",
+    "nextQuestion": "Next question"
   },
   "blog": {
     "eyebrow": "FRONTEND ENGINEERING NOTES",
