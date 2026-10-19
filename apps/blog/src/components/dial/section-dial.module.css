@@ -1,0 +1,24 @@
+.navigation:focus-within .items {
+  position: relative;
+  inset: auto;
+  max-height: 100svh;
+  overflow-y: auto;
+  padding: 11rem 0.25rem 2rem;
+}
+
+.navigation:focus-within .items a {
+  position: relative;
+  top: auto;
+  margin-block: 0.5rem;
+  padding: 0.25rem;
+  font-size: 15px;
+  line-height: 1.5;
+  /* 릴의 인라인 위치와 투명도보다 키보드 탐색의 가독성이 우선한다. */
+  transform: none !important;
+  opacity: 1 !important;
+  font-weight: 400 !important;
+}
+
+.navigation:focus-within .items a[aria-current='location'] {
+  font-weight: 650 !important;
+}

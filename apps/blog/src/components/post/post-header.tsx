@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
 import { formatPostLongDate } from '@/lib/post-format';
@@ -40,8 +41,9 @@ export const PostHeader = ({
     <header className="pt-10 lg:pt-32">
       <Link
         href="/blog"
-        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mb-8 inline-block rounded-sm text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none lg:hidden"
+        className="bg-muted text-foreground hover:bg-accent focus-visible:ring-ring mb-8 inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none lg:hidden"
       >
+        <ArrowLeft aria-hidden="true" size={16} />
         {label.back}
       </Link>
       <PostTitle id={POST_TITLE_ID} title={post.title} />

@@ -15,7 +15,10 @@ export function LocaleSwitcher() {
   const t = useTranslations('localeSwitcher');
 
   const handleLocaleChange = (nextLocale: AppLocale) => {
-    router.replace(pathname, { locale: nextLocale, scroll: false });
+    router.replace(pathname + window.location.search + window.location.hash, {
+      locale: nextLocale,
+      scroll: false,
+    });
   };
 
   return (

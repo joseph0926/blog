@@ -228,10 +228,7 @@
   }
 }
 
-/* 다이얼: 홈 질문을 열 때 제목이 글 제목으로 이어진다. 스냅은 다이얼이 있는 화면에서만 켠다. */
-html.dial-snap {
-  scroll-snap-type: y proximity;
-}
+/* 다이얼: 홈 질문을 열 때 제목이 글 제목으로 이어진다. */
 ::view-transition-group(post-title) {
   animation-duration: 340ms;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);

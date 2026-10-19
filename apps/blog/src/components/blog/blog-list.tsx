@@ -10,15 +10,21 @@ import {
   SelectValue,
 } from '@joseph0926/ui/components/select';
 import { cn } from '@joseph0926/ui/lib/utils';
+import { keepPreviousData } from '@tanstack/react-query';
 import { format, type Locale } from 'date-fns';
 import { enUS, ko } from 'date-fns/locale';
-import { ArrowRight, ChevronDown, Search, X } from 'lucide-react';
+import { ChevronDown, Search, X } from 'lucide-react';
+import {
+  AnimatePresence,
+  motion,
+  useIsPresent,
+  useReducedMotion,
+} from 'motion/react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
-import { formatEntryNumber } from '@/lib/post-format';
 import { getPostsQueryInput } from '@/lib/post-query';
 import { trpc } from '@/lib/trpc';
 import type { PostResponse, TagResponse } from '@/types/post.type';
@@ -26,18 +32,6 @@ import type { PostResponse, TagResponse } from '@/types/post.type';
 type BlogListProps = {
   tags: TagResponse[];
 };
-
-type ArchiveGroup = {
-  key: string;
-  label: string;
-  posts: { post: PostResponse; entryNumber?: number }[];
-};
-
-const getTagCount = (tags: TagResponse[], name: string) =>
-  tags.find((tag) => tag.name.toLowerCase() === name.toLowerCase())?.count ?? 0;
-
-const getPostYear = (post: PostResponse) =>
-  new Date(post.createdAt).getFullYear().toString();
 
 const priorityTagNames = [
   'react',
@@ -71,6 +65,7 @@ const inkLink =
 
 export const BlogList = ({ tags }: BlogListProps) => {
   const t = useTranslations('blog');
+  const reduceMotion = useReducedMotion();
   const locale = useLocale() as AppLocale;
   const dateLocale = locale === 'ko' ? ko : enUS;
   const router = useRouter();
@@ -87,6 +82,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
     isError,
     isFetching,
     isFetchingNextPage,
+    isPlaceholderData,
     hasNextPage,
     fetchNextPage,
     refetch,
@@ -95,6 +91,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
     {
       getNextPageParam: (lastPage) => lastPage.nextCursor,
       staleTime: 1000 * 60 * 5,
+      placeholderData: keepPreviousData,
     },
   );
 
@@ -107,10 +104,6 @@ export const BlogList = ({ tags }: BlogListProps) => {
   const hasActiveFilters = Boolean(category || search || year);
   const activeFilterCount =
     Number(Boolean(category)) + Number(Boolean(search)) + Number(Boolean(year));
-  const getEntryNumber = (index: number) =>
-    hasActiveFilters ? undefined : totalCount - index;
-  const latestPost = posts[0];
-  const archivePosts = posts.slice(1);
   const visibleTags = useMemo(() => {
     const priorityTags = priorityTagNames
       .map((name) =>
@@ -155,7 +148,7 @@ export const BlogList = ({ tags }: BlogListProps) => {
 
     const timer = setTimeout(() => {
       replaceWithParams(createQueryString({ q: searchQuery || null }));
-    }, 300);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [searchQuery, search, createQueryString, replaceWithParams]);
@@ -214,60 +207,40 @@ export const BlogList = ({ tags }: BlogListProps) => {
       {
         key: 'start',
         title: t('pathStartTitle'),
-        count: totalCount,
         category: null,
       },
       {
         key: 'source',
         title: t('pathSourceTitle'),
-        count: getTagCount(tags, 'source-code'),
         category: 'source-code',
       },
       {
         key: 'performance',
         title: t('pathPerformanceTitle'),
-        count: getTagCount(tags, 'performance'),
         category: 'performance',
       },
       {
         key: 'testing',
         title: t('pathTestingTitle'),
-        count: getTagCount(tags, 'testing'),
         category: 'testing',
       },
     ],
-    [tags, totalCount, t],
+    [t],
   );
-
-  const archiveGroups = useMemo<ArchiveGroup[]>(() => {
-    const groups = new Map<string, ArchiveGroup>();
-    archivePosts.forEach((post, index) => {
-      const date = new Date(post.createdAt);
-      const key = `${date.getFullYear()}-${date.getMonth() + 1}`;
-      const group = groups.get(key) ?? {
-        key,
-        label: format(date, locale === 'ko' ? 'yyyy.MM' : 'MMM yyyy', {
-          locale: dateLocale,
-        }),
-        posts: [],
-      };
-      group.posts.push({
-        post,
-        entryNumber: hasActiveFilters ? undefined : totalCount - (index + 1),
-      });
-      groups.set(key, group);
-    });
-    return [...groups.values()];
-  }, [archivePosts, locale, dateLocale, hasActiveFilters, totalCount]);
 
   const handleIntersection = useCallback(
     (entries: IntersectionObserverEntry[]) => {
       const [entry] = entries;
-      if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+      if (
+        entry.isIntersecting &&
+        hasNextPage &&
+        !isFetching &&
+        !isPlaceholderData
+      ) {
         fetchNextPage();
       }
     },
-    [hasNextPage, isFetchingNextPage, fetchNextPage],
+    [hasNextPage, isFetching, isPlaceholderData, fetchNextPage],
   );
 
   useEffect(() => {
@@ -288,126 +261,135 @@ export const BlogList = ({ tags }: BlogListProps) => {
   }, [handleIntersection]);
 
   const handleLoadMore = () => {
-    if (hasNextPage && !isFetchingNextPage) {
+    if (hasNextPage && !isFetching && !isPlaceholderData) {
       fetchNextPage();
     }
   };
 
-  const noteLabel = 'text-muted-foreground mb-3 text-xs';
+  const filterButton =
+    'press focus-visible:ring-ring min-h-11 rounded-[6px] px-3 text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none';
 
   return (
-    <div className="grid gap-8 py-10 sm:py-14 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10">
-      <div
-        aria-live="polite"
-        aria-atomic="false"
-        className="sr-only"
-        role="status"
-      >
-        {posts.length > 0 && t('postsLoaded', { count: posts.length })}
-      </div>
+    <div className="mx-auto max-w-[960px] py-6 sm:py-10">
+      <h1 className="text-foreground font-serif text-[1.75rem] leading-[1.25] font-[640] tracking-[-0.025em] break-keep sm:text-[2.5rem]">
+        {t('headline')}
+      </h1>
+      <p className="text-muted-foreground mt-3 hidden max-w-[68ch] text-[15px] leading-[1.55] sm:block">
+        {t('description')}
+      </p>
 
-      <aside className="lg:sticky lg:top-20 lg:self-start">
-        <p className={noteLabel}>{t('eyebrow')}</p>
-        <p className="text-foreground text-2xl tabular-nums">{totalCount}</p>
-        <ul className="border-rule mt-6 flex flex-wrap gap-x-4 gap-y-1 border-t pt-4 lg:flex-col lg:gap-0 lg:border-t-0 lg:border-l lg:pt-0">
-          {curatedPaths.map((path) => {
-            const isActive =
-              path.category === category || (!path.category && !category);
-            return (
-              <li key={path.key}>
-                <button
-                  type="button"
-                  onClick={() => handleCategoryFilter(path.category)}
-                  aria-pressed={isActive}
-                  className={cn(
-                    'press focus-visible:ring-ring -ml-px flex h-8 items-center gap-3 border-l-2 pl-3 text-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none lg:pl-4',
-                    isActive
-                      ? 'border-accent-ink text-foreground'
-                      : 'text-muted-foreground hover:text-foreground border-transparent',
-                  )}
-                >
-                  <span>{path.title}</span>
-                  <span className="text-muted-foreground text-[11px] tabular-nums">
-                    {path.count}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </aside>
-
-      <div className="min-w-0">
-        <h1 className="text-foreground max-w-[68ch] font-serif text-[2.25rem] leading-[1.18] font-[640] tracking-[-0.03em] text-balance break-keep sm:text-5xl">
-          {t('headline')}
-        </h1>
-        <p className="text-muted-foreground mt-4 max-w-[68ch] text-base leading-7">
-          {t('description')}
-        </p>
-
-        <div className="border-rule focus-within:border-accent-ink mt-8 border-y py-4 transition-colors duration-150">
-          <label className="sr-only" htmlFor="blog-search">
-            {t('searchLabel')}
-          </label>
-          <div className="relative">
-            <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2" />
-            <Input
-              id="blog-search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className="h-10 rounded-none border-0 bg-transparent pr-20 pl-7 text-base shadow-none focus-visible:ring-0 sm:text-base"
-            />
-            <kbd className="border-rule text-muted-foreground pointer-events-none absolute top-1/2 right-0 hidden -translate-y-1/2 rounded-sm border px-1.5 py-0.5 font-mono text-[10px] sm:inline-flex">
-              /
-            </kbd>
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={handleSearchClear}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute top-1/2 right-8 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded-sm transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
-                aria-label={t('clearSearch')}
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="border-rule flex flex-col gap-4 border-b py-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-            <span className="text-muted-foreground text-xs">{t('topic')}</span>
+      <div className="mt-6">
+        <label
+          className="mb-2 block text-[13px] font-semibold"
+          htmlFor="blog-search"
+        >
+          {t('searchLabel')}
+        </label>
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
+          />
+          <Input
+            id="blog-search"
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={t('searchPlaceholder')}
+            className="h-11 rounded-[6px] pr-12 pl-10 text-base shadow-none"
+          />
+          {searchQuery ? (
             <button
               type="button"
-              onClick={() => handleCategoryFilter(null)}
-              aria-pressed={!category}
-              className={cn(
-                'press focus-visible:ring-ring rounded-sm border-b py-1 transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none',
-                !category
-                  ? 'border-accent-ink text-foreground'
-                  : 'text-muted-foreground hover:text-foreground border-transparent',
-              )}
+              onClick={handleSearchClear}
+              aria-label={t('clearSearch')}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute top-0 right-0 inline-flex size-11 items-center justify-center rounded-[6px] focus-visible:ring-2 focus-visible:outline-none"
             >
-              {t('all')}
+              <X aria-hidden="true" className="size-4" />
             </button>
-            {visibleTags.map((tag) => (
+          ) : (
+            <kbd
+              aria-hidden="true"
+              className="text-muted-foreground pointer-events-none absolute top-1/2 right-4 hidden -translate-y-1/2 text-xs sm:inline"
+            >
+              /
+            </kbd>
+          )}
+        </div>
+      </div>
+
+      <details className="group ledger-details mt-3">
+        <summary className="focus-visible:ring-ring flex min-h-11 w-fit cursor-pointer list-none items-center gap-3 rounded-[6px] text-sm marker:hidden focus-visible:ring-2 focus-visible:outline-none">
+          <span>{t('filters')}</span>
+          {activeFilterCount > 0 && (
+            <span className="text-muted-foreground text-xs">
+              {t('activeCount', { count: activeFilterCount })}
+            </span>
+          )}
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 transition-transform duration-200 group-open:rotate-180 motion-reduce:transition-none"
+          />
+        </summary>
+        <div className="space-y-5 pt-3 pb-5">
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs">{t('paths')}</p>
+            <div className="flex flex-wrap gap-1">
+              {curatedPaths.map((path) => (
+                <button
+                  key={path.key}
+                  type="button"
+                  onClick={() => handleCategoryFilter(path.category)}
+                  aria-pressed={
+                    path.category === category || (!path.category && !category)
+                  }
+                  className={cn(
+                    filterButton,
+                    path.category === category || (!path.category && !category)
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {path.title}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-muted-foreground mb-1 text-xs">{t('topic')}</p>
+            <div className="flex flex-wrap gap-1">
               <button
-                key={tag.id}
                 type="button"
-                onClick={() => handleCategoryFilter(tag.name)}
-                aria-pressed={category === tag.name}
+                onClick={() => handleCategoryFilter(null)}
+                aria-pressed={!category}
                 className={cn(
-                  'press focus-visible:ring-ring rounded-sm border-b py-1 transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none',
-                  category === tag.name
-                    ? 'border-accent-ink text-foreground'
-                    : 'text-muted-foreground hover:text-foreground border-transparent',
+                  filterButton,
+                  !category
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {getTagLabel(tag.name)}
+                {t('all')}
               </button>
-            ))}
+              {visibleTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => handleCategoryFilter(tag.name)}
+                  aria-pressed={category === tag.name}
+                  className={cn(
+                    filterButton,
+                    category === tag.name
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {getTagLabel(tag.name)}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm">
+          <div className="flex items-center gap-3">
             <label
               className="text-muted-foreground text-xs"
               htmlFor="blog-year"
@@ -422,275 +404,175 @@ export const BlogList = ({ tags }: BlogListProps) => {
             >
               <SelectTrigger
                 id="blog-year"
-                size="sm"
-                className="border-rule min-w-[88px] rounded-sm tabular-nums shadow-none"
+                className="min-w-[100px] rounded-[6px] shadow-none"
               >
                 <SelectValue placeholder={t('all')} />
               </SelectTrigger>
-              <SelectContent className="border-rule rounded-sm">
+              <SelectContent>
                 <SelectItem value="all">{t('all')}</SelectItem>
                 {availableYears.map((yearOption) => (
-                  <SelectItem
-                    key={yearOption}
-                    value={yearOption}
-                    className="tabular-nums"
-                  >
+                  <SelectItem key={yearOption} value={yearOption}>
                     {yearOption}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {hasActiveFilters && (
-              <span className="border-rule inline-flex items-center gap-2 border-l pl-3">
-                <span className="text-muted-foreground text-xs tabular-nums">
-                  {t('activeCount', { count: activeFilterCount })}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearFilters}
-                  className="h-7 rounded-sm px-2 text-xs"
-                >
-                  {t('clearAll')}
-                </Button>
-              </span>
-            )}
           </div>
         </div>
+      </details>
 
-        {isError && posts.length === 0 && (
-          <section className="border-rule border-b py-10">
-            <h2 className="text-foreground text-lg font-semibold">
-              {t('loadPostsError')}
-            </h2>
-            <Button
-              variant="outline"
-              onClick={() => refetch()}
-              className="border-rule mt-5 rounded-sm shadow-none"
-            >
-              {t('retry')}
-            </Button>
-          </section>
-        )}
-        {isFetching && posts.length === 0 && (
-          <LoadingRows label={t('loading')} count={4} />
-        )}
-        {!isError && !isFetching && posts.length === 0 && (
-          <section className="py-16">
-            <h2 className="text-foreground text-lg font-semibold">
-              {t('noPostsTitle')}
-            </h2>
-            <p className="text-muted-foreground mt-2 text-sm">
-              {t('noPostsDescription')}
-            </p>
-            {hasActiveFilters && (
-              <Button
-                variant="outline"
-                onClick={handleClearFilters}
-                className="border-rule mt-5 rounded-sm shadow-none"
-              >
-                {t('clearAllFilters')}
-              </Button>
-            )}
-          </section>
-        )}
-
-        {posts.length > 0 && (
-          <div className="pt-8">
-            {latestPost && (
-              <section className="mb-10">
-                <h2 className={noteLabel}>{t('latestEssay')}</h2>
-                <Link
-                  href={`/post/${latestPost.slug}`}
-                  className="focus-visible:ring-ring group border-rule active:bg-muted/40 grid gap-2 border-y py-6 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:gap-6"
-                >
-                  <EntryMargin
-                    post={latestPost}
-                    locale={locale}
-                    entryNumber={getEntryNumber(0)}
-                    dateLocale={dateLocale}
-                  />
-                  <div className="min-w-0">
-                    <h3 className="text-foreground group-hover:text-accent-ink max-w-[68ch] font-serif text-[1.375rem] leading-[1.35] font-semibold tracking-[-0.02em] break-keep transition-colors duration-150 sm:text-[1.75rem]">
-                      {latestPost.title}
-                    </h3>
-                    <p className="text-muted-foreground mt-3 max-w-[68ch] text-sm leading-6">
-                      {latestPost.description}
-                    </p>
-                    <PostMeta post={latestPost} />
-                  </div>
-                  <ArrowRight className="text-muted-foreground group-hover:text-accent-ink hidden h-4 w-4 shrink-0 transition-colors duration-150 sm:block sm:pt-1" />
-                </Link>
-              </section>
-            )}
-            <section>
-              <h2 className={noteLabel}>{t('browseEssays')}</h2>
-              {archiveGroups.length === 0 ? (
-                <p className="bg-muted text-muted-foreground rounded-[4px] px-4 py-5 text-sm">
-                  {t('emptyArchivePosts')}
-                </p>
-              ) : (
-                <div className="border-rule border-t">
-                  {archiveGroups.map((group, index) => (
-                    <details
-                      key={group.key}
-                      open={index === 0}
-                      className="group border-rule ledger-details border-b"
-                    >
-                      <summary className="hover:text-foreground focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between gap-4 py-3 transition-colors duration-150 marker:hidden focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset">
-                        <span className="text-sm tabular-nums">
-                          {group.label}
-                        </span>
-                        <span className="text-muted-foreground flex items-center gap-3 text-xs tabular-nums">
-                          {t('pathCount', { count: group.posts.length })}
-                          <ChevronDown className="h-3.5 w-3.5 transition-transform duration-150 group-open:rotate-180" />
-                        </span>
-                      </summary>
-                      <div className="pb-2">
-                        {group.posts.map(({ post, entryNumber }) => (
-                          <ArchivePostRow
-                            key={post.id}
-                            post={post}
-                            locale={locale}
-                            entryNumber={entryNumber}
-                            dateLocale={dateLocale}
-                          />
-                        ))}
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              )}
-            </section>
-          </div>
-        )}
-        {hasNextPage && <div className="h-1" ref={divRef} aria-hidden="true" />}
-        {isFetchingNextPage && <LoadingRows label={t('loading')} count={2} />}
-        {hasNextPage && !isFetchingNextPage && (
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={handleLoadMore}
-              aria-label={t('loadMoreAria')}
-              className={inkLink}
-            >
-              {t('loadMore')}
-              <ChevronDown className="h-4 w-4" />
-            </button>
-          </div>
+      <div className="mt-3 flex min-h-11 items-center justify-between gap-4">
+        <h2
+          className="text-muted-foreground text-sm"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {isFetching && !isFetchingNextPage
+            ? t('loading')
+            : t('resultCount', { count: totalCount })}
+        </h2>
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            onClick={handleClearFilters}
+            className="h-11 text-sm"
+          >
+            {t('clearAll')}
+          </Button>
         )}
       </div>
+
+      {isError && (
+        <section className="py-6" role="alert">
+          <h2 className="font-semibold">{t('loadPostsError')}</h2>
+          <Button variant="outline" onClick={() => refetch()} className="mt-3">
+            {t('retry')}
+          </Button>
+        </section>
+      )}
+      {isFetching && posts.length === 0 && (
+        <LoadingRows label={t('loading')} count={4} />
+      )}
+      <ul aria-busy={isFetching && !isFetchingNextPage}>
+        <AnimatePresence initial={false}>
+          {posts.map((post) => (
+            <AnimatedPostRow
+              key={post.id}
+              post={post}
+              locale={locale}
+              dateLocale={dateLocale}
+              reduceMotion={Boolean(reduceMotion)}
+            />
+          ))}
+        </AnimatePresence>
+      </ul>
+      {!isError && !isFetching && posts.length === 0 && (
+        <section className="py-12 text-center">
+          <Search
+            aria-hidden="true"
+            className="text-muted-foreground mx-auto mb-4 size-8"
+          />
+          <h2 className="text-lg font-semibold">{t('noPostsTitle')}</h2>
+          <p className="text-muted-foreground mt-2 text-sm">
+            {t('noPostsDescription')}
+          </p>
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              onClick={
+                search && !category && !year
+                  ? handleSearchClear
+                  : handleClearFilters
+              }
+              className="mt-5"
+            >
+              {search && !category && !year
+                ? t('clearSearch')
+                : t('clearAllFilters')}
+            </Button>
+          )}
+        </section>
+      )}
+      {hasNextPage && <div className="h-1" ref={divRef} aria-hidden="true" />}
+      {isFetchingNextPage && <LoadingRows label={t('loading')} count={2} />}
+      {hasNextPage && !isFetchingNextPage && (
+        <button
+          type="button"
+          onClick={handleLoadMore}
+          disabled={isFetching || isPlaceholderData}
+          aria-label={t('loadMoreAria')}
+          className={cn(inkLink, 'mt-6 min-h-11 disabled:opacity-50')}
+        >
+          {t('loadMore')}
+          <ChevronDown aria-hidden="true" className="size-4" />
+        </button>
+      )}
     </div>
   );
 };
 
-const EntryMargin = ({
+function AnimatedPostRow({
   post,
   locale,
-  entryNumber,
   dateLocale,
+  reduceMotion,
 }: {
   post: PostResponse;
   locale: AppLocale;
-  entryNumber?: number;
   dateLocale: Locale;
-}) => (
-  <div className="text-muted-foreground flex items-baseline gap-3 text-xs tabular-nums sm:flex-col sm:gap-1">
-    {entryNumber !== undefined && (
-      <span className="text-foreground">{formatEntryNumber(entryNumber)}</span>
-    )}
-    <time dateTime={new Date(post.createdAt).toISOString()}>
-      {format(
-        new Date(post.createdAt),
-        locale === 'ko' ? 'yyyy.MM.dd' : 'MMM dd, yyyy',
-        { locale: dateLocale },
-      )}
-    </time>
-  </div>
-);
-
-const PostMeta = ({ post }: { post: PostResponse }) => {
+  reduceMotion: boolean;
+}) {
   const t = useTranslations('blog');
-
+  const isPresent = useIsPresent();
   return (
-    <p className="text-muted-foreground mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-      <span className="text-xs tabular-nums">
-        {t('readTime', { minutes: post.readingTime })}
-      </span>
-      {post.tags.slice(0, 3).map((tag) => (
-        <span key={tag.id} className="flex items-center gap-3">
-          <span aria-hidden="true" className="bg-rule h-3 w-px" />
-          {getTagLabel(tag.name)}
-        </span>
-      ))}
-    </p>
-  );
-};
-
-const ArchivePostRow = ({
-  post,
-  locale,
-  entryNumber,
-  dateLocale,
-}: {
-  post: PostResponse;
-  locale: AppLocale;
-  entryNumber?: number;
-  dateLocale: Locale;
-}) => {
-  const t = useTranslations('blog');
-
-  return (
-    <Link
-      href={`/post/${post.slug}`}
-      className="border-rule focus-visible:ring-ring group active:bg-muted/40 grid gap-1 border-t py-3 text-sm focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:gap-6"
+    <motion.li
+      inert={!isPresent}
+      aria-hidden={!isPresent || undefined}
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: 'auto', opacity: 1 }}
+      exit={{ height: 0, opacity: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.2, 0, 0, 1] }}
+      className="overflow-hidden"
     >
-      <span className="text-muted-foreground flex items-baseline gap-3 text-xs tabular-nums">
-        {entryNumber !== undefined ? (
-          <span className="text-foreground">
-            {formatEntryNumber(entryNumber)}
-          </span>
-        ) : (
+      <Link
+        href={`/post/${post.slug}`}
+        className="group focus-visible:ring-ring active:bg-muted/40 block rounded-[6px] py-5 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
+      >
+        <h3 className="group-hover:text-accent-ink font-serif text-xl leading-[1.4] font-semibold tracking-[-0.015em] break-keep transition-colors duration-150 sm:text-2xl">
+          {post.title}
+        </h3>
+        <p className="text-muted-foreground mt-2 line-clamp-2 text-[15px] leading-[1.55]">
+          {post.description}
+        </p>
+        <p className="text-muted-foreground mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums">
           <time dateTime={new Date(post.createdAt).toISOString()}>
             {format(
               new Date(post.createdAt),
-              locale === 'ko' ? 'yyyy.MM.dd' : 'MMM dd',
+              locale === 'ko' ? 'yyyy.MM.dd' : 'MMM d, yyyy',
               { locale: dateLocale },
             )}
           </time>
-        )}
-      </span>
-      <span className="min-w-0">
-        <span className="text-foreground group-hover:decoration-accent-ink block truncate underline decoration-transparent decoration-1 underline-offset-4 transition-[text-decoration-color] duration-150">
-          {post.title}
-        </span>
-        <span className="text-muted-foreground mt-1 block truncate text-xs">
-          {post.tags[0] ? getTagLabel(post.tags[0].name) : getPostYear(post)}
-        </span>
-      </span>
-      <span className="text-muted-foreground text-xs tabular-nums">
-        {t('readTime', { minutes: post.readingTime })}
-      </span>
-    </Link>
+          <span>{t('readTime', { minutes: post.readingTime })}</span>
+          {post.tags.slice(0, 3).map((tag) => (
+            <span key={tag.id}>{getTagLabel(tag.name)}</span>
+          ))}
+        </p>
+      </Link>
+    </motion.li>
   );
-};
+}
 
-const LoadingRows = ({ label, count }: { label: string; count: number }) => {
+function LoadingRows({ label, count }: { label: string; count: number }) {
   return (
-    <div className="border-rule mt-6 border-b" role="status" aria-label={label}>
-      {Array.from({ length: count }).map((_, index) => (
-        <div
-          key={index}
-          className="border-rule grid gap-2 border-t py-4 sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:gap-6"
-        >
-          <div className="skeleton-shimmer h-3 w-14 rounded-sm" />
-          <div className="space-y-2">
-            <div className="skeleton-shimmer h-4 max-w-xl rounded-sm" />
-            <div className="skeleton-shimmer h-3 max-w-xs rounded-sm" />
-          </div>
-          <div className="skeleton-shimmer h-3 w-12 rounded-sm" />
+    <div role="status" aria-label={label}>
+      {Array.from({ length: count }, (_, index) => (
+        <div key={index} className="space-y-3 py-5">
+          <div className="skeleton-shimmer h-6 w-4/5 rounded-sm" />
+          <div className="skeleton-shimmer h-4 w-full rounded-sm" />
+          <div className="skeleton-shimmer h-3 w-40 rounded-sm" />
         </div>
       ))}
     </div>
   );
-};
+}

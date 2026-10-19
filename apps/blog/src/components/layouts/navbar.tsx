@@ -9,7 +9,6 @@ import {
 } from '@joseph0926/ui/components/sheet';
 import { cn } from '@joseph0926/ui/lib/utils';
 import { Menu } from 'lucide-react';
-import { motion, useReducedMotion } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Link, usePathname } from '@/i18n/navigation';
@@ -19,7 +18,6 @@ import { LocaleSwitcher } from './locale-switcher';
 export const Navbar = () => {
   const t = useTranslations('nav');
   const pathname = usePathname();
-  const reduceMotion = useReducedMotion();
   const [isOpen, setIsOpen] = useState(false);
 
   const navbarItems = [
@@ -30,6 +28,7 @@ export const Navbar = () => {
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
+    if (href === '/blog' && pathname.startsWith('/post/')) return true;
     return pathname.startsWith(href);
   };
 
@@ -62,14 +61,9 @@ export const Navbar = () => {
             >
               {item.label}
               {isActive(item.href) && (
-                <motion.span
-                  layoutId="navbar-underline"
+                <span
+                  aria-hidden="true"
                   className="bg-accent-ink absolute right-3 bottom-1 left-3 h-0.5"
-                  transition={
-                    reduceMotion
-                      ? { duration: 0 }
-                      : { type: 'tween', duration: 0.18, ease: 'easeOut' }
-                  }
                 />
               )}
             </Link>
@@ -94,7 +88,11 @@ export const Navbar = () => {
           >
             <Menu className="h-5 w-5" />
           </SheetTrigger>
-          <SheetContent side="right" className="w-72 border-0">
+          <SheetContent
+            side="right"
+            className="w-72 border-0"
+            closeLabel={t('closeMenu')}
+          >
             <SheetHeader>
               <SheetTitle className="text-sm font-medium">
                 {t('menu')}

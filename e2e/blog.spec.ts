@@ -24,6 +24,7 @@ test.describe('블로그 목록', () => {
     page,
   }) => {
     await page.goto('/ko/blog');
+    await page.locator('summary').filter({ hasText: '주제와 연도' }).click();
     const tagButton = page.getByRole('button', {
       name: 'React',
       exact: true,

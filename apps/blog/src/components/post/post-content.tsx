@@ -107,7 +107,7 @@ export async function PostContent({ locale, source, title }: PostContentProps) {
       }: ComponentPropsWithoutRef<'blockquote'>) => (
         <blockquote
           className={cn(
-            'border-foreground text-foreground my-7 border-l-2 pl-5 text-[17px] font-normal not-italic',
+            'text-foreground my-8 border-0 px-5 py-1 text-[17px] font-medium not-italic [&>p]:my-2',
             className,
           )}
           {...props}

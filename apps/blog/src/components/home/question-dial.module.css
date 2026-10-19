@@ -45,8 +45,13 @@
 }
 .archiveLink {
   gap: 0.25rem;
-  color: var(--muted-foreground);
+  min-height: 2.75rem;
+  padding-inline: 0.75rem;
+  border-radius: 6px;
+  color: var(--foreground);
+  background: var(--muted);
   font-size: 0.875rem;
+  font-weight: 500;
   white-space: nowrap;
 }
 .search {

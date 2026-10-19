@@ -9,10 +9,9 @@ import {
   type MouseEvent,
   useEffect,
   useState,
-  useSyncExternalStore,
 } from 'react';
 import { startTitleMorph } from '@/components/dial/title-morph';
-import { usePinnedReel } from '@/components/dial/use-dial';
+import { usePinnedReel, useReelViewport } from '@/components/dial/use-dial';
 import { Link, useRouter } from '@/i18n/navigation';
 import { HomeSearch } from './home-search';
 import styles from './question-dial.module.css';
@@ -34,15 +33,6 @@ type QuestionDialProps = {
 };
 
 const REEL = { space: 32, weight: { center: 640, edge: 300 } };
-// 낮은 화면은 제목, 설명과 조작부를 한 화면에 담기 어려워 정적 목록으로 제공한다.
-const ROOM_FOR_REEL = '(min-height: 640px)';
-const subscribeViewport = (onChange: () => void) => {
-  const query = window.matchMedia(ROOM_FOR_REEL);
-  query.addEventListener('change', onChange);
-  return () => query.removeEventListener('change', onChange);
-};
-const hasRoomForReel = () => window.matchMedia(ROOM_FOR_REEL).matches;
-const serverViewport = () => false;
 
 const isPlainClick = (event: MouseEvent) =>
   event.button === 0 &&
@@ -55,11 +45,7 @@ const isPlainClick = (event: MouseEvent) =>
 export function QuestionDial({ posts, totalCount, notice }: QuestionDialProps) {
   const t = useTranslations('home');
   const router = useRouter();
-  const hasRoom = useSyncExternalStore(
-    subscribeViewport,
-    hasRoomForReel,
-    serverViewport,
-  );
+  const hasRoom = useReelViewport();
   const {
     mode,
     trackRef,
@@ -152,15 +138,6 @@ export function QuestionDial({ posts, totalCount, notice }: QuestionDialProps) {
             : undefined
         }
       >
-        {isReel &&
-          posts.map((post, index) => (
-            <div
-              key={post.slug}
-              aria-hidden="true"
-              className="absolute left-0 h-px w-px snap-start"
-              style={{ top: `calc(${index} * 50svh)` }}
-            />
-          ))}
         <div
           ref={stageRef}
           className={cn(styles.stage, isReel && styles.reelStage)}

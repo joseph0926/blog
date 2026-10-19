@@ -17,6 +17,21 @@ import { clamp, clearReel, layoutReel, type ReelOptions } from './layout-reel';
 export type DialMode = 'pending' | 'static' | 'reel';
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+const ROOM_FOR_REEL = '(min-height: 640px)';
+
+const subscribeViewport = (onChange: () => void) => {
+  const query = window.matchMedia(ROOM_FOR_REEL);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+};
+
+export function useReelViewport() {
+  return useSyncExternalStore(
+    subscribeViewport,
+    () => window.matchMedia(ROOM_FOR_REEL).matches,
+    () => false,
+  );
+}
 
 const subscribeReducedMotion = (onChange: () => void) => {
   const query = window.matchMedia(REDUCED_MOTION);
@@ -62,7 +77,7 @@ function subscribeLayout(render: () => void, remeasure: () => void) {
 
 /**
  * 화면에 고정된 무대에서 스크롤이 항목을 한 칸씩 돌리는 릴. 홈 질문 다이얼과 about 작업 기록이 쓴다.
- * 트랙 높이는 `(count - 1) * 50svh + 100svh`이고, 무대 높이의 절반을 스크롤할 때마다 한 칸 넘어간다.
+ * 트랙은 무대 높이 + `(count - 1) × 무대 높이 / 2`이며, 무대 높이의 절반마다 한 칸 넘어간다.
  */
 export function usePinnedReel<T extends HTMLElement>(
   count: number,
@@ -107,12 +122,9 @@ export function usePinnedReel<T extends HTMLElement>(
 
     measure();
     render();
-    const root = document.documentElement;
-    root.classList.add('dial-snap');
     const unsubscribe = subscribeLayout(render, measure);
     return () => {
       unsubscribe();
-      root.classList.remove('dial-snap');
       clearReel(items());
     };
   }, [mode, count]);

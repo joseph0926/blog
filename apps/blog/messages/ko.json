@@ -11,7 +11,8 @@
     "themeToggle": "테마 바꾸기",
     "themeLight": "밝게",
     "themeDark": "어둡게",
-    "themeSystem": "시스템"
+    "themeSystem": "시스템",
+    "closeMenu": "메뉴 닫기"
   },
   "localeSwitcher": {
     "label": "언어",
@@ -68,7 +69,9 @@
     "loadMoreAria": "더 많은 글 불러오기",
     "readTime": "{minutes}분 읽기",
     "loadPostsError": "글을 불러오지 못했습니다.",
-    "retry": "다시 시도"
+    "retry": "다시 시도",
+    "filters": "주제와 연도",
+    "paths": "추천 분류"
   },
   "post": {
     "notFound": "블로그 글을 찾을 수 없습니다.",
@@ -218,7 +221,9 @@
     "index": {
       "label": "차례",
       "intro": "소개"
-    }
+    },
+    "coverIntro": "React와 TypeScript로 제품을 만들고, 개발 중 만난 문제를 오픈소스 기여와 글로 이어갑니다.",
+    "quickNavigation": "소개 바로가기"
   },
   "meta": {
     "homeTitle": "김영훈 블로그",

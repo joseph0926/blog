@@ -11,7 +11,8 @@
     "themeToggle": "Change theme",
     "themeLight": "Light",
     "themeDark": "Dark",
-    "themeSystem": "System"
+    "themeSystem": "System",
+    "closeMenu": "Close menu"
   },
   "localeSwitcher": {
     "label": "Language",
@@ -68,7 +69,9 @@
     "loadMoreAria": "Load more posts",
     "readTime": "{minutes} min read",
     "loadPostsError": "Could not load posts.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "filters": "Topics and year",
+    "paths": "Reading paths"
   },
   "post": {
     "notFound": "Post not found.",
@@ -218,7 +221,9 @@
     "index": {
       "label": "Contents",
       "intro": "Introduction"
-    }
+    },
+    "coverIntro": "I build products with React and TypeScript, contribute fixes upstream, and write about the problems I work through.",
+    "quickNavigation": "Explore my work"
   },
   "meta": {
     "homeTitle": "Younghoon Kim Blog",

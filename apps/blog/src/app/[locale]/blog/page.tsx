@@ -101,27 +101,19 @@ export default async function BlogPage({
       <Suspense
         fallback={
           <div
-            className="grid gap-8 py-10 sm:py-14 lg:grid-cols-[11rem_minmax(0,1fr)] lg:gap-10"
+            className="mx-auto max-w-[960px] space-y-6 py-6 sm:py-10"
             role="status"
             aria-busy="true"
           >
-            <div className="space-y-3">
-              <div className="skeleton-shimmer h-3 w-20 rounded-sm" />
-              <div className="skeleton-shimmer h-7 w-12 rounded-sm" />
-              <div className="skeleton-shimmer h-3 w-16 rounded-sm" />
-            </div>
             <div className="space-y-4">
               <div className="skeleton-shimmer h-9 w-full max-w-xl rounded-sm" />
               <div className="skeleton-shimmer h-4 w-full max-w-md rounded-sm" />
               <div className="skeleton-shimmer mt-8 h-10 w-full rounded-sm" />
               {Array.from({ length: 4 }).map((_, idx) => (
-                <div
-                  key={idx}
-                  className="border-rule grid gap-2 border-t py-4 sm:grid-cols-[7rem_minmax(0,1fr)_auto] sm:gap-6"
-                >
-                  <div className="skeleton-shimmer h-3 w-14 rounded-sm" />
-                  <div className="skeleton-shimmer h-4 max-w-xl rounded-sm" />
-                  <div className="skeleton-shimmer h-3 w-12 rounded-sm" />
+                <div key={idx} className="space-y-3 py-5">
+                  <div className="skeleton-shimmer h-6 w-4/5 rounded-sm" />
+                  <div className="skeleton-shimmer h-4 w-full rounded-sm" />
+                  <div className="skeleton-shimmer h-3 w-40 rounded-sm" />
                 </div>
               ))}
             </div>

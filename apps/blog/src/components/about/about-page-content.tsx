@@ -14,6 +14,7 @@ const prSources = [
     key: 'query-1',
     project: 'TanStack Query',
     id: '#8641',
+    href: 'https://github.com/TanStack/query/pull/8641',
     titleKey: 'openSource.groups.query.pr1Title',
     descKey: 'openSource.groups.query.pr1Desc',
   },
@@ -21,6 +22,7 @@ const prSources = [
     key: 'router-3',
     project: 'React Router',
     id: '#14534',
+    href: 'https://github.com/remix-run/react-router/pull/14534',
     titleKey: 'openSource.groups.router.pr3Title',
     descKey: 'openSource.groups.router.pr3Desc',
   },
@@ -28,6 +30,7 @@ const prSources = [
     key: 'router-5',
     project: 'React Router',
     id: '#14687',
+    href: 'https://github.com/remix-run/react-router/pull/14687',
     titleKey: 'openSource.groups.router.pr5Title',
     descKey: 'openSource.groups.router.pr5Desc',
   },
@@ -53,7 +56,11 @@ function Chapter({
   children: ReactNode;
 }) {
   return (
-    <section id={id} aria-labelledby={`${id}-heading`} className="pt-28">
+    <section
+      id={id}
+      aria-labelledby={`${id}-heading`}
+      className="scroll-mt-20 pt-12 sm:pt-28"
+    >
       <h2
         id={`${id}-heading`}
         className="text-foreground font-serif text-[2rem] leading-[1.25] font-semibold tracking-[-0.025em]"
@@ -78,6 +85,7 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
     to: t(`reel.items.${id}.to`),
     caption: t(`reel.items.${id}.caption`),
     source: t(`reel.items.${id}.source`),
+    sourceHref: id === 'calls' ? prSources[0].href : undefined,
   }));
 
   const profileFacts = [
@@ -151,17 +159,43 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
     <div className="mx-auto max-w-[1260px] px-4 pb-32">
       <section
         aria-labelledby="about-cover-title"
-        className="flex min-h-[calc(100svh-3.5rem)] flex-col justify-center py-16"
+        className="flex flex-col justify-center pt-10 pb-4 sm:min-h-[70svh] sm:py-16"
       >
         <h1
           id="about-cover-title"
-          className="text-foreground font-serif text-[clamp(3.5rem,11vw,9rem)] leading-none font-[640] tracking-[-0.04em]"
+          className="text-foreground font-serif text-[clamp(3rem,11vw,9rem)] leading-none font-[640] tracking-[-0.04em]"
         >
           {t('profile.name')}
         </h1>
         <p className="text-muted-foreground mt-6 font-serif text-[clamp(1.5rem,3vw,2.5rem)] leading-[1.2] font-[250] tracking-[-0.02em]">
           {t('profile.role')}
         </p>
+        <p className="mt-6 max-w-[38em] text-base leading-[1.7] break-keep">
+          {t('coverIntro')}
+        </p>
+        <nav aria-label={t('quickNavigation')} className="mt-8">
+          <ul className="flex flex-wrap gap-x-6 gap-y-2">
+            {chapters
+              .filter(({ id }) =>
+                [
+                  chapterIds.measurements,
+                  chapterIds.career,
+                  chapterIds.openSource,
+                  chapterIds.connect,
+                ].some((target) => target === id),
+              )
+              .map((chapter) => (
+                <li key={chapter.id}>
+                  <a
+                    href={`#${chapter.id}`}
+                    className="hover:text-accent-ink focus-visible:outline-ring inline-flex min-h-11 items-center rounded-sm text-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4"
+                  >
+                    {chapter.label}
+                  </a>
+                </li>
+              ))}
+          </ul>
+        </nav>
       </section>
 
       <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-16">
@@ -242,7 +276,12 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
               {prs.map((pr) => (
                 <li key={pr.key} className="max-w-[38em]">
                   <p className="text-muted-foreground text-sm">
-                    {pr.project} {pr.id}
+                    <a
+                      href={pr.href}
+                      className="hover:text-accent-ink focus-visible:outline-ring rounded-sm underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4"
+                    >
+                      {pr.project} {pr.id}
+                    </a>
                   </p>
                   <h3 className="text-foreground mt-1 font-serif text-xl leading-[1.4] font-semibold tracking-[-0.015em]">
                     {pr.title}
