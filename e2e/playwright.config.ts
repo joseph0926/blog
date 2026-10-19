@@ -1,21 +1,6 @@
-import { chromium, defineConfig, devices } from '@playwright/test';
-import { existsSync } from 'node:fs';
+import { defineConfig, devices } from '@playwright/test';
 
-const chromiumExecutable = [
-  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
-  chromium.executablePath(),
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
-  '/usr/bin/google-chrome',
-  '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
-].find((candidate) => candidate && existsSync(candidate));
-
-if (!chromiumExecutable) {
-  throw new Error(
-    'Playwright-compatible Chromium was not found. Install the matching browser or set PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH.',
-  );
-}
+const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
 export default defineConfig({
   testDir: '.',
@@ -33,7 +18,11 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        launchOptions: { executablePath: chromiumExecutable },
+        // 시스템 Chrome으로 자동 대체하지 않아 로컬과 CI의 브라우저를 맞춘다.
+        channel: 'chromium',
+        launchOptions: chromiumExecutable
+          ? { executablePath: chromiumExecutable }
+          : undefined,
       },
     },
   ],

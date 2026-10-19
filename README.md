@@ -80,6 +80,14 @@ pnpm dev
 | `./scripts/verify.sh --profile product --stage final`         | 제품 코드, build와 E2E 최종 검증    |
 | `./scripts/verify.sh --profile integrated --stage final`      | 콘텐츠와 제품 경계의 통합 최종 검증 |
 
+E2E와 pre-push 검증은 Playwright 버전에 맞는 전용 Chromium을 사용합니다. 처음 실행하거나 Playwright 버전을 바꾼 뒤에는 브라우저를 설치합니다. 다른 프로젝트의 브라우저 캐시를 보존하도록 자동 정리를 끕니다.
+
+```sh
+PLAYWRIGHT_SKIP_BROWSER_GC=1 corepack pnpm exec playwright install chromium
+```
+
+일반 Chrome이나 Edge로 자동 대체하지 않습니다. 별도 실행 파일이 필요한 경우에만 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`를 지정합니다.
+
 ## 글 작성
 
 글은 `apps/blog/src/mdx`에 추가합니다. 한국어 원문은 `YYYY-MM-DD-{slug}.mdx`, 영어 번역은 같은 이름의 `YYYY-MM-DD-{slug}.en.mdx`를 사용합니다.
