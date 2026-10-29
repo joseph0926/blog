@@ -262,7 +262,11 @@ test('검색에 남는 글은 같은 링크를 유지하고 더 많은 글도 �
   await page.goto('/ko/blog');
   const links = page.locator('a[href*="/post/"]');
   await expect(links.first()).toBeVisible();
-  const firstLink = await links.first().elementHandle();
+  const retainedLink = page.locator(
+    'a[href="/post/2026-10-03-ai-build-it-instead-of-ideas"]',
+  );
+  await expect(retainedLink).toBeVisible();
+  const originalElement = await retainedLink.elementHandle();
   const count = await links.count();
   await page.evaluate(() =>
     scrollTo({
@@ -277,8 +281,9 @@ test('검색에 남는 글은 같은 링크를 유지하고 더 많은 글도 �
     page.getByRole('status').filter({ hasText: /글 \d+개/ }),
   ).toBeVisible();
   expect(
-    await links
-      .first()
-      .evaluate((element, previous) => element === previous, firstLink),
+    await retainedLink.evaluate(
+      (element, previous) => element === previous,
+      originalElement,
+    ),
   ).toBe(true);
 });
