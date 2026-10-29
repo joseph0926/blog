@@ -1,0 +1,241 @@
+---
+slug: '2026-10-27-when-is-use-effect-event-latest'
+title: 'Which render does useEffectEvent read its latest values from?'
+description: 'useEffectEvent reads the latest values while keeping a subscription alive. A reproduction and the React source show why it reads a different value from a ref during an uncommitted render.'
+date: '2026-10-27'
+sourceHash: sha256:6fe0fce08f16b73919a4968ae5793759ca028b6f77b117a77afff970a3729bbf
+tags: ['react', 'useEffect', 'useEffectEvent', 'useRef']
+---
+
+# Which render does useEffectEvent read its latest values from?
+
+While I was studying React Effects with Codex, it gave me the following example and exercise.
+
+The example is a simple chat room component, shown below.
+
+```jsx
+import { useEffect } from 'react';
+import { showMessage, subscribe } from './chat';
+
+function ChatRoom({ roomId, theme }) {
+  useEffect(() => {
+    return subscribe(roomId, (message) => {
+      showMessage(message, theme);
+    });
+  }, [roomId]); // theme is intentionally omitted in this example.
+
+  return <p>{roomId}</p>;
+}
+```
+
+The question Codex asked here was simple.
+
+<Conversation label="Question from Codex">
+
+<ChatMessage from="assistant" name="Codex">
+
+How can I display `message` using the latest `theme`, while reconnecting the room only when `roomId` changes?
+
+</ChatMessage>
+
+</Conversation>
+
+## How does a useEffect callback read state?
+
+To solve this exercise, I first needed to understand how a `useEffect` callback reads state.
+
+React stores the state. When a component calls `useState`, it receives the current state value managed by React and a function for requesting changes to that value.
+
+Below are the storage and return lines from [`mountStateImpl` and `mountState`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L1920-L1960) in the React source code.
+
+```js
+// mountStateImpl
+hook.memoizedState = hook.baseState = initialState;
+
+// mountState
+return [hook.memoizedState, dispatch];
+```
+
+`hook` is React's internal object for storing a Hook's state. React stores the initial value in `memoizedState` and returns it with `dispatch`, the function for requesting changes. These are the two values we receive from `useState`.
+
+For example, with `const [theme, setTheme] = useState('light')` inside a component, `theme` receives `'light'` on the first render. Here, `theme` is a local variable declared inside the component function.
+
+Calling `setTheme('dark')` then requests a state change from React. When React [calls the component again](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L599-L601) for the next render, the new call's `theme` receives `'dark'` through `useState`. Each function call has its own local variables, so the first call's `theme` and the next call's `theme` are separate variables despite sharing a name.
+
+During an update render, `useState` processes state changes through [`updateState`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L1962-L1966). The following line in [`updateReducerImpl`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L1574-L1588) stores the computed value. That function then returns the stored state and `dispatch` as well.
+
+```js
+hook.memoizedState = newState;
+```
+
+The assignment updates React's internal `hook.memoizedState`. The component's local `theme` variable receives the value returned during its particular call.
+
+The new render's `theme` therefore receives `'dark'` while the first render's `theme` remains `'light'`. A function created during the first render still refers to `theme` from that first call. React's documentation describes the values read by each render as a [state snapshot](https://react.dev/learn/state-as-a-snapshot#rendering-takes-a-snapshot-in-time).
+
+Functions created inside the component also refer to variables from the render in which they were created. This follows from JavaScript closures, which let a function refer to variables in its enclosing scope. The callback passed to `useEffect` works the same way. In this example, `theme` is a prop passed by the parent, and it is also read from a particular render.
+
+There are two callbacks to distinguish here. The callback passed to `useEffect` calls `subscribe` to register a message handler. When a message arrives later, the function that runs is `(message) => { showMessage(message, theme); }`, which was registered with `subscribe`. `subscribe` also returns an unsubscribe function, and `showMessage` displays the message using the supplied theme.
+
+When the Effect first runs with a light `theme`, the message callback refers to that render's light theme. Changing the theme to dark and rendering again also creates a new callback to pass to `useEffect`. But if `roomId` in the dependency array stays the same, React doesn't run the Effect again. The code that registers a new message callback therefore doesn't run, and the existing callback keeps reading the light theme.
+
+This was where I got confused. I expected the registered callback to read the new theme once the component rendered again with it. A new render and replacement of the registered callback were separate events.
+
+## Adding theme to the dependencies also reconnects the room
+
+The code above omits `theme` from the dependency array. It is intentionally missing to show the problem, and the linter also flags the missing dependency.
+
+Changing the room requires registering again to receive messages from the new room, so `roomId` must be included in the dependency array.
+
+To reflect the changed theme in messages, this code also needs `theme` in the dependency array.
+
+```jsx
+useEffect(() => {
+  return subscribe(roomId, (message) => {
+    showMessage(message, theme);
+  });
+}, [roomId, theme]);
+```
+
+The demo below compares the two versions. Change the theme and deliver a message to see both the theme read by the message handler and the room reconnection count. Here, reconnecting means unsubscribing from the room's messages and registering again with the same room.
+
+<EffectChatRoomDemo locale="en" />
+
+The version with `theme` added displays messages using the new theme. But changing `theme` also unsubscribes the previous callback and calls `subscribe` again. The room stays the same, yet changing the theme reconnects it, so this version doesn't meet the exercise's requirement.
+
+An ordinary Effect also uses values from the new render when changed dependencies cause it to run again. React first runs the previous cleanup, then the new setup. Doing this on a theme change recreates the subscription as well as changing how messages are displayed. The [useEffect reference](https://react.dev/reference/react/useEffect#parameters) describes this order.
+
+Moving message handling into `useEffectEvent` lets it read the updated theme while keeping the registration in place. To understand this difference, I received explanations and checked the reproduction and source. That led to another question: which point in time does “latest” refer to?
+
+This also connects to reading and writing refs during rendering, which I covered in [the previous useRef post](/post/2026-03-01-why-shouldnt-you-read-useref-during-render).
+
+## Separate when to resubscribe from what to read when a message arrives
+
+Moving message display into `useEffectEvent` lets the code express these requirements separately. The function this Hook returns is called an Effect Event.
+
+```jsx
+import { useEffect, useEffectEvent } from 'react';
+import { showMessage, subscribe } from './chat';
+
+function ChatRoom({ roomId, theme }) {
+  const onMessage = useEffectEvent((message) => {
+    showMessage(message, theme);
+  });
+
+  useEffect(() => {
+    return subscribe(roomId, (message) => {
+      onMessage(message);
+    });
+  }, [roomId]);
+
+  return <p>{roomId}</p>;
+}
+```
+
+A change to `roomId` recreates the subscription. A change to `theme` keeps it in place. When a later message calls `onMessage(message)`, it reads the latest theme. Changing the theme alone doesn't run `onMessage`. The [chat room example in the official guide](https://react.dev/learn/separating-events-from-effects#declaring-an-effect-event) separates the connection and notification this way, too.
+
+At first, I thought of the `useEffect` setup and an Effect Event callback as similar functions, so I assumed an Effect Event couldn't accept arguments either. It can receive the message as an argument, as shown above. React doesn't pass arguments to setup; I call the Effect Event myself inside the registered subscription callback.
+
+That explains how it can read the latest values while the existing callback cannot. But which value does it read if a new render has started and hasn't yet been committed?
+
+## Before commit, it reads a different value from a ref
+
+React separates rendering, which calls components to calculate the next UI, from committing, which applies the result to the DOM. “Commit” here refers to React applying a render result, rather than a Git commit. It is also separate from when the browser paints the actual pixels. [Render and Commit](https://react.dev/learn/render-and-commit) explains this sequence.
+
+In the reproduction, I first committed `1`, then used `startTransition` to begin a render with `2`. `startTransition` marks an update as a Transition, allowing React to prepare the next screen while keeping the existing one. A child read a pending Promise with `use`, suspending the new render at a Suspense boundary. During that pause, I read the values through functions registered by the existing Effect.
+
+Here is the component portion of the reproduction. `pending` is a Promise created outside the component and resolved later. `external` is an object used by the reproduction to hold the reading functions registered by the Effect.
+
+```jsx
+function Child({ value }) {
+  if (value === 2) use(pending);
+  return null;
+}
+
+function App({ value }) {
+  const readValue = useEffectEvent(() => value);
+  const renderWrittenRef = useRef(value);
+  renderWrittenRef.current = value;
+
+  useEffect(() => {
+    external.readEvent = readValue;
+    external.readRef = () => renderWrittenRef.current;
+    return () => {
+      external.readEvent = null;
+      external.readRef = null;
+    };
+  }, []);
+
+  return (
+    <Suspense fallback={null}>
+      <Child value={value} />
+    </Suspense>
+  );
+}
+```
+
+`renderWrittenRef.current = value` is an intentionally incorrect pattern included to observe the difference. The [useRef documentation](https://react.dev/reference/react/useRef#caveats) prohibits reading and writing refs during rendering, except for initialization. Directly calling the Effect Event stored on `external` is also an observation mechanism for this reproduction. In application code, it is called from a callback registered by an Effect, as in the subscription example above.
+
+I ran the development and production builds three times each with Node.js 24.22.1, React and React DOM 19.3.0, and jsdom 29.1.1. All six runs produced the same values below.
+
+| When the values were read                              | Latest committed value | Effect Event | Ref written during rendering |
+| ------------------------------------------------------ | ---------------------- | ------------ | ---------------------------- |
+| After committing `1`                                   | `1`                    | `1`          | `1`                          |
+| While the render with `2` was suspended, before commit | `1`                    | `1`          | `2`                          |
+| After resolving the Promise and committing `2`         | `2`                    | `2`          | `2`                          |
+
+The second row is the one that mattered to me. The render function has already been called with `value = 2`. Writing `2` directly to `current` on the same ref object makes it visible immediately. The ref didn't update itself; the assignment in the code took effect without waiting for commit.
+
+The Effect Event still reads `1`. At the time of the call, it uses **props and state from the most recently committed render**. That excludes `2` from the render still being prepared. React's official tests also cover [an already registered event reading the latest committed value](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/__tests__/useEffectEvent-test.js#L915-L959).
+
+An Effect Event called inside `useLayoutEffect` read the new value, `2`. The execution establishes that the implementation stays unchanged before commit and has changed by the time the layout Effect runs. Identifying the exact phase requires checking the source.
+
+## Store the next implementation during rendering, then replace it during commit
+
+I read the source at the React `v19.3.1` tag. This is separate from `19.3.0`, the version used for the reproduction.
+
+In [`mountEvent` and `updateEvent`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L2582-L2613), an Effect Event calls `impl` on an internal object. On mount, React stores `{ impl: callback }` in the Hook. On the next render, it retrieves the same object.
+
+During an update render, React doesn't immediately assign the new callback to `impl`. [`useEffectEventImpl`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L2563-L2580) puts `{ ref, nextImpl: callback }` into the component's update queue. The queue holds the implementation to apply when this render commits.
+
+The following pseudocode shows the sequence. It describes the roles of those functions rather than reproducing the React source verbatim.
+
+```js
+// During an update render
+queue.push({ ref, nextImpl: callback });
+
+// During commit
+ref.impl = nextImpl;
+
+// When an Effect Event is called outside rendering
+return ref.impl(...args);
+```
+
+The assignment is in [`ReactFiberCommitWork`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberCommitWork.js#L1992-L2024). In this tag, [`enableEffectEventMutationPhase`](https://github.com/react/react/blob/v19.3.1/packages/shared/ReactFeatureFlags.js#L124-L126) is `true`, so React replaces the implementation during the mutation phase of commit, which handles DOM changes and related work. This is an internal detail of this version. The API contract to depend on is that a call reads values from the latest committed render.
+
+The function registered with the initial subscription still refers to that same internal object. Later calls can therefore run the replacement `impl` without resubscribing. React changes which implementation the call reaches during commit. The variables captured by an ordinary closure stay as they were.
+
+## Calling it during rendering throws an error
+
+In the previous useRef post, I described how reading `ref.current` during rendering doesn't itself throw a runtime error. An Effect Event behaves differently.
+
+```text
+A function wrapped in useEffectEvent can't be called during rendering.
+```
+
+Calling an Effect Event directly in the component body threw this error in the development build. The production build also threw the minified React error `440`.
+
+[`isInvalidExecutionContextForEventFunction`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberWorkLoop.js#L1864-L1867) checks whether React is currently rendering. When this condition is met, the `eventFn` shown earlier throws before calling `impl`.
+
+While explaining this during a lesson, I thought the problem was that the value read as “latest” could be discarded. What can be discarded here is **the render currently in progress**. The value an Effect Event reads has already been committed.
+
+Running an external action inside a calculation that can be interrupted or discarded can leave that action behind even if the render never commits. I understand the restriction as a boundary that keeps rendering pure. The reproduction confirms that the call throws; it doesn't, by itself, prove this design rationale.
+
+## A different function on each render can still read the latest values
+
+Keeping the internal object might suggest that the returned function also keeps the same reference. But `mountEvent` and `updateEvent` each return a new `eventFn`. The reproduction also produced three different function references across three renders.
+
+Including that function in an Effect's dependency array makes the changed reference cause the Effect to run again. In the reproduction, it ran on all three renders. React has [a test for this behavior](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/__tests__/useEffectEvent-test.js#L880-L914), too.
+
+The [official reference](https://react.dev/reference/react/useEffectEvent#caveats) describes this as intentional. If code incorrectly depends on the function reference, the repeatedly running Effect exposes the mistake. Effect Events shouldn't go in dependency arrays or be passed to other components or Hooks. Use them for calls originating from Effects or other Effect Events in the same component. They aren't general event handlers to use in place of a button's `onClick`.
+
+Returning to the chat room requirement, a room change is a reason to resubscribe, while the theme is a value needed when displaying the next message. `roomId` stays in the Effect's dependencies, and the code reading `theme` moves into an Effect Event. When the next message arrives, the theme it reads comes from the most recently committed render at that moment.

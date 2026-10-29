@@ -1,0 +1,240 @@
+---
+slug: '2026-10-27-when-is-use-effect-event-latest'
+title: 'useEffectEvent가 읽는 최신 값은 언제의 값일까'
+description: '구독은 유지하면서 최신 값을 읽는 useEffectEvent. 커밋되지 않은 렌더에서 ref와 다른 값을 읽는 이유를 재현과 React 소스로 확인합니다.'
+date: '2026-10-27'
+tags: ['react', 'useEffect', 'useEffectEvent', 'useRef']
+---
+
+# useEffectEvent가 읽는 최신 값은 언제의 값일까
+
+React의 Effect를 Codex와 학습하는 도중 Codex가 아래와 같은 예제와 문제를 냈습니다.
+
+예제는 아래처럼 간단한 채팅방 생성 코드입니다.
+
+```jsx
+import { useEffect } from 'react';
+import { showMessage, subscribe } from './chat';
+
+function ChatRoom({ roomId, theme }) {
+  useEffect(() => {
+    return subscribe(roomId, (message) => {
+      showMessage(message, theme);
+    });
+  }, [roomId]); // theme is intentionally omitted in this example.
+
+  return <p>{roomId}</p>;
+}
+```
+
+여기서 Codex가 낸 문제는 간단합니다.
+
+<Conversation label="Codex가 낸 문제">
+
+<ChatMessage from="assistant" name="Codex">
+
+`message`에는 최신 `theme`를 보여 주고 싶은데, room 연결은 오직 `roomId`가 변경될 때만 시키려면 어떻게 해야 할까요?
+
+</ChatMessage>
+
+</Conversation>
+
+## useEffect의 콜백함수는 state를 어떻게 읽을까요?
+
+해당 문제를 풀려면 `useEffect`의 콜백함수가 state를 어떻게 읽는지부터 이해해야 합니다.
+
+state는 React가 보관합니다. 컴포넌트에서 `useState`를 호출하면, React가 관리하는 현재 state 값과 그 값을 변경하도록 요청하는 함수를 반환받습니다.
+
+React 소스코드의 [`mountStateImpl`과 `mountState`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L1920-L1960)에서 저장과 반환 부분만 가져오면 아래와 같습니다.
+
+```js
+// mountStateImpl
+hook.memoizedState = hook.baseState = initialState;
+
+// mountState
+return [hook.memoizedState, dispatch];
+```
+
+`hook`은 React가 훅의 상태를 보관하는 내부 객체입니다. 초기 값을 `memoizedState`에 저장하고, 그 값과 변경 요청 함수인 `dispatch`를 반환합니다. 우리가 `useState`에서 받는 두 값이 여기에 해당합니다.
+
+예를 들어 컴포넌트 안에서 `const [theme, setTheme] = useState('light')`를 실행하면, 첫 렌더에서는 `theme`에 `'light'`가 들어갑니다. 여기서 `theme`는 컴포넌트 함수 안에 선언한 지역 변수입니다.
+
+이후 `setTheme('dark')`를 호출하면 React에 state 변경을 요청합니다. React가 다음 렌더에서 [컴포넌트를 다시 호출하면](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L599-L601), `useState`를 통해 새 호출의 `theme`에 `'dark'`가 들어갑니다. 함수는 호출될 때마다 별도의 지역 변수를 가지므로, 첫 호출의 `theme`와 다음 호출의 `theme`는 이름이 같아도 서로 다른 변수입니다.
+
+업데이트 렌더의 `useState`는 [`updateState`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L1962-L1966)를 거쳐 state 변경을 처리합니다. 그 과정의 [`updateReducerImpl`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L1574-L1588)에서 계산된 새 값을 저장하는 줄은 다음과 같습니다. 이후 이 함수도 저장한 state와 `dispatch`를 반환합니다.
+
+```js
+hook.memoizedState = newState;
+```
+
+소스에서 갱신하는 것은 React 내부의 `hook.memoizedState`입니다. 컴포넌트 함수의 지역 변수인 `theme`에는 각 호출에서 반환받은 값이 들어갑니다.
+
+따라서 새 렌더의 `theme`가 `'dark'`를 받아도, 첫 렌더의 `theme`는 여전히 `'light'`입니다. 첫 렌더에서 만든 함수가 참조하는 `theme`도 그 첫 호출의 변수입니다. 이렇게 각 렌더에서 읽은 값을 React 문서에서는 [state 스냅샷](https://react.dev/learn/state-as-a-snapshot#rendering-takes-a-snapshot-in-time)으로 설명합니다.
+
+컴포넌트 안에서 만든 함수도 자신이 만들어진 렌더의 변수를 참조합니다. 함수가 바깥 범위의 변수를 참조하는 JavaScript의 클로저 때문입니다. `useEffect`에 전달하는 콜백함수도 마찬가지입니다. 예제의 `theme`는 부모에게 props로 전달받은 값이며, 이 값도 각 렌더를 기준으로 읽습니다.
+
+여기서는 두 콜백함수를 구분해야 합니다. `useEffect`에 전달한 콜백은 `subscribe`를 호출해 메시지를 받을 함수를 등록합니다. 이후 메시지가 도착했을 때 실행되는 것은 `subscribe`에 등록한 `(message) => { showMessage(message, theme); }`입니다. `subscribe`는 등록을 해제할 함수도 반환하고, `showMessage`는 전달받은 테마로 메시지를 표시합니다.
+
+처음 `theme`가 밝음일 때 Effect를 실행하면, 메시지 콜백은 그 렌더의 밝은 테마를 참조합니다. 이후 테마를 어두움으로 바꿔 다시 렌더하면 `useEffect`에 전달할 새 콜백함수도 만들어집니다. 하지만 의존성 배열의 `roomId`가 그대로라면 React는 Effect를 다시 실행하지 않습니다. 따라서 새 메시지 콜백을 등록하는 코드도 실행되지 않고, 기존에 등록된 콜백이 계속 밝은 테마를 읽습니다.
+
+제가 헷갈렸던 부분이 여기였습니다. 컴포넌트가 새 테마로 다시 렌더되면 기존에 등록한 콜백도 새 테마를 읽을 것이라고 생각했습니다. 새 렌더가 생기는 것과 구독에 등록된 콜백이 교체되는 것은 별개의 일이었습니다.
+
+## theme를 의존성에 추가하면 room도 다시 연결됩니다
+
+위 코드에는 `theme`가 의존성 배열에서 빠져 있습니다. 문제를 확인하려고 일부러 뺀 것이며, 린터도 누락된 의존성을 지적합니다.
+
+room을 바꾸면 새 room의 메시지를 받도록 다시 등록해야하므로 roomId를 의존성 배열에 추가하여야합니다.
+
+변경된 테마를 메시지에 반영하려면, 이 코드에서는 `theme`도 의존성 배열에 추가해야 합니다.
+
+```jsx
+useEffect(() => {
+  return subscribe(roomId, (message) => {
+    showMessage(message, theme);
+  });
+}, [roomId, theme]);
+```
+
+두 코드를 아래 데모에서 비교할 수 있습니다. 테마를 바꾼 뒤 메시지를 도착시키면, 메시지가 읽는 테마와 room 재연결 횟수가 표시됩니다. 여기서 재연결은 기존 메시지 구독을 해제하고 같은 room에 다시 등록하는 과정입니다.
+
+<EffectChatRoomDemo locale="ko" />
+
+`theme`를 추가한 쪽은 새 테마로 메시지를 표시합니다. 그런데 `theme`가 바뀔 때도 이전 구독을 해제하고 `subscribe`를 다시 호출합니다. room은 그대로인데 테마를 바꿀 때마다 room도 다시 연결되므로, 처음 문제에서 요구한 조건을 만족하지 못합니다.
+
+일반 Effect도 의존성이 바뀌어 다시 실행되면 새 렌더의 값을 사용합니다. 이때 React는 이전 정리 함수를 실행하고 새 setup을 실행합니다. 테마 변경에 따라 이 과정을 거치면 메시지 표시뿐 아니라 구독 자체를 다시 만들게 됩니다. [useEffect 레퍼런스](https://react.dev/reference/react/useEffect#parameters)에서 확인할 수 있는 순서입니다.
+
+`useEffectEvent`로 메시지 처리 함수를 분리하면 등록을 유지하면서 바뀐 테마를 읽을 수 있습니다. 이 차이를 이해하려고 설명을 듣고 재현과 소스를 확인했습니다. 그 과정에서 최신 값이 어느 시점의 값인지가 다음 질문이 됐습니다.
+
+[이전 useRef 글](/post/2026-03-01-why-shouldnt-you-read-useref-during-render)에서 다룬 렌더 중 ref 읽기와 쓰기도 여기서 다시 만납니다.
+
+## 구독을 다시 만들 조건과 메시지를 표시할 때 읽을 값을 나눕니다
+
+메시지 표시를 `useEffectEvent`로 옮기면 요구를 나눠 표현할 수 있습니다. 이 훅이 반환하는 함수를 Effect 이벤트라고 부릅니다.
+
+```jsx
+import { useEffect, useEffectEvent } from 'react';
+import { showMessage, subscribe } from './chat';
+
+function ChatRoom({ roomId, theme }) {
+  const onMessage = useEffectEvent((message) => {
+    showMessage(message, theme);
+  });
+
+  useEffect(() => {
+    return subscribe(roomId, (message) => {
+      onMessage(message);
+    });
+  }, [roomId]);
+
+  return <p>{roomId}</p>;
+}
+```
+
+`roomId`가 바뀌면 구독을 다시 만듭니다. `theme`만 바뀌면 구독을 유지하고, 이후 메시지가 도착해 `onMessage(message)`를 호출할 때 최신 테마를 읽습니다. 테마 변경만으로 `onMessage`가 실행되지는 않습니다. [공식 학습 문서의 채팅방 예제](https://react.dev/learn/separating-events-from-effects#declaring-an-effect-event)도 연결과 알림을 이렇게 분리합니다.
+
+저는 처음에 `useEffect`의 setup과 Effect 이벤트의 콜백을 비슷하게 생각해서, Effect 이벤트도 인자를 받지 못하는 줄 알았습니다. 위 코드처럼 메시지를 인자로 넘길 수 있습니다. setup에는 React가 인자를 넘기지 않지만, Effect 이벤트는 등록해 둔 구독 콜백 안에서 제가 직접 호출하는 함수입니다.
+
+여기까지 보면 기존 콜백과 달리 최신 값을 읽는다는 설명은 이해됩니다. 다만 새 렌더가 시작됐지만 아직 화면에 반영되지 않았다면 어느 값을 읽을까요?
+
+## 화면에 반영되기 전에는 ref와 다른 값을 읽습니다
+
+React는 컴포넌트를 호출해 다음 UI를 계산하는 렌더와, 그 결과를 DOM에 반영하는 커밋을 나눕니다. 이 글의 커밋은 Git 커밋이 아니라 React가 렌더 결과를 반영하는 단계입니다. 브라우저가 실제 픽셀을 그리는 시점과도 구분합니다. [Render and Commit](https://react.dev/learn/render-and-commit)에서 이 흐름을 설명합니다.
+
+재현에서는 값 `1`을 커밋한 뒤, `startTransition`으로 값 `2`의 렌더를 시작했습니다. `startTransition`은 업데이트를 전환으로 표시해 기존 화면을 유지하면서 다음 화면을 준비할 수 있게 하는 API입니다. 하위 컴포넌트에서 아직 끝나지 않은 Promise를 `use`로 읽도록 해 새 렌더를 Suspense에서 멈췄습니다. 그동안 기존 Effect가 등록해 둔 함수로 값을 읽었습니다.
+
+비교한 부분은 다음과 같습니다. 아래는 재현의 컴포넌트 부분이며, `pending`은 바깥에서 생성해 나중에 완료하는 Promise입니다. `external`은 Effect가 등록한 읽기 함수를 보관하는 재현용 객체입니다.
+
+```jsx
+function Child({ value }) {
+  if (value === 2) use(pending);
+  return null;
+}
+
+function App({ value }) {
+  const readValue = useEffectEvent(() => value);
+  const renderWrittenRef = useRef(value);
+  renderWrittenRef.current = value;
+
+  useEffect(() => {
+    external.readEvent = readValue;
+    external.readRef = () => renderWrittenRef.current;
+    return () => {
+      external.readEvent = null;
+      external.readRef = null;
+    };
+  }, []);
+
+  return (
+    <Suspense fallback={null}>
+      <Child value={value} />
+    </Suspense>
+  );
+}
+```
+
+`renderWrittenRef.current = value`는 차이를 관찰하려고 의도적으로 넣은 잘못된 패턴입니다. [useRef 문서](https://react.dev/reference/react/useRef#caveats)는 초기화를 제외한 렌더 중 읽기와 쓰기를 금지합니다. 이 재현에서 외부에 보관한 Effect 이벤트를 직접 호출하는 것도 값을 관찰하기 위한 장치입니다. 실제 사용은 앞의 구독 예제처럼 Effect가 등록한 콜백에서 호출합니다.
+
+Node.js 24.22.1, React와 React DOM 19.3.0, jsdom 29.1.1에서 개발 빌드와 프로덕션 빌드를 각각 세 번 실행했습니다. 아래 값은 여섯 번 모두 같았습니다.
+
+| 읽은 시점                          | 가장 최근 커밋 값 | Effect 이벤트 | 렌더 중 쓴 ref |
+| ---------------------------------- | ----------------- | ------------- | -------------- |
+| `1`을 커밋한 뒤                    | `1`               | `1`           | `1`            |
+| `2`의 렌더가 멈춰 커밋되기 전      | `1`               | `1`           | `2`            |
+| Promise를 완료하고 `2`를 커밋한 뒤 | `2`               | `2`           | `2`            |
+
+두 번째 행이 핵심입니다. 렌더 함수는 이미 `value = 2`로 호출됐습니다. 같은 ref 객체의 `current`에 직접 쓴 `2`는 바로 보입니다. ref가 자동으로 갱신된 것이 아니라, 코드에서 수행한 쓰기가 커밋을 기다리지 않은 것입니다.
+
+Effect 이벤트는 이때도 `1`을 읽습니다. 호출 시점에 **가장 최근에 커밋된 렌더의 props와 state**를 사용하기 때문입니다. 아직 준비 중인 렌더의 `2`는 포함하지 않습니다. React 공식 테스트에도 [기존에 등록한 이벤트가 최신 커밋 값을 읽는 경우](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/__tests__/useEffectEvent-test.js#L915-L959)가 있습니다.
+
+`useLayoutEffect` 안에서 부른 Effect 이벤트는 새 값 `2`를 읽었습니다. 이 실행으로 확인한 범위는 커밋 전에는 구현이 바뀌지 않고, layout Effect가 실행되기 전에는 바뀐다는 점입니다. 정확히 어느 단계에서 교체하는지는 소스를 확인해야 합니다.
+
+## 렌더 중에는 다음 구현을 보관하고, 커밋할 때 교체합니다
+
+소스는 React `v19.3.1` 태그를 기준으로 읽었습니다. 실행에 사용한 `19.3.0`과 소스를 읽은 버전을 구분해 둡니다.
+
+[`mountEvent`와 `updateEvent`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L2582-L2613)를 보면, Effect 이벤트가 내부 객체의 `impl`을 호출하도록 되어 있습니다. 처음에는 `{ impl: callback }`을 훅에 저장하고, 다음 렌더에서는 같은 객체를 가져옵니다.
+
+업데이트 렌더에서 받은 새 콜백은 `impl`에 바로 대입하지 않습니다. [`useEffectEventImpl`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberHooks.js#L2563-L2580)이 `{ ref, nextImpl: callback }`을 컴포넌트의 업데이트 큐에 넣습니다. 큐는 이번 렌더가 커밋될 때 적용할 구현을 보관합니다.
+
+흐름만 줄여 쓰면 다음과 같습니다. React 원문을 그대로 옮긴 코드가 아니라, 위 함수들의 역할을 나타낸 의사 코드입니다.
+
+```js
+// During an update render
+queue.push({ ref, nextImpl: callback });
+
+// During commit
+ref.impl = nextImpl;
+
+// When an Effect Event is called outside rendering
+return ref.impl(...args);
+```
+
+실제 대입은 [`ReactFiberCommitWork`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberCommitWork.js#L1992-L2024)에 있습니다. 이 태그에서는 [`enableEffectEventMutationPhase`](https://github.com/react/react/blob/v19.3.1/packages/shared/ReactFeatureFlags.js#L124-L126)가 `true`여서, DOM 변경 등을 처리하는 커밋의 mutation 단계에서 구현을 교체합니다. 이는 이 버전의 내부 구현이고, API를 사용할 때 의존할 계약은 호출 시점의 최신 커밋 값을 읽는다는 점입니다.
+
+처음 구독할 때 등록한 함수도 같은 내부 객체를 참조합니다. 그래서 다시 구독하지 않아도 이후 호출에서 교체된 `impl`을 실행할 수 있습니다. 일반 클로저가 과거 변수를 최신 변수로 바꿔 읽는 것이 아니라, 호출을 전달할 구현을 React가 커밋할 때 바꾸는 구조입니다.
+
+## 렌더 중 호출은 실행 오류로 막습니다
+
+이전 useRef 글에서는 렌더 중 `ref.current`를 읽어도 런타임 오류가 나지는 않는다고 설명했습니다. Effect 이벤트는 다릅니다.
+
+```text
+A function wrapped in useEffectEvent can't be called during rendering.
+```
+
+컴포넌트 본문에서 Effect 이벤트를 직접 호출하자 개발 빌드에서 이 오류를 던졌습니다. 프로덕션 빌드에서도 축약된 React 오류 `440`을 던졌습니다.
+
+[`isInvalidExecutionContextForEventFunction`](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/ReactFiberWorkLoop.js#L1864-L1867)은 React가 지금 렌더를 실행 중인지 확인합니다. 앞에서 본 `eventFn`은 이 조건에 걸리면 `impl`을 실행하기 전에 오류를 던집니다.
+
+학습 중에는 이 이유를 설명하면서, 최신이라고 읽은 값이 버려질 수 있어서라고 생각했습니다. 여기서 버려질 수 있는 대상은 **현재 진행 중인 렌더**입니다. Effect 이벤트가 읽는 값은 이미 커밋된 값입니다.
+
+렌더 중단이나 폐기가 가능한 계산 안에서 외부 동작을 실행하면, 그 렌더가 반영되지 않아도 동작만 남을 수 있습니다. 저는 호출 금지 규칙을 렌더의 순수성을 지키는 경계로 이해했습니다. 재현으로 확인한 것은 호출 시 오류가 난다는 동작이며, 이 설계 이유를 재현만으로 증명한 것은 아닙니다.
+
+## 반환 함수가 매번 달라도 기존 구독은 최신 값을 읽습니다
+
+내부 객체를 유지한다는 설명만 보면 반환 함수도 같은 참조일 것 같지만, `mountEvent`와 `updateEvent`는 각각 새 `eventFn`을 반환합니다. 재현에서도 세 번의 렌더에서 함수 참조가 모두 달랐습니다.
+
+그 함수를 Effect 의존성 배열에 넣으면 참조가 달라졌다고 비교되어 Effect가 다시 실행됩니다. 재현에서는 세 렌더 모두 실행됐습니다. React에도 [같은 동작을 확인하는 테스트](https://github.com/react/react/blob/v19.3.1/packages/react-reconciler/src/__tests__/useEffectEvent-test.js#L880-L914)가 있습니다.
+
+[공식 레퍼런스](https://react.dev/reference/react/useEffectEvent#caveats)는 이를 의도한 설계라고 설명합니다. 잘못해서 함수 참조에 의존하면 Effect가 계속 실행되어 문제가 드러납니다. Effect 이벤트는 의존성 배열에 넣거나 다른 컴포넌트와 훅으로 전달하는 함수가 아닙니다. Effect나 같은 컴포넌트의 다른 Effect 이벤트에서 발생한 호출에 사용합니다. 버튼의 `onClick`을 대신할 일반 이벤트 핸들러로도 쓰지 않습니다.
+
+이제 처음의 채팅방 요구를 다시 보면, 방 변경은 다시 구독할 이유이고 테마는 다음 메시지를 표시할 때 필요한 값입니다. `roomId`는 Effect의 의존성에 남기고, `theme`를 읽는 처리는 Effect 이벤트로 옮깁니다. 다음 메시지가 왔을 때 읽는 테마의 기준은 그 순간 가장 최근에 커밋된 렌더입니다.

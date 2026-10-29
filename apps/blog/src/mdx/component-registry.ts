@@ -18,6 +18,10 @@ function cached(name: string, loader: Loader): Loader {
 }
 
 export const MDX_COMPONENT_LOADERS = {
+  EffectChatRoomDemo: cached('EffectChatRoomDemo', async () => {
+    const m = await import('@/mdx/components/effects/chat-room-demo');
+    return m.EffectChatRoomDemo;
+  }),
   Conversation: cached('Conversation', async () => {
     const m = await import('@/mdx/components/conversation');
     return m.Conversation;
