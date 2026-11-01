@@ -77,10 +77,10 @@ pnpm dev
 | `pnpm exec playwright test --config=e2e/playwright.config.ts` | Playwright E2E 테스트 실행          |
 | `pnpm lint:fix`                                               | 전체 워크스페이스 ESLint 자동 수정  |
 | `./scripts/verify.sh --profile content --stage quick`         | MDX와 번역의 빠른 검증              |
-| `./scripts/verify.sh --profile product --stage final`         | 제품 코드, build와 E2E 최종 검증    |
+| `./scripts/verify.sh --profile product --stage final`         | 제품 코드와 build 최종 검증         |
 | `./scripts/verify.sh --profile integrated --stage final`      | 콘텐츠와 제품 경계의 통합 최종 검증 |
 
-E2E와 pre-push 검증은 Playwright 버전에 맞는 전용 Chromium을 사용합니다. 처음 실행하거나 Playwright 버전을 바꾼 뒤에는 브라우저를 설치합니다. 다른 프로젝트의 브라우저 캐시를 보존하도록 자동 정리를 끕니다.
+E2E는 `verify.sh`와 pre-push에 포함하지 않고 CI에서 실행합니다. 로컬에서는 위 Playwright 명령으로 직접 실행하며, Playwright 버전에 맞는 전용 Chromium을 사용합니다. 처음 실행하거나 Playwright 버전을 바꾼 뒤에는 브라우저를 설치합니다. 다른 프로젝트의 브라우저 캐시를 보존하도록 자동 정리를 끕니다.
 
 ```sh
 PLAYWRIGHT_SKIP_BROWSER_GC=1 corepack pnpm exec playwright install chromium

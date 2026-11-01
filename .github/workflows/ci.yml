@@ -41,11 +41,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Verify
+        run: ./scripts/verify.sh --profile integrated --stage final
+
       - name: Install Playwright Chromium
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Verify
-        run: ./scripts/verify.sh --profile integrated --stage final
+      - name: E2E
+        run: pnpm exec playwright test --config=e2e/playwright.config.ts
 
       - name: Upload Playwright failure artifacts
         if: ${{ failure() }}

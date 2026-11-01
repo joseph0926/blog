@@ -12,7 +12,7 @@ usage() {
     '' \
     'Stages:' \
     '  quick       Run the fast feedback loop.' \
-    '  final       Run the quick loop, build, and profile-required E2E.'
+    '  final       Run the quick loop and build. E2E runs separately in CI.'
 }
 
 profile=''
@@ -114,9 +114,6 @@ esac
 
 if [[ "$stage" == 'final' ]]; then
   "$pnpm_bin" build
-  if [[ "$profile" != 'content' ]]; then
-    "$pnpm_bin" exec playwright test --config=e2e/playwright.config.ts
-  fi
 fi
 
 printf 'Verification passed without Git-visible worktree changes.\n'

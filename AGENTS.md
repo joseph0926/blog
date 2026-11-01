@@ -39,7 +39,7 @@ Profile은 작업 의미가 아니라 검증 preset이다. 편집 뒤 실제 경
 
 - `quick`은 반복 중 빠른 feedback에 사용한다.
 - `final`은 완료 직전에 한 번 실행한다.
-- `product`와 `integrated`의 final에는 E2E가 포함된다.
+- E2E는 로컬 검증과 pre-push에 포함하지 않고 CI에서만 실행한다.
 - 모든 검증은 Git에 보이는 작업 파일을 수정하지 않아야 한다.
 - 기존 설치본으로 pnpm 검증을 실행하려고 자동 설치를 `warn`으로 바꾸면, Turbo 하위 명령에도 해당 옵션이 전달되는지 확인한다.
 
@@ -65,5 +65,4 @@ Profile은 작업 의미가 아니라 검증 preset이다. 편집 뒤 실제 경
 - 실제 변경 파일과 acceptance의 대응
 - 번역 작업의 `sourceHash`와 `anti-slop-english` 최종 검수 결과
 - 실행한 quick/final 명령과 결과
-- E2E 결과 또는 적용 제외 이유
 - 미완료 항목, 남은 위험과 사람 확인 항목
