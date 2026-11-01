@@ -8,6 +8,7 @@ const cases = [
     toLight: '밝은 테마로 바꾸기',
     resubscribe: '2. theme 추가: [roomId, theme]',
     stale: '1. theme 없음: [roomId]',
+    effectEvent: '3. useEffectEvent: [roomId]',
     readTheme: '메시지 처리 때 읽은 테마',
     reconnects: '테마 변경 후 room 재연결 횟수',
     room: '현재 room',
@@ -21,6 +22,7 @@ const cases = [
     toLight: 'Switch to light theme',
     resubscribe: '2. With theme: [roomId, theme]',
     stale: '1. Without theme: [roomId]',
+    effectEvent: '3. useEffectEvent: [roomId]',
     readTheme: 'Theme read when handling the message',
     reconnects: 'Room reconnections after changing the theme',
     room: 'Current room',
@@ -71,5 +73,36 @@ for (const copy of cases) {
     await expect(stale.getByLabel(copy.readTheme)).toHaveText(copy.light);
     await expect(stale.getByLabel(copy.reconnects)).toHaveText('0');
     await expect(demo.getByLabel(copy.room)).toHaveText('general');
+    await expect(
+      demo.getByRole('region', { name: copy.effectEvent }),
+    ).toHaveCount(0);
+  });
+
+  test(`${copy.locale}: useEffectEvent는 room 연결을 유지하면서 새 테마를 읽는다`, async ({
+    page,
+  }) => {
+    await page.goto(
+      `/${copy.locale}/post/2026-10-27-when-is-use-effect-event-latest`,
+    );
+
+    const demo = page.getByTestId('effect-chatroom-demo-with-event');
+    const effectEvent = demo.getByRole('region', { name: copy.effectEvent });
+    const resubscribing = demo.getByRole('region', { name: copy.resubscribe });
+
+    await expect(demo).toBeVisible();
+    await demo.getByRole('button', { name: copy.receive }).click();
+    await expect(effectEvent.getByLabel(copy.readTheme)).toHaveText(copy.light);
+
+    await demo.getByRole('button', { name: copy.toDark }).click();
+    await demo.getByRole('button', { name: copy.receive }).click();
+    await expect(effectEvent.getByLabel(copy.readTheme)).toHaveText(copy.dark);
+    await expect(effectEvent.getByLabel(copy.reconnects)).toHaveText('0');
+    await expect(resubscribing.getByLabel(copy.reconnects)).toHaveText('1');
+
+    await demo.getByRole('button', { name: copy.toLight }).click();
+    await demo.getByRole('button', { name: copy.receive }).click();
+    await expect(effectEvent.getByLabel(copy.readTheme)).toHaveText(copy.light);
+    await expect(effectEvent.getByLabel(copy.reconnects)).toHaveText('0');
+    await expect(resubscribing.getByLabel(copy.reconnects)).toHaveText('2');
   });
 }
