@@ -19,12 +19,12 @@ const prSources = [
     descKey: 'openSource.groups.query.pr1Desc',
   },
   {
-    key: 'router-3',
-    project: 'React Router',
-    id: '#14534',
-    href: 'https://github.com/remix-run/react-router/pull/14534',
-    titleKey: 'openSource.groups.router.pr3Title',
-    descKey: 'openSource.groups.router.pr3Desc',
+    key: 'query-2',
+    project: 'TanStack Query',
+    id: '#9592',
+    href: 'https://github.com/TanStack/query/pull/9592',
+    titleKey: 'openSource.groups.query.pr2Title',
+    descKey: 'openSource.groups.query.pr2Desc',
   },
   {
     key: 'router-5',
@@ -295,18 +295,9 @@ export async function AboutPageContent({ locale }: { locale: AppLocale }) {
             <h3 className="text-foreground mt-14 font-serif text-xl font-semibold tracking-[-0.015em]">
               {t('openSource.projectsHeading')}
             </h3>
-            <div className="mt-3 max-w-[38em] space-y-3">
-              {[t('openSource.firsttx'), t('openSource.mentoring')].map(
-                (project) => (
-                  <p
-                    key={project}
-                    className="text-foreground/80 text-[15.5px] leading-[1.75]"
-                  >
-                    {project}
-                  </p>
-                ),
-              )}
-            </div>
+            <p className="text-foreground/80 mt-3 max-w-[38em] text-[15.5px] leading-[1.75]">
+              {t('openSource.mentoring')}
+            </p>
           </Chapter>
 
           <Chapter id={chapterIds.stack} title={t('stack.heading')}>

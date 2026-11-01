@@ -116,7 +116,7 @@
       "heading": "What I care about",
       "items": {
         "developerExperience": "Screens where operators review AI-generated verification checks alongside supporting evidence",
-        "reliableInterfaces": "Recovering the result of an interrupted booking request and resuming failed work",
+        "reliableInterfaces": "Checking the result of a booking request interrupted during payment",
         "runtimeBehavior": "List performance on older iPhones and syncing server state when users return to a WebView",
         "openSource": "Open-source contributions that start with a reproduced bug and a test"
       }
@@ -126,18 +126,18 @@
       "items": {
         "ea": {
           "company": "EA Korea",
-          "role": "FC Online operations tool, contract",
+          "role": "FC Online operations tool, contractor",
           "period": "2025.03 - Present",
-          "highlight1": "Built operations tools on the FC Online SE team to help operators and QA prepare for verification. I agreed on processing rules with server developers and implemented the React screens and Node.js APIs.",
-          "highlight2": "Built an API that sends related documents, existing tests, and before-and-after values to an LLM to draft verification checks. Operators review the supporting passages, then accept, edit, or exclude suggestions and make the final decisions. Suggestions with insufficient evidence are flagged for review, and earlier edits are preserved after regeneration. After rollout, I used review records to address omissions and unnecessary suggestions.",
-          "highlight3": "Let QA choose an environment and target account state to run account creation, state setup, and final checks. The Node.js server records each step, while the React screen shows progress and failures. Before resuming failed work, the tool checks what the server has applied so it can continue from the required step without repeating completed work."
+          "highlight1": "Developed the FC Online operations tool and built an AI tool that helps operators verify events, plus a tool that automates test account setup for QA.",
+          "highlight2": "When an operator enters a previous event and the changed conditions, the LLM searches related documents through a Node.js server, reads the ones it picks, and proposes changes to verification checks, test steps, and expected results with supporting evidence. Operators compare each proposal with the existing check in a React screen and accept, edit, or exclude it. Proposals with no evidence, or with fewer pieces of evidence than the threshold, are flagged for review, and operators judge whether the evidence supports them. I tested the tool on a development server with past event changes before rollout, then analyzed operators' add and exclude records to fix omissions and unnecessary proposals.",
+          "highlight3": "To verify event conditions and progress states, QA had to set up test accounts for each state by hand or ask server developers to prepare them. I built a flow where QA enters only the test environment and target account state, and the Node.js server calls the required APIs in a fixed order to prepare the account. QA can now start verification without waiting for server developers."
         },
         "nhn": {
           "company": "NHN Injeinc",
           "role": "TicketLink, full-time",
           "period": "2024.05 - 2025.03",
-          "highlight1": "Worked on the NHN Injeinc frontend team, improving how TicketLink users check booking results and how its lists perform.",
-          "highlight2": "Temporarily saved the booking request ID and minimal recovery data in localStorage. When users returned in the same browser with a saved ID, the screen fetched that request’s status from the server and showed the result and next action. QA and I tested returns after payment authentication, browser restarts, and failed status requests before rollout.",
+          "highlight1": "Built web frontend features for TicketLink and improved its performance on mobile.",
+          "highlight2": "If the screen dropped or the browser closed during payment, users had trouble checking the result of their booking request and contacted support. I first saved the booking request ID and a timestamp in localStorage. When users came back with a valid ID, the screen fetched the request status from the server and showed whether the booking went through and what to do next. Later, I linked booking request IDs to accounts so that after signing in, even on another device, users could look up their account's existing booking requests. Operators reported that related inquiries had dropped.",
           "highlight3": "Reproduced a browser crash during long list scrolls on an older test iPhone. I introduced TanStack Virtual to keep only visible products and a small surrounding range in the DOM. The crash no longer reproduced on the same device with the same procedure, and an operator passed along confirmation from the original reporter."
         },
         "pandora": {
@@ -156,17 +156,16 @@
       "groups": {
         "query": {
           "pr1Title": "Reduced duplicate observer matching in useQueries",
-          "pr1Desc": "In a separate measurement with 500 queries, findMatchingObservers calls fell from about 4,500 to about 2,000."
+          "pr1Desc": "In a separate measurement with 500 queries, findMatchingObservers calls fell from about 4,500 to about 2,000.",
+          "pr2Title": "Fixed useQueries combine not rerunning after cache restore",
+          "pr2Desc": "A combine function wrapped in useCallback didn't rerun after cache restore. I traced the cause to an early return in setQueries, made it notify when results change, and added tests."
         },
         "router": {
-          "pr3Title": "Fixed fetcher.submit treating plain objects as HTML elements",
-          "pr3Desc": "Fixed plain objects with a tagName being mistaken for HTML elements and added a regression test.",
           "pr5Title": "Added crossOrigin attribute to <Links />",
           "pr5Desc": "Made <Links /> pass crossOrigin through to fix CSS preload failures in CDN environments with CORS."
         }
       },
-      "projectsHeading": "Public projects and activities",
-      "firsttx": "FirstTx is a set of five npm packages for restoring screen state when users return to a CSR app and retrying individual steps. It also runs app-registered compensation functions for successful steps in reverse order. I maintain the docs, Playground, DevTools, and releases.",
+      "projectsHeading": "Activities",
       "mentoring": "Code review mentoring: four sessions in late 2025 for about 50 students across Programmers K-Digital Training cohorts."
     },
     "stack": {
@@ -207,7 +206,7 @@
         "booking": {
           "from": "Interrupted",
           "to": "Check result",
-          "caption": "Used the booking request ID saved in the same browser to fetch server state again and show the result and next action.",
+          "caption": "Fetched the status of an existing booking request from the server when users came back or signed in on another device, then showed the result and next action.",
           "source": "NHN Injeinc, TicketLink"
         },
         "verification": {
