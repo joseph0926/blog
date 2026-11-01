@@ -128,12 +128,6 @@
       "translationFileHash": "sha256:c6af4ef2d701102597a9c5516d473ae19d17ee1d86f7502563565985a70d2929"
     },
     {
-      "sourcePath": "apps/blog/src/mdx/2026-02-13-react-subtle-optimizations.mdx",
-      "sourceFileHash": "sha256:eafe73a2f2ee95619074373a318fde129b407a6a2d18a9d3847052e943abd834",
-      "translationPath": "apps/blog/src/mdx/2026-02-13-react-subtle-optimizations.en.mdx",
-      "translationFileHash": "sha256:7bd71949bf10c3fe9000c0182f5cbef03edcd3e811a04678d853cefc64d842ce"
-    },
-    {
       "sourcePath": "apps/blog/src/mdx/2026-02-21-why-is-nextjs-source-code-complex.mdx",
       "sourceFileHash": "sha256:9002d0985ec7c496c6815716a5c8bd4686a71ad64fef89281c11a1ce824d66bb",
       "translationPath": "apps/blog/src/mdx/2026-02-21-why-is-nextjs-source-code-complex.en.mdx",

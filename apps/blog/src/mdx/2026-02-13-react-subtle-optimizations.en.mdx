@@ -5,6 +5,7 @@ description: 'Small React source-level optimizations explained: Object.freeze in
 date: '2026-02-13'
 tags: ['react']
 thumbnail: '/post/react.webp'
+sourceHash: 'sha256:38cd8b40af82cad52c84f2630844c454d419fdbf9922d2c93fa65b2c17ec3974'
 ---
 
 These days, I am studying React by directly reading the source code.
@@ -61,9 +62,9 @@ The props object and the element itself are locked with `Object.freeze()`. Addin
 What happens if you break this rule?
 
 ```jsx
-function BadComponent({ items }) {
-  items.push(newItem); // TypeError: Cannot add property 3, object is not extensible
-  items.sort(); // TypeError: Cannot assign to read only property '0'
+function BadComponent(props) {
+  props.title = 'b'; // TypeError: Cannot assign to read only property 'title' of object '#<Object>'
+  props.items.push(newItem); // No error: the props.items array is not frozen
 }
 
 function AnotherBad() {
@@ -73,7 +74,9 @@ function AnotherBad() {
 }
 ```
 
-In development mode, this immediately throws a TypeError. It means catching mistakes early.
+In development mode, changing the props object or the element directly throws a TypeError right away. That catches mistakes early.
+
+However, `Object.freeze()` is shallow. You can't change the props object's own properties, but arrays and objects passed in as props, such as `props.items`, aren't frozen. So `props.items.push()` and `sort()` change the original array without an error.
 
 But the important thing here is that this code is inside a `__DEV__` block. In production builds, `Object.freeze()` is not executed at all.
 
