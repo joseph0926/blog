@@ -41,8 +41,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install pinned Chrome for Testing
+        run: |
+          pnpm exec playwright install-deps chromium
+          pnpm browser:install
 
       - name: Verify
         run: ./scripts/verify.sh --profile integrated --stage final

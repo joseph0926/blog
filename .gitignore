@@ -59,3 +59,4 @@ docs/uiux-reference-images
 .claude
 
 .pnpm-store
+/.cache/browsers/
