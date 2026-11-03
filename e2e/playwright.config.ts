@@ -1,9 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+import { browserExecutable } from './browser.cjs';
 
 export default defineConfig({
   testDir: '.',
+  globalSetup: './global-setup.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -18,11 +19,12 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // 시스템 Chrome으로 자동 대체하지 않아 로컬과 CI의 브라우저를 맞춘다.
+        // 로컬과 CI에서 보안 수정된 같은 Chrome for Testing 버전을 사용한다.
         channel: 'chromium',
-        launchOptions: chromiumExecutable
-          ? { executablePath: chromiumExecutable }
-          : undefined,
+        launchOptions: {
+          executablePath: browserExecutable,
+          chromiumSandbox: true,
+        },
       },
     },
   ],

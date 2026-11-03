@@ -3,6 +3,11 @@ packages:
   - packages/*
 
 overrides:
+  # GHSA-g3hv-75wg-m249: update v10's optimizationLevel preprocessing.
+  # v3 lacks that code path and keeps the callable CommonJS API used by ESLint 9.
+  'minimatch@>=10.0.0 <11.0.1': 11.0.4
+  'glob@>=9.0.0 <14.0.2': 14.0.3
+  'postcss-selector-parser@<6.1.5': 6.1.5
   postcss: ^8.5.23
   'uuid@<11.1.1': ^11.1.1
   tmp: ^0.2.4
@@ -32,3 +37,6 @@ onlyBuiltDependencies:
   - esbuild
   - sharp
   - unrs-resolver
+
+minimumReleaseAgeExclude:
+  - minimatch@11.0.4

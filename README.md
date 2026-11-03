@@ -80,13 +80,13 @@ pnpm dev
 | `./scripts/verify.sh --profile product --stage final`         | 제품 코드와 build 최종 검증         |
 | `./scripts/verify.sh --profile integrated --stage final`      | 콘텐츠와 제품 경계의 통합 최종 검증 |
 
-E2E는 `verify.sh`와 pre-push에 포함하지 않고 CI에서 실행합니다. 로컬에서는 위 Playwright 명령으로 직접 실행하며, Playwright 버전에 맞는 전용 Chromium을 사용합니다. 처음 실행하거나 Playwright 버전을 바꾼 뒤에는 브라우저를 설치합니다. 다른 프로젝트의 브라우저 캐시를 보존하도록 자동 정리를 끕니다.
+E2E는 `verify.sh`와 pre-push에 포함하지 않고 CI에서 실행합니다. 브라우저는 Chrome for Testing 156.0.8078.80을 사용하며, 버전은 `e2e/browser.cjs`에서 고정합니다. 저장소의 `.cache/browsers/`에 설치하므로 다른 프로젝트의 브라우저 캐시는 건드리지 않습니다.
 
 ```sh
-PLAYWRIGHT_SKIP_BROWSER_GC=1 corepack pnpm exec playwright install chromium
+corepack pnpm browser:install
 ```
 
-일반 Chrome이나 Edge로 자동 대체하지 않습니다. 별도 실행 파일이 필요한 경우에만 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`를 지정합니다.
+Linux에서 시스템 라이브러리도 필요하면 먼저 `corepack pnpm exec playwright install-deps chromium`을 실행합니다. 일반 Chrome이나 Edge로 자동 대체하지 않습니다. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`로 다른 실행 파일을 지정해도 고정 버전과 일치해야 검사를 시작합니다. 브라우저 샌드박스를 켜며, 새 보안 공지가 나오면 고정 버전을 갱신하고 E2E를 확인합니다.
 
 ## 글 작성
 
