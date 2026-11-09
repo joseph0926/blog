@@ -33,7 +33,7 @@ test.describe('다국어 전환', () => {
     await page.waitForURL(/\/(?:ko\/)?blog(?:\?.*)?$/);
     await expect(
       page.getByRole('heading', {
-        name: 'React와 웹 학습 기록',
+        name: '개발하며 배운 것들',
         level: 1,
       }),
     ).toBeVisible();

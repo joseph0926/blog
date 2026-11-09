@@ -84,7 +84,7 @@ test.describe('홈 탐색', () => {
     await page.getByRole('button', { name: '검색하기' }).click();
     await expect(page).toHaveURL(/\/blog$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(
-      'React와 웹 학습 기록',
+      '개발하며 배운 것들',
     );
   });
 

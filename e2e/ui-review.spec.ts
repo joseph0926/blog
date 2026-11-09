@@ -3,6 +3,38 @@ import { expect, test } from '@playwright/test';
 const postPath =
   '/ko/post/2026-08-15-does-global-agents-md-eat-project-doc-budget';
 
+for (const width of [390, 1440]) {
+  test(`${width}px: 홈에서 연 글은 돌아가기로 홈에 복귀한다`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/ko');
+    const home = page.url();
+    await page.locator('a[href*="/post/"]').first().click();
+    await expect(page).toHaveURL(/\/post\//);
+    await page
+      .getByRole('link', { name: '돌아가기', exact: true })
+      .filter({ visible: true })
+      .click();
+    await expect(page).toHaveURL(home);
+  });
+}
+
+test('검색 목록에서 연 글은 돌아가기로 검색 조건을 복원한다', async ({
+  page,
+}) => {
+  await page.goto('/ko/blog?q=React&category=react&year=2025');
+  const results = page.url();
+  await page.locator('a[href*="/post/"]').first().click();
+  await expect(page).toHaveURL(/\/post\//);
+  await page
+    .getByRole('link', { name: '돌아가기', exact: true })
+    .filter({ visible: true })
+    .click();
+  await expect(page).toHaveURL(results);
+  await expect(page.locator('#blog-search')).toHaveValue('React');
+});
+
 test('마지막 질문을 지나 푸터로 내려가면 다이얼로 되돌아가지 않는다', async ({
   page,
 }) => {
@@ -154,7 +186,7 @@ test('모션 감소 설정에서는 현재 절을 바꿔도 보조 띠의 글자
     const headings = document.querySelectorAll('article h2');
     const target = headings[1].getBoundingClientRect().top + window.scrollY;
     window.scrollTo({
-      top: target - innerHeight * 0.4 + 10,
+      top: target - 96 + 10,
       behavior: 'instant',
     });
     const start = performance.now();
