@@ -39,9 +39,9 @@
     "nextQuestion": "다음 질문"
   },
   "blog": {
-    "eyebrow": "프론트엔드 엔지니어링 노트",
-    "headline": "React와 웹 학습 기록",
-    "description": "React, TypeScript, Next.js, 성능, 테스트, 소스 코드 분석을 다룹니다. 실무에서 배운 내용을 정리하고, 다음 판단을 더 명확하게 만들기 위해 기록합니다.",
+    "eyebrow": "개발과 학습 기록",
+    "headline": "개발하며 배운 것들",
+    "description": "소프트웨어를 만들고, 문제를 풀고, 새로운 도구를 익히며 배운 내용을 기록합니다.",
     "searchLabel": "블로그 글 검색",
     "all": "전체",
     "topic": "주제",
@@ -227,8 +227,8 @@
   "meta": {
     "homeTitle": "김영훈 블로그",
     "homeDescription": "프론트엔드 개발자 김영훈의 블로그입니다. React와 웹 성능을 공부하며 얻은 실무 기록을 공유합니다.",
-    "blogTitle": "블로그 - 김영훈 | 프론트엔드 기술 블로그",
-    "blogDescription": "React, TypeScript, 웹 성능을 다루는 프론트엔드 기술 블로그입니다.",
+    "blogTitle": "블로그 - 김영훈 | 개발과 학습 기록",
+    "blogDescription": "소프트웨어를 만들고, 문제를 풀고, 새로운 도구를 익히며 배운 내용을 기록합니다.",
     "postFallbackTitle": "김영훈 블로그",
     "postFallbackDescription": "프론트엔드 개발자 김영훈의 블로그입니다"
   }

@@ -8,7 +8,25 @@
 const TRANSITION_NAME = 'post-title';
 const ARRIVAL_TIMEOUT_MS = 1500;
 
-let pendingArrival: PromiseWithResolvers<HTMLElement | null> | null = null;
+type TitleMorph = {
+  source: HTMLElement;
+  target: HTMLElement | null;
+  arrival: PromiseWithResolvers<HTMLElement | null>;
+  timer: number;
+  transition: ViewTransition | null;
+};
+
+let activeMorph: TitleMorph | null = null;
+
+function clearMorph(morph: TitleMorph) {
+  window.clearTimeout(morph.timer);
+  morph.source.style.viewTransitionName = '';
+  if (morph.target) morph.target.style.viewTransitionName = '';
+  if (activeMorph === morph) {
+    activeMorph = null;
+    delete document.documentElement.dataset.titleTransition;
+  }
+}
 
 const canMorph = () =>
   typeof document.startViewTransition === 'function' &&
@@ -16,38 +34,60 @@ const canMorph = () =>
   !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export function startTitleMorph(source: HTMLElement, navigate: () => void) {
+  if (activeMorph) {
+    const previous = activeMorph;
+    previous.transition?.skipTransition();
+    previous.arrival.resolve(null);
+    clearMorph(previous);
+  }
+
   if (!canMorph()) {
     navigate();
     return;
   }
 
   const arrival = Promise.withResolvers<HTMLElement | null>();
-  pendingArrival = arrival;
-  const timer = window.setTimeout(
-    () => arrival.resolve(null),
-    ARRIVAL_TIMEOUT_MS,
-  );
-  let arrivedTitle: HTMLElement | null = null;
+  const morph: TitleMorph = {
+    source,
+    target: null,
+    arrival,
+    timer: window.setTimeout(() => arrival.resolve(null), ARRIVAL_TIMEOUT_MS),
+    transition: null,
+  };
+  activeMorph = morph;
 
   source.style.viewTransitionName = TRANSITION_NAME;
-  const transition = document.startViewTransition(async () => {
-    navigate();
-    arrivedTitle = await arrival.promise;
-    window.clearTimeout(timer);
-    if (pendingArrival === arrival) pendingArrival = null;
-    if (arrivedTitle) arrivedTitle.style.viewTransitionName = TRANSITION_NAME;
-  });
+  document.documentElement.dataset.titleTransition = 'active';
+  let navigated = false;
+  let transition: ViewTransition;
+  try {
+    transition = document.startViewTransition(async () => {
+      if (activeMorph !== morph) return;
+      navigated = true;
+      navigate();
+      const target = await arrival.promise;
+      window.clearTimeout(morph.timer);
+      if (activeMorph === morph && target) {
+        morph.target = target;
+        target.style.viewTransitionName = TRANSITION_NAME;
+      }
+    });
+    morph.transition = transition;
+  } catch {
+    clearMorph(morph);
+    if (!navigated) navigate();
+    return;
+  }
 
   // 탭이 숨겨졌거나 상태가 바뀌어 전환이 중단돼도 이동 자체는 이미 끝났다.
   transition.ready.catch(() => {});
   transition.finished
     .catch(() => {})
     .finally(() => {
-      source.style.viewTransitionName = '';
-      if (arrivedTitle) arrivedTitle.style.viewTransitionName = '';
+      if (activeMorph === morph) clearMorph(morph);
     });
 }
 
 export function completeTitleMorph(target: HTMLElement) {
-  pendingArrival?.resolve(target);
+  activeMorph?.arrival.resolve(target);
 }

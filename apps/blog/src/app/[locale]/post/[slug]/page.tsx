@@ -7,9 +7,13 @@ import {
   type SectionDialItem,
 } from '@/components/dial/section-dial';
 import { PostContent } from '@/components/post/post-content';
-import { POST_TITLE_ID, PostHeader } from '@/components/post/post-header';
+import {
+  POST_TITLE_ID,
+  PostDetails,
+  PostHeader,
+} from '@/components/post/post-header';
+import { PostLink } from '@/components/post/post-navigation';
 import { extractPostToc } from '@/components/post/post-toc';
-import { Link } from '@/i18n/navigation';
 import { type AppLocale, appLocales, isAppLocale } from '@/i18n/routing';
 import {
   getAlternates,
@@ -158,7 +162,8 @@ const PostAdjacentNavigation = ({
   return (
     <nav className="mt-20 grid gap-10 sm:grid-cols-2">
       {items.map((item) => (
-        <Link
+        <PostLink
+          postSlug={item.post.slug}
           key={item.key}
           href={`/post/${item.post.slug}`}
           className="group focus-visible:ring-ring block rounded-sm focus-visible:ring-2 focus-visible:ring-offset-4 focus-visible:outline-none"
@@ -167,7 +172,7 @@ const PostAdjacentNavigation = ({
           <span className="text-foreground group-hover:text-accent-ink mt-1.5 line-clamp-2 block font-serif text-lg leading-[1.4] font-semibold tracking-[-0.015em] break-keep transition-colors duration-150">
             {item.post.title}
           </span>
-        </Link>
+        </PostLink>
       ))}
     </nav>
   );
@@ -247,61 +252,65 @@ export default async function PostPage({
       <SectionDial
         items={sections}
         label={label.onThisPage}
-        back={{ href: '/blog', label: label.back }}
+        back={{ href: '/blog', label: label.back, postSlug: slug }}
         mobileBarAfterId={POST_TITLE_ID}
+        showAll
       />
       <div className="min-w-0 pb-28">
         <PostHeader post={postMeta} locale={safeLocale} />
-        {toc.length > 0 && (
-          <details className="group ledger-details bg-muted mt-10 rounded-[6px] px-4 py-3 lg:hidden">
-            <summary className="text-muted-foreground focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between gap-4 rounded-sm text-sm focus-visible:ring-2 focus-visible:outline-none">
-              <span>{label.onThisPage}</span>
-              <span className="text-foreground flex items-center gap-2 tabular-nums">
-                <span>{label.sectionCount(toc.length)}</span>
-                <span aria-hidden="true" className="group-open:hidden">
-                  +
+        <div className="post-transition-content">
+          <PostDetails post={postMeta} locale={safeLocale} />
+          {toc.length > 0 && (
+            <details className="group ledger-details bg-muted mt-10 rounded-[6px] px-4 py-3 lg:hidden">
+              <summary className="text-muted-foreground focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between gap-4 rounded-sm text-sm focus-visible:ring-2 focus-visible:outline-none">
+                <span>{label.onThisPage}</span>
+                <span className="text-foreground flex items-center gap-2 tabular-nums">
+                  <span>{label.sectionCount(toc.length)}</span>
+                  <span aria-hidden="true" className="group-open:hidden">
+                    +
+                  </span>
+                  <span aria-hidden="true" className="hidden group-open:inline">
+                    -
+                  </span>
                 </span>
-                <span aria-hidden="true" className="hidden group-open:inline">
-                  -
-                </span>
-              </span>
-            </summary>
-            <ol className="space-y-1 pt-3 text-sm">
-              {toc.map((item) => (
-                <li key={item.id}>
-                  <a
-                    href={`#${item.id}`}
-                    className={
-                      item.depth === 3
-                        ? 'text-muted-foreground hover:text-foreground block py-1 pl-4'
-                        : 'text-foreground hover:text-accent-ink block py-1'
-                    }
-                  >
-                    {item.text}
-                  </a>
-                </li>
-              ))}
-            </ol>
-          </details>
-        )}
-        <article className="prose prose-neutral dark:prose-invert prose-headings:font-serif prose-headings:text-foreground prose-p:text-foreground/85 prose-p:leading-[1.75] prose-li:leading-[1.75] prose-a:text-accent-ink prose-a:font-medium prose-a:underline prose-a:decoration-accent-ink/40 prose-a:underline-offset-4 hover:prose-a:decoration-accent-ink prose-strong:text-foreground prose-ul:my-6 prose-ol:my-6 prose-li:my-2 prose-li:marker:text-muted-foreground prose-hr:border-rule prose-th:border-rule prose-td:border-rule prose-img:rounded-[4px] max-w-none py-12 text-[17px] [&_:not(pre)>code]:break-words [&_pre_code]:break-words [&_pre_code]:whitespace-pre-wrap [&_td]:break-words [&_td]:whitespace-normal [&_td_code]:break-all [&_td_code]:whitespace-normal [&_th]:break-words">
-          <Suspense
-            fallback={
-              <div className="skeleton-shimmer h-[52vh] rounded-[4px]" />
-            }
-          >
-            <PostContent
-              locale={safeLocale}
-              source={postSource.source}
-              title={postMeta.title}
-            />
-          </Suspense>
-        </article>
-        <PostAdjacentNavigation
-          previousPost={previousPost}
-          nextPost={nextPost}
-          locale={safeLocale}
-        />
+              </summary>
+              <ol className="space-y-1 pt-3 text-sm">
+                {toc.map((item) => (
+                  <li key={item.id}>
+                    <a
+                      href={`#${item.id}`}
+                      className={
+                        item.depth === 3
+                          ? 'text-muted-foreground hover:text-foreground block py-1 pl-4'
+                          : 'text-foreground hover:text-accent-ink block py-1'
+                      }
+                    >
+                      {item.text}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </details>
+          )}
+          <article className="post-prose prose prose-neutral dark:prose-invert prose-headings:font-serif prose-headings:text-foreground prose-p:text-foreground/85 prose-p:leading-[1.75] prose-li:leading-[1.75] prose-a:text-accent-ink prose-a:font-medium prose-a:underline prose-a:decoration-accent-ink/40 prose-a:underline-offset-4 hover:prose-a:decoration-accent-ink prose-strong:text-foreground prose-ul:my-6 prose-ol:my-6 prose-li:my-2 prose-li:marker:text-muted-foreground prose-hr:border-rule prose-th:border-rule prose-td:border-rule prose-img:rounded-[4px] mx-auto w-full max-w-none py-12 text-[17px] sm:w-[85%] [&_:not(pre)>code]:break-words [&_pre_code]:break-words [&_pre_code]:whitespace-pre-wrap [&_td]:break-words [&_td]:whitespace-normal [&_td_code]:break-all [&_td_code]:whitespace-normal [&_th]:break-words">
+            <Suspense
+              fallback={
+                <div className="skeleton-shimmer h-[52vh] rounded-[4px]" />
+              }
+            >
+              <PostContent
+                locale={safeLocale}
+                source={postSource.source}
+                title={postMeta.title}
+              />
+            </Suspense>
+          </article>
+          <PostAdjacentNavigation
+            previousPost={previousPost}
+            nextPost={nextPost}
+            locale={safeLocale}
+          />
+        </div>
       </div>
     </div>
   );

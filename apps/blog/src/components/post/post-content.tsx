@@ -19,16 +19,28 @@ const labels = {
   ko: {
     copyCode: '코드 복사',
     copiedCode: '복사됨',
+    copyError: '복사하지 못했습니다. 코드를 선택해 복사해 주세요.',
+    expandCode: '전체 코드 보기',
+    collapseCode: '코드 접기',
+    supplement: '보충 설명',
   },
   en: {
     copyCode: 'Copy code',
     copiedCode: 'Copied',
+    copyError: 'Copy failed. Select the code to copy it.',
+    expandCode: 'Show all code',
+    collapseCode: 'Collapse code',
+    supplement: 'Additional notes',
   },
 } satisfies Record<
   AppLocale,
   {
     copyCode: string;
     copiedCode: string;
+    copyError: string;
+    expandCode: string;
+    collapseCode: string;
+    supplement: string;
   }
 >;
 
@@ -54,7 +66,7 @@ export async function PostContent({ locale, source, title }: PostContentProps) {
         <h2
           id={id ?? createHeadingId(getNodeText(children))}
           className={cn(
-            'scroll-mt-[38svh] font-serif text-[1.75rem] leading-[1.32] font-semibold tracking-[-0.025em] break-keep',
+            'scroll-mt-24 font-serif text-[1.75rem] leading-[1.32] font-semibold tracking-[-0.025em] break-keep',
             className,
           )}
           {...props}
@@ -71,7 +83,7 @@ export async function PostContent({ locale, source, title }: PostContentProps) {
         <h3
           id={id ?? createHeadingId(getNodeText(children))}
           className={cn(
-            'scroll-mt-[38svh] font-serif text-[1.3rem] leading-[1.4] font-semibold tracking-[-0.015em] break-keep',
+            'scroll-mt-24 font-serif text-[1.3rem] leading-[1.4] font-semibold tracking-[-0.015em] break-keep',
             className,
           )}
           {...props}
@@ -94,6 +106,9 @@ export async function PostContent({ locale, source, title }: PostContentProps) {
         <PostCodeBlock
           copyLabel={label.copyCode}
           copiedLabel={label.copiedCode}
+          copyErrorLabel={label.copyError}
+          expandLabel={label.expandCode}
+          collapseLabel={label.collapseCode}
           className={cn('break-words whitespace-pre-wrap', className)}
           {...props}
         />
@@ -111,6 +126,27 @@ export async function PostContent({ locale, source, title }: PostContentProps) {
             className,
           )}
           {...props}
+        />
+      ),
+      aside: ({
+        title,
+        children,
+        className,
+        ...props
+      }: ComponentPropsWithoutRef<'aside'>) => (
+        <details {...props} className={cn('post-supplement', className)}>
+          <summary>{title ?? label.supplement}</summary>
+          <div>{children}</div>
+        </details>
+      ),
+      details: ({
+        className,
+        ...props
+      }: ComponentPropsWithoutRef<'details'>) => (
+        <details
+          {...props}
+          open={false}
+          className={cn('post-supplement', className)}
         />
       ),
       ...components,

@@ -10,10 +10,13 @@ export type ReelOptions = {
   /** 항목 사이 간격(px) */
   space: number;
   weight: ReelWeight;
+  scalePerStep?: number;
+  minimumScale?: number;
+  minimumOpacity?: number;
+  reserveFullHeight?: boolean;
 };
 
 const SCALE_PER_STEP = 0.26;
-const SCALE_FLOOR_DISTANCE = 2.5;
 const OPACITY_PER_STEP = 0.34;
 
 export const clamp = (value: number, min: number, max: number) =>
@@ -21,29 +24,33 @@ export const clamp = (value: number, min: number, max: number) =>
 
 /**
  * `position`은 가운데에 올 항목의 연속 인덱스다. 1.5면 1번과 2번 사이를 지나는 중이다.
- * 각 항목의 실제 높이를 축소 비율만큼 쌓아 배치하므로 줄 수가 달라도 겹치지 않는다.
+ * 기본은 축소한 높이만큼 쌓는다. reserveFullHeight는 원래 높이를 확보해 질문 사이 여백을 남긴다.
  * 항목은 `top: 50%`, `transform-origin: left top`인 절대 배치 요소여야 한다.
  */
 export function layoutReel(
   items: HTMLElement[],
   position: number,
-  { space, weight }: ReelOptions,
+  {
+    space,
+    weight,
+    scalePerStep = SCALE_PER_STEP,
+    minimumScale = 0.35,
+    minimumOpacity = 0,
+    reserveFullHeight = false,
+  }: ReelOptions,
 ) {
   if (items.length === 0) return;
 
   const heights = items.map((item) => item.offsetHeight);
-  const scales = items.map(
-    (_, index) =>
-      1 -
-      Math.min(Math.abs(index - position), SCALE_FLOOR_DISTANCE) *
-        SCALE_PER_STEP,
+  const scales = items.map((_, index) =>
+    Math.max(minimumScale, 1 - Math.abs(index - position) * scalePerStep),
   );
 
   const tops: number[] = [];
   let cursor = 0;
   items.forEach((_, index) => {
     tops.push(cursor);
-    cursor += heights[index] * scales[index] + space;
+    cursor += heights[index] * (reserveFullHeight ? 1 : scales[index]) + space;
   });
 
   const centerOf = (index: number) =>
@@ -56,7 +63,9 @@ export function layoutReel(
   items.forEach((item, index) => {
     const distance = Math.abs(index - position);
     item.style.transform = `translateY(${tops[index] - focusY}px) scale(${scales[index]})`;
-    item.style.opacity = String(Math.max(0, 1 - distance * OPACITY_PER_STEP));
+    item.style.opacity = String(
+      Math.max(minimumOpacity, 1 - distance * OPACITY_PER_STEP),
+    );
     item.style.fontWeight = String(
       Math.round(
         weight.center - Math.min(distance, 1) * (weight.center - weight.edge),

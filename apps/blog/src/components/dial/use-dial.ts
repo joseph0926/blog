@@ -168,6 +168,9 @@ type SectionDialOptions = ReelOptions & {
   turnDistance?: number;
   /** 읽는 선의 위치. 뷰포트 높이에 대한 비율이다. */
   readingLine?: number;
+  /** 고정 헤더가 있는 읽기 화면은 뷰포트 비율 대신 px 위치를 쓴다. */
+  readingOffset?: number;
+  showAll?: boolean;
 };
 
 /**
@@ -178,7 +181,8 @@ export function useSectionDial<T extends HTMLElement>(
   anchorIds: (string | null)[],
   options: SectionDialOptions,
 ) {
-  const mode = useDialMode();
+  const preferredMode = useDialMode();
+  const mode = options.showAll ? 'static' : preferredMode;
   const itemRefs = useRef<(T | null)[]>([]);
   const optionsRef = useRef(options);
   const [current, setCurrent] = useState(0);
@@ -204,14 +208,15 @@ export function useSectionDial<T extends HTMLElement>(
       const {
         turnDistance = 200,
         readingLine = 0.4,
+        readingOffset,
         ...reel
       } = optionsRef.current;
-      const line = window.innerHeight * readingLine;
+      const line = readingOffset ?? window.innerHeight * readingLine;
       const offsets = ids.map((id) => offsetOf(id, line));
       const passed = offsets.filter((offset) => offset <= 0).length;
       const next = offsets[passed];
       let position = Math.max(passed - 1, 0);
-      if (passed > 0 && next !== undefined) {
+      if (passed > 0 && next !== undefined && turnDistance > 0) {
         position += smoothstep(clamp(1 - next / turnDistance, 0, 1));
       }
       if (mode === 'reel') layoutReel(items(), position, reel);

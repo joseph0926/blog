@@ -39,9 +39,9 @@
     "nextQuestion": "Next question"
   },
   "blog": {
-    "eyebrow": "FRONTEND ENGINEERING NOTES",
-    "headline": "Engineering essays about the frontend.",
-    "description": "React, TypeScript, Next.js, performance, testing, and source-code reading. I document what I learn in practice so the next decision is clearer.",
+    "eyebrow": "SOFTWARE AND LEARNING",
+    "headline": "What I learn while building",
+    "description": "Notes on building software, solving problems, and learning new tools.",
     "searchLabel": "Search blog posts",
     "all": "All",
     "topic": "Topic",
@@ -227,8 +227,8 @@
   "meta": {
     "homeTitle": "Younghoon Kim Blog",
     "homeDescription": "Personal engineering blog about React, TypeScript, and web performance optimization.",
-    "blogTitle": "Blog - Younghoon Kim | Frontend Engineering",
-    "blogDescription": "Technical posts on frontend engineering, React, TypeScript, and web performance.",
+    "blogTitle": "Blog - Younghoon Kim | Software and Learning",
+    "blogDescription": "Notes on building software, solving problems, and learning new tools.",
     "postFallbackTitle": "Younghoon Kim Blog",
     "postFallbackDescription": "Personal engineering blog by Younghoon Kim."
   }

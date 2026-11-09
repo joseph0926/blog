@@ -10,7 +10,7 @@
 .message {
   align-self: flex-start;
   min-width: 0;
-  max-width: 90%;
+  max-width: 80%;
   margin: 0;
   padding: 0;
   color: var(--foreground);
@@ -40,7 +40,7 @@
 .bubble {
   padding: 1rem 1.125rem;
   border: 1px solid var(--border);
-  border-radius: 0.25rem 1.125rem 1.125rem;
+  border-radius: 4px 16px 16px;
   background: var(--card);
   font-size: 1rem;
   line-height: 1.85;
@@ -57,7 +57,7 @@
 
 .message[data-from='user'] .bubble {
   border-color: transparent;
-  border-radius: 1.125rem 0.25rem 1.125rem 1.125rem;
+  border-radius: 16px 4px 16px 16px;
   background: var(--secondary);
 }
 
@@ -97,10 +97,6 @@
 }
 
 @media (min-width: 640px) {
-  .message {
-    max-width: 86%;
-  }
-
   .bubble {
     padding: 1.125rem 1.375rem;
   }

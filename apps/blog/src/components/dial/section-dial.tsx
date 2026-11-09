@@ -3,7 +3,8 @@
 import { cn } from '@joseph0926/ui/lib/utils';
 import { ArrowLeft } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { type MouseEvent, useEffect, useState } from 'react';
+import { type MouseEvent, useEffect, useRef, useState } from 'react';
+import { PostReturnLink } from '@/components/post/post-navigation';
 import { Link } from '@/i18n/navigation';
 import styles from './section-dial.module.css';
 import { useDialMode, useSectionDial } from './use-dial';
@@ -17,9 +18,11 @@ export type SectionDialItem = {
 type SectionDialProps = {
   items: SectionDialItem[];
   label: string;
-  back?: { href: string; label: string };
+  back?: { href: string; label: string; postSlug?: string };
   /** 휴대폰에서 이 제목이 헤더 뒤로 지나간 뒤에만 현재 절 띠를 보여 준다. */
   mobileBarAfterId?: string;
+  /** 읽는 글에서는 주변 절을 숨기지 않고 전체 목록으로 보여 준다. */
+  showAll?: boolean;
 };
 
 const REEL = { space: 14, weight: { center: 620, edge: 300 } };
@@ -34,12 +37,31 @@ export function SectionDial({
   label,
   back,
   mobileBarAfterId,
+  showAll = false,
 }: SectionDialProps) {
   const { mode, itemRef, current } = useSectionDial<HTMLAnchorElement>(
     items.map((item) => item.id),
-    REEL,
+    {
+      ...REEL,
+      showAll,
+      readingOffset: showAll ? 96 : undefined,
+      turnDistance: showAll ? 0 : 200,
+    },
   );
   const isReel = mode === 'reel';
+  const listRef = useRef<HTMLOListElement>(null);
+
+  useEffect(() => {
+    if (!showAll) return;
+    const list = listRef.current;
+    const link = list?.querySelector<HTMLElement>('[aria-current="location"]');
+    if (!list || !link) return;
+    const bounds = list.getBoundingClientRect();
+    const active = link.getBoundingClientRect();
+    if (active.top < bounds.top) list.scrollTop += active.top - bounds.top;
+    else if (active.bottom > bounds.bottom)
+      list.scrollTop += active.bottom - bounds.bottom;
+  }, [current, showAll]);
 
   const jump = (event: MouseEvent, id: string | null) => {
     if (id !== null) return;
@@ -53,24 +75,33 @@ export function SectionDial({
         aria-label={label}
         className={cn(
           styles.navigation,
+          showAll && styles.allSections,
           'sticky top-0 hidden h-svh self-start lg:block',
         )}
       >
-        {back && (
-          <Link
-            href={back.href}
+        {back?.postSlug ? (
+          <PostReturnLink
+            postSlug={back.postSlug}
             className="bg-muted text-foreground hover:bg-accent focus-visible:ring-ring absolute top-24 left-0 z-10 inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
-          >
-            <ArrowLeft aria-hidden="true" size={16} />
-            {back.label}
-          </Link>
+          />
+        ) : (
+          back && (
+            <Link
+              href={back.href}
+              className="bg-muted text-foreground hover:bg-accent focus-visible:ring-ring absolute top-24 left-0 z-10 inline-flex min-h-11 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <ArrowLeft aria-hidden="true" size={16} />
+              {back.label}
+            </Link>
+          )
         )}
         <ol
+          ref={listRef}
           className={cn(
             styles.items,
             isReel
               ? 'pointer-events-none absolute inset-0'
-              : 'space-y-2.5 pt-44',
+              : cn('space-y-2.5', !showAll && 'pt-44'),
           )}
         >
           {items.map((item, index) => (

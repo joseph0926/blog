@@ -1,4 +1,16 @@
-.navigation:focus-within .items {
+.allSections .items {
+  max-height: calc(100svh - 13rem);
+  margin-top: 11rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem;
+}
+
+.allSections .items a {
+  padding: 0.25rem;
+}
+
+.navigation:not(.allSections):focus-within .items {
   position: relative;
   inset: auto;
   max-height: 100svh;
@@ -6,7 +18,7 @@
   padding: 11rem 0.25rem 2rem;
 }
 
-.navigation:focus-within .items a {
+.navigation:not(.allSections):focus-within .items a {
   position: relative;
   top: auto;
   margin-block: 0.5rem;
@@ -19,6 +31,6 @@
   font-weight: 400 !important;
 }
 
-.navigation:focus-within .items a[aria-current='location'] {
+.navigation:not(.allSections):focus-within .items a[aria-current='location'] {
   font-weight: 650 !important;
 }

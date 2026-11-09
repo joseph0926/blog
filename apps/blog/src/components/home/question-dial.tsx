@@ -12,6 +12,10 @@ import {
 } from 'react';
 import { startTitleMorph } from '@/components/dial/title-morph';
 import { usePinnedReel, useReelViewport } from '@/components/dial/use-dial';
+import {
+  PostLink,
+  rememberPostOrigin,
+} from '@/components/post/post-navigation';
 import { Link, useRouter } from '@/i18n/navigation';
 import { HomeSearch } from './home-search';
 import styles from './question-dial.module.css';
@@ -32,7 +36,14 @@ type QuestionDialProps = {
   notice: { kind: 'error' | 'empty'; message: string } | null;
 };
 
-const REEL = { space: 32, weight: { center: 640, edge: 300 } };
+const REEL = {
+  space: 32,
+  weight: { center: 640, edge: 300 },
+  scalePerStep: 0.22,
+  minimumScale: 0.5,
+  minimumOpacity: 0.18,
+  reserveFullHeight: true,
+};
 
 const isPlainClick = (event: MouseEvent) =>
   event.button === 0 &&
@@ -79,6 +90,7 @@ export function QuestionDial({ posts, totalCount, notice }: QuestionDialProps) {
   }, [centerIndex, isReel]);
 
   const openPost = (index: number) => {
+    rememberPostOrigin(posts[index].slug);
     const source = getItem(index);
     const href = `/post/${posts[index].slug}`;
     if (source) startTitleMorph(source, () => router.push(href));
@@ -182,7 +194,8 @@ export function QuestionDial({ posts, totalCount, notice }: QuestionDialProps) {
                 >
                   {posts.map((post, index) => (
                     <li key={post.slug}>
-                      <Link
+                      <PostLink
+                        postSlug={post.slug}
                         ref={itemRef(index)}
                         href={`/post/${post.slug}`}
                         onClick={(event) => handleItemClick(event, index)}
@@ -198,7 +211,7 @@ export function QuestionDial({ posts, totalCount, notice }: QuestionDialProps) {
                         )}
                       >
                         {post.title}
-                      </Link>
+                      </PostLink>
                       {!isReel && (
                         <div className={styles.staticSummary}>
                           <p className={styles.meta}>
@@ -239,14 +252,15 @@ export function QuestionDial({ posts, totalCount, notice }: QuestionDialProps) {
                       </motion.div>
                     </AnimatePresence>
                   </div>
-                  <Link
+                  <PostLink
+                    postSlug={current.slug}
                     href={`/post/${current.slug}`}
                     onClick={handleReadClick}
                     className={styles.readLink}
                   >
                     {t('readEssay')}
                     <ArrowUpRight aria-hidden="true" size={17} />
-                  </Link>
+                  </PostLink>
                 </aside>
               )}
             </div>

@@ -14,16 +14,11 @@ import { keepPreviousData } from '@tanstack/react-query';
 import { format, type Locale } from 'date-fns';
 import { enUS, ko } from 'date-fns/locale';
 import { ChevronDown, Search, X } from 'lucide-react';
-import {
-  AnimatePresence,
-  motion,
-  useIsPresent,
-  useReducedMotion,
-} from 'motion/react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, usePathname, useRouter } from '@/i18n/navigation';
+import { PostLink } from '@/components/post/post-navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import type { AppLocale } from '@/i18n/routing';
 import { getPostsQueryInput } from '@/lib/post-query';
 import { trpc } from '@/lib/trpc';
@@ -65,7 +60,6 @@ const inkLink =
 
 export const BlogList = ({ tags }: BlogListProps) => {
   const t = useTranslations('blog');
-  const reduceMotion = useReducedMotion();
   const locale = useLocale() as AppLocale;
   const dateLocale = locale === 'ko' ? ko : enUS;
   const router = useRouter();
@@ -455,17 +449,14 @@ export const BlogList = ({ tags }: BlogListProps) => {
         <LoadingRows label={t('loading')} count={4} />
       )}
       <ul aria-busy={isFetching && !isFetchingNextPage}>
-        <AnimatePresence initial={false}>
-          {posts.map((post) => (
-            <AnimatedPostRow
-              key={post.id}
-              post={post}
-              locale={locale}
-              dateLocale={dateLocale}
-              reduceMotion={Boolean(reduceMotion)}
-            />
-          ))}
-        </AnimatePresence>
+        {posts.map((post) => (
+          <PostRow
+            key={post.id}
+            post={post}
+            locale={locale}
+            dateLocale={dateLocale}
+          />
+        ))}
       </ul>
       {!isError && !isFetching && posts.length === 0 && (
         <section className="py-12 text-center">
@@ -512,34 +503,24 @@ export const BlogList = ({ tags }: BlogListProps) => {
   );
 };
 
-function AnimatedPostRow({
+function PostRow({
   post,
   locale,
   dateLocale,
-  reduceMotion,
 }: {
   post: PostResponse;
   locale: AppLocale;
   dateLocale: Locale;
-  reduceMotion: boolean;
 }) {
   const t = useTranslations('blog');
-  const isPresent = useIsPresent();
   return (
-    <motion.li
-      inert={!isPresent}
-      aria-hidden={!isPresent || undefined}
-      initial={{ height: 0, opacity: 0 }}
-      animate={{ height: 'auto', opacity: 1 }}
-      exit={{ height: 0, opacity: 0 }}
-      transition={{ duration: reduceMotion ? 0 : 0.18, ease: [0.2, 0, 0, 1] }}
-      className="overflow-hidden"
-    >
-      <Link
+    <li className="overflow-hidden">
+      <PostLink
+        postSlug={post.slug}
         href={`/post/${post.slug}`}
         className="group focus-visible:ring-ring active:bg-muted/40 block rounded-[6px] py-5 focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset"
       >
-        <h3 className="group-hover:text-accent-ink font-serif text-xl leading-[1.4] font-semibold tracking-[-0.015em] break-keep transition-colors duration-150 sm:text-2xl">
+        <h3 className="group-hover:text-accent-ink line-clamp-2 font-serif text-xl leading-[1.4] font-semibold tracking-[-0.015em] break-keep transition-colors duration-150 sm:text-2xl">
           {post.title}
         </h3>
         <p className="text-muted-foreground mt-2 line-clamp-2 text-[15px] leading-[1.55]">
@@ -558,8 +539,8 @@ function AnimatedPostRow({
             <span key={tag.id}>{getTagLabel(tag.name)}</span>
           ))}
         </p>
-      </Link>
-    </motion.li>
+      </PostLink>
+    </li>
   );
 }
 
